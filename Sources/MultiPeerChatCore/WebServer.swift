@@ -298,11 +298,12 @@ public class WebServer: ObservableObject {
         
         let bodyString = String(request[bodyStart...])
         guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
-              let username = json["username"] as? String else {
+              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any] else {
             sendErrorResponse(connection, error: "Invalid request body")
             return
         }
+        
+        let username = json["username"] as? String
         
         do {
             let options = try webAuthnManager.generateAuthenticationOptions(username: username)
@@ -329,8 +330,13 @@ public class WebServer: ObservableObject {
         }
         
         do {
-            try webAuthnManager.verifyAuthentication(username: username, credential: json)
-            sendJSONResponse(connection, json: "{\"success\":true}")
+            let foundUsername = try webAuthnManager.verifyAuthentication(username: username, credential: json)
+            let response: [String: Any] = [
+                "success": true,
+                "username": foundUsername ?? username
+            ]
+            let responseData = try JSONSerialization.data(withJSONObject: response)
+            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
         } catch {
             sendErrorResponse(connection, error: "Authentication verification failed")
         }

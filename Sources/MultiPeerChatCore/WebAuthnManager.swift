@@ -3,6 +3,7 @@ import CryptoKit
 
 class WebAuthnManager {
     private var credentials: [String: WebAuthnCredential] = [:]
+    private var credentialIdToUsername: [String: String] = [:]
     private let credentialsFile = "webauthn_credentials.json"
     private let rpId: String
     
@@ -26,6 +27,7 @@ class WebAuthnManager {
             let arr = try JSONDecoder().decode([WebAuthnCredential].self, from: data)
             for cred in arr {
                 credentials[cred.username] = cred
+                credentialIdToUsername[cred.id] = cred.username
             }
             print("[WebAuthn] Loaded \(arr.count) credentials from disk.")
         } catch {
@@ -78,30 +80,53 @@ class WebAuthnManager {
         return options
     }
     
-    func generateAuthenticationOptions(username: String) throws -> [String: Any] {
-        guard let credential = credentials[username] else {
-            throw WebAuthnError.credentialNotFound
-        }
-        
+    func generateAuthenticationOptions(username: String?) throws -> [String: Any] {
         let challenge = generateChallenge()
+        
+        var allowCredentials: [[String: Any]] = []
+        
+        if let username = username {
+            // If username is provided, only allow that specific credential
+            guard let credential = credentials[username] else {
+                throw WebAuthnError.credentialNotFound
+            }
+            allowCredentials = [[
+                "type": "public-key",
+                "id": credential.id,
+                "transports": ["internal"]
+            ]]
+        } else {
+            // If no username provided, allow all credentials
+            allowCredentials = credentials.values.map { credential in
+                [
+                    "type": "public-key",
+                    "id": credential.id,
+                    "transports": ["internal"]
+                ]
+            }
+        }
         
         let options: [String: Any] = [
             "publicKey": [
                 "challenge": challenge,
                 "timeout": 60000,
                 "rpId": rpId,
-                "allowCredentials": [
-                    [
-                        "type": "public-key",
-                        "id": credential.id,
-                        "transports": ["internal"]
-                    ]
-                ],
+                "allowCredentials": allowCredentials,
                 "userVerification": "preferred"
             ]
         ]
         
         return options
+    }
+    
+    private func base64urlToBase64(_ s: String) -> String {
+        var base64 = s.replacingOccurrences(of: "-", with: "+")
+                      .replacingOccurrences(of: "_", with: "/")
+        let rem = base64.count % 4
+        if rem > 0 {
+            base64 += String(repeating: "=", count: 4 - rem)
+        }
+        return base64
     }
     
     func verifyRegistration(username: String, credential: [String: Any]) throws {
@@ -116,10 +141,11 @@ class WebAuthnManager {
         // 2. Verify the client data
         // 3. Store the credential
 
-        guard let id = credential["id"] as? String else {
+        guard let idRaw = credential["id"] as? String else {
             print("[WebAuthn] MISSING id")
             throw WebAuthnError.invalidCredential
         }
+        let id = base64urlToBase64(idRaw)
         guard let rawId = credential["rawId"] as? String else {
             print("[WebAuthn] MISSING rawId")
             throw WebAuthnError.invalidCredential
@@ -137,7 +163,7 @@ class WebAuthnManager {
             throw WebAuthnError.invalidCredential
         }
         print("[WebAuthn] All required fields present. id=\(id) rawId=\(rawId)")
-        // Store the credential
+        // Store the credential and mapping for authentication
         let newCredential = WebAuthnCredential(
             id: id,
             publicKey: rawId, // In a real implementation, this would be the public key
@@ -145,19 +171,28 @@ class WebAuthnManager {
             username: username
         )
         credentials[username] = newCredential
+        credentialIdToUsername[id] = username // Store mapping for authentication
         saveCredentials()
     }
     
-    func verifyAuthentication(username: String, credential: [String: Any]) throws {
-        print("[WebAuthn] verifyAuthentication called for username: \(username)")
+    func verifyAuthentication(username: String?, credential: [String: Any]) throws -> String? {
+        print("[WebAuthn] verifyAuthentication called for username: \(username ?? "nil")")
         print("[WebAuthn] credential received: \(credential)")
-        guard let storedCredential = credentials[username] else {
-            print("[WebAuthn] credentialNotFound for username: \(username)")
-            throw WebAuthnError.credentialNotFound
-        }
-        guard let id = credential["id"] as? String else {
+        
+        guard let idRaw = credential["id"] as? String else {
             print("[WebAuthn] MISSING id")
             throw WebAuthnError.invalidCredential
+        }
+        let id = base64urlToBase64(idRaw)
+        // If username is not provided, look it up by credentialId (WebAuthn standard)
+        let usernameToUse = (username?.isEmpty ?? true) ? credentialIdToUsername[id] : username
+        guard let finalUsername = usernameToUse else {
+            print("[WebAuthn] No username found for credential ID: \(id)")
+            throw WebAuthnError.credentialNotFound
+        }
+        guard let storedCredential = credentials[finalUsername] else {
+            print("[WebAuthn] credentialNotFound for username: \(finalUsername)")
+            throw WebAuthnError.credentialNotFound
         }
         guard let response = credential["response"] as? [String: Any] else {
             print("[WebAuthn] MISSING response")
@@ -175,15 +210,13 @@ class WebAuthnManager {
             print("[WebAuthn] MISSING signature")
             throw WebAuthnError.invalidCredential
         }
-        // In a real implementation, you would:
-        // 1. Verify the signature
-        // 2. Verify the client data
-        // 3. Update the sign count
         if id != storedCredential.id {
-            print("[WebAuthn] id does not match storedCredential.id")
+            print("[WebAuthn] id does not match storedCredential.id (auth: \(id), stored: \(storedCredential.id))")
             throw WebAuthnError.invalidCredential
         }
         print("[WebAuthn] All required fields present. id=\(id)")
+        // Return the username if it was found from the credential ID
+        return (username?.isEmpty ?? true) ? finalUsername : nil
     }
     
     private func generateChallenge() -> String {

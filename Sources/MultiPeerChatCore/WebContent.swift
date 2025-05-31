@@ -318,65 +318,62 @@ func generateIndexHTML() -> String {
         }
 
         async function loginWithWebAuthn() {
-            const username = document.getElementById('username-input').value;
-            if (!username) {
-                alert('Please enter your username');
-                return;
+            const usernameInput = document.getElementById('username-input');
+            let username = usernameInput.value.trim();
+            if (username === '') {
+                username = null;
             }
-
-            try {
-                // Get authentication options from server
-                const response = await fetch('/webauthn/authenticate/begin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
-                });
-                
-                if (!response.ok) throw new Error('Authentication failed');
-                
-                const options = await response.json();
-                
-                // Convert base64 strings to ArrayBuffer
+            fetch('/webauthn/authenticate/begin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username })
+            })
+            .then(response => response.json())
+            .then(options => {
+                // Convert challenge to ArrayBuffer
                 options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
-                options.publicKey.allowCredentials.forEach(cred => {
-                    cred.id = base64ToArrayBuffer(cred.id);
-                });
-                
-                // Get credentials
-                const credential = await navigator.credentials.get(options);
-                
-                // Convert ArrayBuffer to base64
-                const clientDataJSON = arrayBufferToBase64(credential.response.clientDataJSON);
-                const authenticatorData = arrayBufferToBase64(credential.response.authenticatorData);
-                const signature = arrayBufferToBase64(credential.response.signature);
-                const userHandle = arrayBufferToBase64(credential.response.userHandle);
-                
-                // Send authentication data to server
-                const verificationResponse = await fetch('/webauthn/authenticate/complete', {
+                // Convert each allowCredentials id to ArrayBuffer
+                if (options.publicKey.allowCredentials) {
+                    options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(cred => ({
+                        ...cred,
+                        id: base64ToArrayBuffer(cred.id)
+                    }));
+                }
+                return navigator.credentials.get({ publicKey: options.publicKey });
+            })
+            .then(assertion => {
+                const credential = {
+                    id: assertion.id,
+                    rawId: arrayBufferToBase64(assertion.rawId),
+                    type: assertion.type,
+                    response: {
+                        clientDataJSON: arrayBufferToBase64(assertion.response.clientDataJSON),
+                        authenticatorData: arrayBufferToBase64(assertion.response.authenticatorData),
+                        signature: arrayBufferToBase64(assertion.response.signature),
+                        userHandle: assertion.response.userHandle ? arrayBufferToBase64(assertion.response.userHandle) : null
+                    },
+                    username: username || ''
+                };
+                return fetch('/webauthn/authenticate/complete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: arrayBufferToBase64(credential.rawId),
-                        rawId: arrayBufferToBase64(credential.rawId),
-                        response: {
-                            clientDataJSON,
-                            authenticatorData,
-                            signature,
-                            userHandle
-                        },
-                        type: credential.type,
-                        username
-                    })
+                    body: JSON.stringify(credential)
                 });
-                
-                if (!verificationResponse.ok) throw new Error('Authentication verification failed');
-                
-                // If authentication successful, join the chat
-                joinChat();
-            } catch (error) {
-                console.error('WebAuthn authentication error:', error);
-                alert('Authentication failed: ' + error.message);
-            }
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    if (!usernameInput.value && result.username) {
+                        usernameInput.value = result.username;
+                    }
+                    // Proceed to chat or next step
+                } else {
+                    alert('Authentication failed: ' + (result.error || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                alert('WebAuthn authentication error: ' + err);
+            });
         }
 
         // Utility functions for ArrayBuffer conversion
