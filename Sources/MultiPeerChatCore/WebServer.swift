@@ -2,6 +2,7 @@ import Foundation
 import Network
 import Combine
 
+var globalRpIdServer = "chat.xcf.ai"
 public protocol WebServerDelegate: AnyObject {
     func webServer(_ server: WebServer, didReceiveMessage message: String, from client: WebSocketClient)
     func webServer(_ server: WebServer, clientDidConnect client: WebSocketClient)
@@ -18,11 +19,10 @@ public class WebServer: ObservableObject {
     @Published public var isRunning = false
     @Published public var connectedClients: Int = 0
     
-    private let rpId: String
+    private let rpId: String = globalRpIdServer
     private let webAuthnManager: WebAuthnManager
     
-    public init(rpId: String = "localhost") {
-        self.rpId = rpId
+    public init() {
         self.webAuthnManager = WebAuthnManager(rpId: rpId)
     }
     

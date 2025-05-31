@@ -19,7 +19,8 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     private let persistenceManager = PersistenceManager.shared
     private let rpId: String
     
-    public init(rpId: String = "localhost") {
+    
+    public init(rpId: String) {
         self.rpId = rpId
         webServer.delegate = self
         

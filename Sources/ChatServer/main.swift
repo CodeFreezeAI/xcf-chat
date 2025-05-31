@@ -1,14 +1,14 @@
 import Foundation
 import MultiPeerChatCore
 
-var rpId = "localhost"
+var globalRpId = "chat.xcf.ai"
 if let rpArgIndex = CommandLine.arguments.firstIndex(of: "--rp-id"), CommandLine.arguments.count > rpArgIndex + 1 {
-    rpId = CommandLine.arguments[rpArgIndex + 1]
+    globalRpId = CommandLine.arguments[rpArgIndex + 1]
 }
 // Pass rpId to WebServer
-let server = WebChatServer(rpId: rpId)
+let server = WebChatServer(rpId: globalRpId)
 
-print("🌐 💬 \(rpId) Web Server")
+print("🌐 💬 \(globalRpId) Web Server")
 print("============================")
 print("")
 
@@ -27,7 +27,7 @@ server.start(on: port)
 Thread.sleep(forTimeInterval: 1.0)
 
 print("✅ Server is running!")
-print("🌍 Open your browser and go to: http://\(rpId):\(port)")
+print("🌍 Open your browser and go to: http://\(globalRpId):\(port)")
 print("📱 Or access from other devices on your network")
 print("")
 print("💡 Commands:")

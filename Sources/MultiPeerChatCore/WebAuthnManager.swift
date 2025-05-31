@@ -1,5 +1,4 @@
 import Foundation
-import CryptoKit
 
 class WebAuthnManager {
     private var credentials: [String: WebAuthnCredential] = [:]
@@ -7,7 +6,7 @@ class WebAuthnManager {
     private let credentialsFile = "webauthn_credentials.json"
     private let rpId: String
     
-    init(rpId: String = "localhost") {
+    init(rpId: String) {
         self.rpId = rpId
         loadCredentials()
     }
