@@ -17,8 +17,10 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     
     private var cancellables = Set<AnyCancellable>()
     private let persistenceManager = PersistenceManager.shared
+    private let rpId: String
     
-    public init() {
+    public init(rpId: String = "localhost") {
+        self.rpId = rpId
         webServer.delegate = self
         
         // Observe webServer's running state
@@ -513,7 +515,6 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     }
     
     private func getServerAddress() -> String {
-        // In a real deployment, this would be your actual server address
-        return "localhost:8081"
+        return rpId
     }
 } 

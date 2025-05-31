@@ -4,8 +4,10 @@ import CryptoKit
 class WebAuthnManager {
     private var credentials: [String: WebAuthnCredential] = [:]
     private let credentialsFile = "webauthn_credentials.json"
+    private let rpId: String
     
-    init() {
+    init(rpId: String = "localhost") {
+        self.rpId = rpId
         loadCredentials()
     }
     
@@ -51,8 +53,8 @@ class WebAuthnManager {
             "publicKey": [
                 "challenge": challenge,
                 "rp": [
-                    "name": "chat.XCF.ai",
-                    "id": "localhost"
+                    "name": rpId,
+                    "id": rpId
                 ],
                 "user": [
                     "id": userId,
@@ -87,7 +89,7 @@ class WebAuthnManager {
             "publicKey": [
                 "challenge": challenge,
                 "timeout": 60000,
-                "rpId": "localhost",
+                "rpId": rpId,
                 "allowCredentials": [
                     [
                         "type": "public-key",

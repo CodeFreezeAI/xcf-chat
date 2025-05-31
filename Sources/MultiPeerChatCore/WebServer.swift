@@ -18,9 +18,13 @@ public class WebServer: ObservableObject {
     @Published public var isRunning = false
     @Published public var connectedClients: Int = 0
     
-    private let webAuthnManager = WebAuthnManager()
+    private let rpId: String
+    private let webAuthnManager: WebAuthnManager
     
-    public init() {}
+    public init(rpId: String = "localhost") {
+        self.rpId = rpId
+        self.webAuthnManager = WebAuthnManager(rpId: rpId)
+    }
     
     public func start(on port: UInt16) {
         do {

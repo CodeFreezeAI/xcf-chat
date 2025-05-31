@@ -8,13 +8,13 @@ func generateIndexHTML() -> String {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>chat.xcf.ai</title>
+        <title><span id="rp-id"></span></title>
         <link rel="stylesheet" href="/style.css">
     </head>
     <body>
         <div class="container">
             <header class="header">
-                <h1>💬 chat.XCF.ai</h1>
+                <h1>💬 <span id="rp-id"></span></h1>
                 <div class="status">
                     <span id="connection-status" class="status-disconnected">Disconnected</span>
                     <span id="user-count">0 users online</span>
@@ -130,7 +130,7 @@ func generateIndexHTML() -> String {
                         <div class="auth-options">
                             <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Biometrics</button>
                             <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Biometrics</button>
-                            <button id="join-btn" onclick="joinChat()">Join Chat</button>
+                            <button id="join-btn" onclick="joinChat()" style="display:none;">Join Chat</button>
                         </div>
                     </div>
                 </div>
@@ -166,13 +166,14 @@ func generateIndexHTML() -> String {
                                     <button id="clear-history-btn" class="clear-history-btn" onclick="clearChatHistory()" disabled>Clear History</button>
                                     <button id="remove-room-btn" class="remove-room-btn" onclick="removeRoom()" style="display:none;">Remove</button>
                                     <button id="leave-room-btn" class="leave-room-btn" onclick="leaveRoom()" disabled>Leave Room</button>
+                                    <button id="logout-btn" onclick="logout()" style="margin-left: 1rem;">Logout</button>
                                 </div>
                             </div>
                         </div>
                         
                         <div id="messages-container" class="messages-container">
                             <div class="welcome-message">
-                                <h3>Welcome to 💬 chat.XCF.ai! 🎉</h3>
+                                <h3>Welcome to <span id="rp-id"></span>! 🎉</h3>
                                 <p>Create a room or join an existing one to start chatting.</p>
                             </div>
                         </div>
@@ -397,6 +398,14 @@ func generateIndexHTML() -> String {
             }
             return window.btoa(binary);
         }
+
+        // Replace all ${rpId} with <span id="rp-id"></span>
+        // At the top of the <script> section, add:
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('#rp-id').forEach(function(el) {
+                el.textContent = window.location.hostname;
+            });
+        });
         </script>
     </body>
     </html>
@@ -1082,7 +1091,7 @@ func generateCSS() -> String {
         .room-actions {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .room-actions .room-info-mobile {
@@ -1097,6 +1106,8 @@ func generateCSS() -> String {
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
         }
 
         .room-actions .leave-room-btn {
@@ -2156,8 +2167,8 @@ func generateChatJS() -> String {
             if (this.messages.length === 0) {
                 container.innerHTML = `
                     <div class="welcome-message">
-                        <h3>Welcome to ${this.currentRoom ? this.currentRoom.name : '💬 chat.XCF.ai'}! 🎉</h3>
-                        <p>${this.currentRoom ? 'Start chatting with other users in this room.' : 'Create a room or join an existing one to start chatting.'}</p>
+                        <h3>Welcome to <span id="rp-id"></span>! 🎉</h3>
+                        <p>Create a room or join an existing one to start chatting.</p>
                     </div>
                 `;
                 return;
@@ -2472,5 +2483,18 @@ func generateChatJS() -> String {
 
     // After the ChatClient class definition, add:
     window.removeRoom = function() { chatClient.removeRoom(); };
+
+    function logout() {
+        // Return to login screen, clear session
+        document.getElementById('chat-screen').classList.add('hidden');
+        document.getElementById('login-screen').classList.remove('hidden');
+        // Optionally clear username, emoji, etc.
+        document.getElementById('username-input').value = '';
+        document.getElementById('selected-emoji').textContent = '👤';
+        // Disconnect WebSocket if needed
+        if (window.chatClient && window.chatClient.ws) {
+            window.chatClient.ws.close();
+        }
+    }
     """
 }
