@@ -366,7 +366,8 @@ func generateIndexHTML() -> String {
                     if (!usernameInput.value && result.username) {
                         usernameInput.value = result.username;
                     }
-                    // Proceed to chat or next step
+                    // FIX: Actually join the chat after successful authentication!
+                    joinChat();
                 } else {
                     alert('Authentication failed: ' + (result.error || 'Unknown error'));
                 }
