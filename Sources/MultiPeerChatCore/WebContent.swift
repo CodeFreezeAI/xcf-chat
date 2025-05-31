@@ -130,7 +130,6 @@ func generateIndexHTML() -> String {
                         <div class="auth-options">
                             <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Biometrics</button>
                             <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Biometrics</button>
-                            <button id="join-btn" onclick="joinChat()" style="display:none;">Join Chat</button>
                         </div>
                     </div>
                 </div>
@@ -879,10 +878,12 @@ func generateCSS() -> String {
         word-break: break-word;
     }
 
+    /* Message Input Styles */
     .message-input-container {
         padding: 1.5rem;
         border-top: 1px solid var(--border-color);
         display: flex;
+        align-items: center;
         gap: 1rem;
     }
 
@@ -914,6 +915,63 @@ func generateCSS() -> String {
     .message-input-container button:disabled {
         background: var(--disabled-bg);
         cursor: not-allowed;
+    }
+
+    /* File Upload Area */
+    .file-upload-area {
+        display: flex;
+        align-items: center;
+    }
+
+    .circle-attachment-btn {
+        width: 48px;
+        height: 48px;
+        aspect-ratio: 1/1;
+        border-radius: 50%;
+        background: var(--accent-color);
+        color: white;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-family: "SF Pro", "SF Pro Icons", "Apple Symbols", "system-ui", sans-serif;
+        cursor: pointer;
+        transition: background 0.3s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .circle-attachment-btn:hover {
+        background: var(--accent-color-hover);
+    }
+
+    .circle-attachment-btn:disabled {
+        background: var(--disabled-bg);
+        cursor: not-allowed;
+    }
+
+    /* Mobile adjustments for message input */
+    @media (max-width: 768px) {
+        .message-input-container {
+            padding: 1rem;
+            flex-direction: row !important;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .message-input-container input {
+            width: 100%;
+            margin-left: 0;
+            margin-bottom: 70px !important;
+        }
+        
+        .message-input-container button {
+            width: auto;
+            min-width: 60px;
+            margin-left: 0;
+            margin-bottom: 70px !important;
+
+        }
     }
 
     /* Modal */
@@ -1333,44 +1391,6 @@ func generateCSS() -> String {
     }
 
     /* File Upload Styles */
-    .message-input-container {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .file-upload-area {
-        display: flex;
-        align-items: center;
-    }
-
-    .circle-attachment-btn {
-        width: 48px;
-        height: 48px;
-        aspect-ratio: 1/1;
-        border-radius: 50%;
-        background: var(--accent-color);
-        color: white;
-        border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 2rem;
-        font-family: "SF Pro", "SF Pro Icons", "Apple Symbols", "system-ui", sans-serif;
-        cursor: pointer;
-        transition: background 0.3s;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .circle-attachment-btn:hover {
-        background: var(--accent-color-hover);
-    }
-
-    .circle-attachment-btn:disabled {
-        background: var(--disabled-bg);
-        cursor: not-allowed;
-    }
-
     .file-preview-container {
         max-height: 300px;
         overflow-y: auto;
@@ -1565,23 +1585,29 @@ func generateCSS() -> String {
     .auth-options {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        margin-top: 15px;
+        gap: 15px;
+        margin-top: 20px;
+        width: 100%;
+        max-width: 300px;
     }
 
     .auth-options button {
-        padding: 10px;
+        padding: 12px 20px;
         border: none;
-        border-radius: 5px;
-        background-color: #4CAF50;
+        border-radius: 8px;
         color: white;
         cursor: pointer;
-        font-size: 14px;
-        transition: background-color 0.3s;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     .auth-options button:hover {
-        background-color: #45a049;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
     }
 
     #webauthn-register-btn {
@@ -1621,10 +1647,6 @@ func generateChatJS() -> String {
         
         initializeEventListeners() {
             // Enter key handlers
-            document.getElementById('username-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') this.joinChat();
-            });
-            
             document.getElementById('message-input').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') this.sendMessage();
             });
