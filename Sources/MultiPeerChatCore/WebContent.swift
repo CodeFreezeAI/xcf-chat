@@ -137,16 +137,20 @@ func generateIndexHTML() -> String {
                 <!-- Chat Screen -->
                 <div id="chat-screen" class="screen hidden">
                     <div class="sidebar">
-                        <div class="user-info">
-                            <div class="user-avatar">👤</div>
-                            <span id="current-username"></span>
-                        </div>
-                        
-                        <div class="rooms-section">
+                        <div class="sidebar-top">
+                            <div class="user-info">
+                                <div class="user-avatar">👤</div>
+                                <span id="current-username"></span>
+                            </div>
+                            
                             <div class="rooms-section-header" onclick="toggleRoomsList()">
                                 <span class="toggle-icon">▶</span>
                                 <h3>Rooms</h3>
+                                <button onclick="showCreateRoom()">+</button>
                             </div>
+                        </div>
+                        
+                        <div class="rooms-section">
                             <div id="rooms-list-container" class="rooms-list-container">
                                 <div id="rooms-list" class="rooms-list"></div>
                             </div>
@@ -162,9 +166,9 @@ func generateIndexHTML() -> String {
                             <h3 id="current-room-name">Select a room</h3>
                             <div class="room-actions">
                                 <div class="room-info-mobile">
-                                    <button id="clear-history-btn" class="clear-history-btn" onclick="clearChatHistory()" disabled>Clear History</button>
-                                    <button id="remove-room-btn" class="remove-room-btn" onclick="removeRoom()" style="display:none;">Remove</button>
-                                    <button id="leave-room-btn" class="leave-room-btn" onclick="leaveRoom()" disabled>Leave Room</button>
+                                    <button id="clear-history-btn" class="clear-history-btn" onclick="clearChatHistory()" disabled>Clear</button>
+                                    <button id="remove-room-btn" class="remove-room-btn" onclick="removeRoom()">Remove</button>
+                                    <button id="leave-room-btn" class="leave-room-btn" onclick="leaveRoom()" disabled>Leave</button>
                                     <button id="logout-btn" onclick="logout()" style="margin-left: 1rem;">Logout</button>
                                 </div>
                             </div>
@@ -242,13 +246,6 @@ func generateIndexHTML() -> String {
             var fileInput = document.getElementById('file-input');
             if (fileBtn) fileBtn.style.display = 'none';
             if (fileInput) fileInput.style.display = 'none';
-            var removeBtn = document.getElementById('remove-room-btn');
-            if (removeBtn) removeBtn.style.display = 'none';
-            // If the current room is Lobby, force hide
-            var currentRoomName = document.getElementById('current-room-name');
-            if (currentRoomName && currentRoomName.textContent.trim() === 'Lobby') {
-                removeBtn.style.display = 'none';
-            }
         });
 
         // WebAuthn Implementation
@@ -428,7 +425,8 @@ func generateIndexHTML() -> String {
 // MARK: - CSS Content
 func generateCSS() -> String {
     return """
-    #clear-history-btn, #remove-room-btn { display: none !important; }
+    /* Updated: 2024-12-19 - Mobile Layout Fixed */
+    #clear-history-btn { display: none !important; }
     body.admin #clear-history-btn { display: inline-block !important; }
     :root {
         /* Light Mode Colors */
@@ -682,19 +680,61 @@ func generateCSS() -> String {
         font-size: 1.5rem;
     }
 
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
+    .rooms-section {
+        position: relative;
     }
 
-    .section-header h3 {
+    .rooms-section-header {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        padding: 10px;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+        gap: 10px;
+    }
+
+    .rooms-section-header .toggle-icon {
+        transition: transform 0.3s ease;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+    }
+
+    .rooms-section-header .toggle-icon.rotated {
+        transform: rotate(90deg);
+    }
+
+    .rooms-section-header h3 {
+        margin-left: 5px;
         color: var(--text-secondary);
         font-size: 1.1rem;
     }
 
-    .section-header button {
+    .rooms-section-header button {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: none;
+        background: var(--accent-color);
+        color: white;
+        cursor: pointer;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: auto;
+    }
+
+    .rooms-section-header button:hover {
+        background: var(--accent-color-hover);
+    }
+
+    /* Ensure create room button has proper styling on all screen sizes */
+    button[onclick="showCreateRoom()"] {
         width: 30px;
         height: 30px;
         border-radius: 50%;
@@ -708,10 +748,27 @@ func generateCSS() -> String {
         justify-content: center;
     }
 
-    .rooms-list {
-        flex: 1;
+    button[onclick="showCreateRoom()"]:hover {
+        background: var(--accent-color-hover);
+    }
+
+    .rooms-section {
+        grid-column: 1 / -1;
+        margin-top: 0;
+        margin-bottom: 0; /* Ensure no bottom margin */
+    }
+
+    .rooms-list-container {
+        max-height: 250px;
         overflow-y: auto;
-        padding-top: 2px;
+        transition: max-height 0.3s ease, opacity 0.3s ease;
+        padding-top: 1rem;
+    }
+
+    .rooms-list-container.collapsed {
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
     }
 
     .room-item {
@@ -746,21 +803,108 @@ func generateCSS() -> String {
     }
 
     .room-item:hover {
-        background: var(--room-hover-bg) !important;
-        color: var(--text-primary) !important;
+        background: var(--room-hover-bg);
+        color: var(--text-primary);
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
         transform: translateY(-2px);
         border-color: var(--accent-color);
     }
 
     .room-item.active {
-        background: var(--accent-color) !important;
-        color: white !important;
+        background: var(--accent-color);
+        color: white;
     }
 
     .room-item.active:hover {
-        background: var(--accent-color) !important;
-        color: white !important;
+        background: var(--accent-color);
+        color: white;
+    }
+
+    .chat-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .chat-header {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem; /* Reduced from 1rem */
+    }
+
+    .chat-header h3 {
+        margin: 0;
+        flex-grow: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 1rem;
+    }
+
+    .room-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px; /* Reduced from 12px */
+    }
+
+    .room-actions .room-info-mobile {
+        display: flex;
+        align-items: center;
+        gap: 6px; /* Reduced from 10px */
+    }
+
+    .room-actions button {
+        padding: 0.5rem 1rem;
+        background: var(--accent-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .room-actions button:disabled {
+        background: var(--disabled-bg);
+        cursor: not-allowed;
+    }
+
+    .room-actions .leave-room-btn {
+        background-color: var(--dark-red-color);
+        color: white;
+    }
+
+    .room-actions .leave-room-btn:hover {
+        background: var(--dark-red-color-hover);
+    }
+
+    .room-actions .clear-history-btn {
+        background-color: var(--orange-color);
+        color: white;
+    }
+
+    .room-actions .clear-history-btn:hover {
+        background: var(--orange-color-hover);
+    }
+
+    .room-actions .remove-room-btn {
+        background-color: var(--remove-room-color);
+        color: white;
+    }
+
+    .room-actions .remove-room-btn:hover {
+        background: var(--remove-room-color-hover);
+    }
+
+    #logout-btn {
+        background-color: var(--accent-color);
+        color: white;
+    }
+
+    #logout-btn:hover {
+        background-color: var(--accent-color-hover);
     }
 
     .invite-section {
@@ -784,40 +928,6 @@ func generateCSS() -> String {
     }
 
     .invite-section button:disabled {
-        background: var(--disabled-bg);
-        cursor: not-allowed;
-    }
-
-    .chat-area {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .chat-header {
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        color: var(--text-primary);
-    }
-
-    .chat-header h3 {
-        color: var(--text-secondary);
-    }
-
-    .room-actions button {
-        padding: 0.5rem 1rem;
-        background: var(--accent-color);
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.9rem;
-    }
-
-    .room-actions button:disabled {
         background: var(--disabled-bg);
         cursor: not-allowed;
     }
@@ -980,14 +1090,14 @@ func generateCSS() -> String {
         .message-input-container input {
             width: 100%;
             margin-left: 0;
-            margin-bottom: 70px !important;
+            margin-bottom: 35px !important;
         }
         
         .message-input-container button {
             width: auto;
             min-width: 60px;
             margin-left: 0;
-            margin-bottom: 70px !important;
+            margin-bottom: 35px !important;
 
         }
     }
@@ -1125,6 +1235,20 @@ func generateCSS() -> String {
             margin: 0;
         }
 
+        /* Reduce header height on mobile */
+        .header {
+            padding: 0.375rem 0.75rem; /* Reduced by 25% from 0.5rem 1rem */
+        }
+
+        .header h1 {
+            font-size: 1rem; /* Reduced by 25% from 1.2rem */
+        }
+
+        .status {
+            gap: 0.375rem; /* Reduced by 25% from 0.5rem */
+            font-size: 0.8rem; /* Reduced from 0.9rem */
+        }
+
         /* Login screen mobile adjustments */
         .login-form {
             gap: 1rem; /* Reduced from 1.5rem */
@@ -1147,7 +1271,7 @@ func generateCSS() -> String {
         }
 
         .emoji-scroll-container {
-            height: 180px !important; /* Reduced from 240px */
+            height: 180px; /* Reduced from 240px */
             max-width: 320px; /* Reduced from 400px */
         }
 
@@ -1182,10 +1306,135 @@ func generateCSS() -> String {
         .sidebar {
             width: 100%;
             height: auto;
-            max-height: 40%;
+            max-height: 15%; /* Reduced from 20% to eliminate more dead space */
             border-right: none;
             border-bottom: 1px solid var(--border-color);
             overflow-y: auto;
+            padding: 0.25rem; /* Reduced from 0.5rem */
+            display: flex;
+            flex-direction: column;
+            gap: 0; /* Removed gap completely */
+        }
+
+        .sidebar-top {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: stretch; /* Changed from center to stretch for equal heights */
+            gap: 0.25rem; /* Reduced from 0.5rem */
+            margin-bottom: 0; /* Ensure no bottom margin */
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem; /* Reduced from 0.5rem */
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 0;
+            grid-column: 1;
+            height: 100%; /* Ensure full height to match rooms section */
+            box-sizing: border-box;
+        }
+
+        .user-avatar {
+            font-size: 1.2rem;
+        }
+
+        .rooms-section-header {
+            padding: 0.4rem; /* Reduced from 0.5rem */
+            justify-content: space-between;
+            align-items: center;
+            grid-column: 2;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 0;
+            display: flex;
+            cursor: pointer;
+            height: 100%; /* Ensure full height to match user info */
+            box-sizing: border-box;
+        }
+
+        .rooms-section-header h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .rooms-section-header .toggle-icon {
+            font-size: 1rem;
+            margin-right: 0.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .rooms-section-header button {
+            width: 24px;
+            height: 24px;
+            font-size: 1rem;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent-color);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 0.5rem;
+        }
+
+        .rooms-section {
+            grid-column: 1 / -1;
+            margin-top: 0;
+            margin-bottom: 0; /* Ensure no bottom margin */
+        }
+
+        .rooms-list-container {
+            max-height: 200px; /* Increased from 120px to show more rooms */
+            padding-top: 0.25rem; /* Reduced from 0.5rem */
+            overflow-y: auto;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+        }
+
+        .rooms-list-container.collapsed {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+        }
+
+        /* Mobile: Display rooms in a horizontal row */
+        .rooms-list {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+
+        .room-item {
+            padding: 0.4rem 0.6rem; /* Reduced from 0.5rem 0.75rem */
+            margin-bottom: 0; /* Remove bottom margin for horizontal layout */
+            font-size: 0.9rem;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            color: var(--text-primary);
+            width: auto; /* Auto width to fit text content */
+            flex-shrink: 0; /* Don't shrink the buttons */
+            white-space: nowrap; /* Keep text on one line */
+        }
+
+        .room-item:hover {
+            background: var(--room-hover-bg);
+            color: var(--text-primary);
+            border-color: var(--accent-color);
+        }
+
+        .room-item.active {
+            background: var(--accent-color);
+            color: white;
         }
 
         .chat-area {
@@ -1200,7 +1449,7 @@ func generateCSS() -> String {
             flex-direction: row;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
+            padding: 0.75rem;
         }
 
         .chat-header h3 {
@@ -1209,32 +1458,60 @@ func generateCSS() -> String {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            font-size: 1rem;
         }
 
         .room-actions {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
         }
 
         .room-actions .room-info-mobile {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .room-actions button {
             padding: 0.5rem 0.75rem;
             font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 0 !important;
-            margin-right: 0 !important;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .room-actions .clear-history-btn {
+            background-color: var(--orange-color);
+        }
+
+        .room-actions .clear-history-btn:hover {
+            background: var(--orange-color-hover);
+        }
+
+        .room-actions .remove-room-btn {
+            background-color: var(--remove-room-color);
+        }
+
+        .room-actions .remove-room-btn:hover {
+            background: var(--remove-room-color-hover);
         }
 
         .room-actions .leave-room-btn {
-            background-color: var(--status-disconnected);
+            background-color: var(--dark-red-color);
+        }
+
+        .room-actions .leave-room-btn:hover {
+            background: var(--dark-red-color-hover);
+        }
+
+        #logout-btn {
+            background-color: var(--accent-color);
+        }
+
+        #logout-btn:hover {
+            background-color: var(--accent-color-hover);
         }
 
         .sidebar {
@@ -1708,7 +1985,7 @@ func generateCSS() -> String {
     }
     body.admin #clear-history-btn,
     body.admin #remove-room-btn {
-        display: inline-block !important;
+        display: inline-block;
     }
     """
 }
@@ -1716,6 +1993,7 @@ func generateCSS() -> String {
 // MARK: - JavaScript Content
 func generateChatJS(adminName: String) -> String {
     return """
+    // Updated: 2024-12-19 - Mobile Layout Fixed, Duplicate Button Removed
     // Add at the top of the JS section (before class ChatClient):
     const ADMIN_USERNAME = '\(adminName)';
 
@@ -1835,6 +2113,31 @@ func generateChatJS(adminName: String) -> String {
                     document.getElementById('send-btn').disabled = false;
                     document.getElementById('invite-btn').disabled = false;
                     document.getElementById('file-btn').disabled = false;
+
+                    // Show/hide remove and clear history buttons based on admin and room type
+                    const removeBtn = document.getElementById('remove-room-btn');
+                    const clearBtn = document.getElementById('clear-history-btn');
+                    console.log('DEBUG: Room name:', message.room.name, 'Username:', this.username, 'Admin username:', ADMIN_USERNAME);
+                    console.log('DEBUG: Is admin?', this.username === ADMIN_USERNAME);
+                    if (message.room.name !== 'Lobby') {
+                        if (this.username === ADMIN_USERNAME) {
+                            console.log('DEBUG: Showing Remove button for admin in non-Lobby room');
+                            if (removeBtn) {
+                                removeBtn.style.display = 'inline-block';
+                                removeBtn.textContent = `Remove ${message.room.name}`;
+                                console.log('DEBUG: Remove button display set to inline-block');
+                            } else {
+                                console.log('DEBUG: Remove button element not found!');
+                            }
+                        } else {
+                            console.log('DEBUG: Hiding Remove button for non-admin user');
+                            if (removeBtn) removeBtn.style.display = 'none';
+                        }
+                    } else {
+                        console.log('DEBUG: Hiding Remove button for Lobby room');
+                        if (removeBtn) removeBtn.style.display = 'none';
+                    }
+                    if (clearBtn) clearBtn.style.display = (this.username === ADMIN_USERNAME) ? 'inline-block' : 'none';
 
                     // Show system message if Lobby
                     if (message.room.name === 'Lobby') {
@@ -1983,19 +2286,27 @@ func generateChatJS(adminName: String) -> String {
             // Show/hide remove and clear history buttons based on admin
             const removeBtn = document.getElementById('remove-room-btn');
             const clearBtn = document.getElementById('clear-history-btn');
+            console.log('DEBUG: Room name:', room.name, 'Username:', this.username, 'Admin username:', ADMIN_USERNAME);
+            console.log('DEBUG: Is admin?', this.username === ADMIN_USERNAME);
             if (room.name !== 'Lobby') {
                 if (this.username === ADMIN_USERNAME) {
+                    console.log('DEBUG: Showing Remove button for admin in non-Lobby room');
                     if (removeBtn) {
-                        removeBtn.style.display = '';
+                        removeBtn.style.display = 'inline-block';
                         removeBtn.textContent = `Remove ${room.name}`;
+                        console.log('DEBUG: Remove button display set to inline-block');
+                    } else {
+                        console.log('DEBUG: Remove button element not found!');
                     }
                 } else {
+                    console.log('DEBUG: Hiding Remove button for non-admin user');
                     if (removeBtn) removeBtn.style.display = 'none';
                 }
             } else {
+                console.log('DEBUG: Hiding Remove button for Lobby room');
                 if (removeBtn) removeBtn.style.display = 'none';
             }
-            if (clearBtn) clearBtn.style.display = (this.username === ADMIN_USERNAME) ? '' : 'none';
+            if (clearBtn) clearBtn.style.display = (this.username === ADMIN_USERNAME) ? 'inline-block' : 'none';
             
             // Clear messages
             this.messages = [];
@@ -2592,23 +2903,7 @@ func generateChatJS(adminName: String) -> String {
             }
         });
 
-        // Add create room button to rooms section header
-        const roomsSectionHeader = document.querySelector('.rooms-section-header');
-        const createRoomBtn = document.createElement('button');
-        createRoomBtn.innerHTML = '+';
-        createRoomBtn.onclick = showCreateRoom;
-        createRoomBtn.style.marginLeft = '10px';
-        createRoomBtn.style.background = 'var(--accent-color)';
-        createRoomBtn.style.color = 'white';
-        createRoomBtn.style.border = 'none';
-        createRoomBtn.style.borderRadius = '50%';
-        createRoomBtn.style.width = '30px';
-        createRoomBtn.style.height = '30px';
-        createRoomBtn.style.display = 'flex';
-        createRoomBtn.style.alignItems = 'center';
-        createRoomBtn.style.justifyContent = 'center';
-        
-        roomsSectionHeader.appendChild(createRoomBtn);
+        // Note: Create room button already exists in HTML - no need to create duplicate
     });
 
     // After the ChatClient class definition, add:
