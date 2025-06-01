@@ -1083,7 +1083,8 @@ func generateCSS() -> String {
         .auth-options {
             gap: 12px;
             margin-top: 15px;
-            max-width: 90%;
+            width: 90%;
+            max-width: 300px;
         }
 
         /* MOBILE CHAT SCREEN - COMPLETE REDESIGN */
@@ -1903,9 +1904,12 @@ func generateChatJS(adminName: String) -> String {
             this.username = '';
             this.userEmoji = '👤';
             this.currentRoom = null;
+            this.previousRoomId = null; // Track previous room for reconnection
             this.rooms = [];
             this.messages = [];
+            this.messagesByRoom = {}; // Store messages by room ID to prevent loss
             this.isConnected = false;
+            this.isReconnecting = false; // Flag to distinguish reconnection from initial connection
             this.selectedFiles = [];
             
             this.initializeEventListeners();
@@ -1933,17 +1937,19 @@ func generateChatJS(adminName: String) -> String {
                 this.isConnected = true;
                 this.updateConnectionStatus();
                 
-                // Send join message
+                // Send join message with reconnection flag
                 this.sendToServer({
                     type: 'join',
                     username: this.username,
-                    emoji: this.userEmoji
+                    emoji: this.userEmoji,
+                    isReconnecting: this.isReconnecting
                 });
                 
-                // After connecting, automatically join the Lobby room
-                const lobbyRoom = this.rooms.find(r => r.name === 'Lobby');
-                if (lobbyRoom) {
-                    this.joinRoom(lobbyRoom.id);
+                // DON'T auto-join Lobby on reconnection if user was in a different room
+                // Only auto-join Lobby for initial connection without a previous room
+                if (!this.isReconnecting || !this.previousRoomId) {
+                    // This will be handled when we receive the roomList from server
+                    // We'll join the appropriate room after getting the room list
                 }
             };
             
@@ -1955,11 +1961,27 @@ func generateChatJS(adminName: String) -> String {
             this.ws.onclose = () => {
                 console.log('Disconnected from server');
                 this.isConnected = false;
+                this.isReconnecting = true; // Set flag for reconnection
                 this.updateConnectionStatus();
+                
+                // Save current room and messages before disconnection
+                if (this.currentRoom) {
+                    this.previousRoomId = this.currentRoom.id;
+                    this.messagesByRoom[this.currentRoom.id] = [...this.messages]; // Save current messages
+                    
+                    // Disable UI but DON'T clear room state or messages
+                    document.getElementById('leave-room-btn').disabled = true;
+                    document.getElementById('clear-history-btn').disabled = true;
+                    document.getElementById('message-input').disabled = true;
+                    document.getElementById('send-btn').disabled = true;
+                    document.getElementById('invite-btn').disabled = true;
+                    document.getElementById('file-btn').disabled = true;
+                }
                 
                 // Attempt to reconnect after 3 seconds
                 setTimeout(() => {
                     if (!this.isConnected) {
+                        console.log('Attempting to reconnect...');
                         this.connect();
                     }
                 }, 3000);
@@ -1983,6 +2005,30 @@ func generateChatJS(adminName: String) -> String {
                 case 'roomList':
                     this.rooms = message.rooms || [];
                     this.updateRoomsList();
+                    
+                    // Handle room joining after receiving room list
+                    if (this.isReconnecting && this.previousRoomId) {
+                        // Try to rejoin the previous room
+                        const previousRoom = this.rooms.find(r => r.id === this.previousRoomId);
+                        if (previousRoom) {
+                            console.log('Rejoining previous room:', previousRoom.name);
+                            this.joinRoom(previousRoom.id);
+                        } else {
+                            // Previous room no longer exists, join Lobby
+                            console.log('Previous room no longer exists, joining Lobby');
+                            const lobbyRoom = this.rooms.find(r => r.name === 'Lobby');
+                            if (lobbyRoom) {
+                                this.joinRoom(lobbyRoom.id);
+                            }
+                        }
+                        this.isReconnecting = false; // Reset reconnection flag
+                    } else if (!this.currentRoom) {
+                        // Initial connection without previous room, join Lobby
+                        const lobbyRoom = this.rooms.find(r => r.name === 'Lobby');
+                        if (lobbyRoom) {
+                            this.joinRoom(lobbyRoom.id);
+                        }
+                    }
                     break;
                     
                 case 'roomCreated':
@@ -2004,6 +2050,10 @@ func generateChatJS(adminName: String) -> String {
                     break;
                     
                 case 'roomJoined':
+                    const wasReconnectingToSameRoom = this.isReconnecting && 
+                                                      this.currentRoom && 
+                                                      this.currentRoom.id === message.room.id;
+                    
                     this.currentRoom = message.room;
                     this.updateRoomsList();
                     document.getElementById('current-room-name').textContent = message.room.name;
@@ -2013,6 +2063,30 @@ func generateChatJS(adminName: String) -> String {
                     document.getElementById('send-btn').disabled = false;
                     document.getElementById('invite-btn').disabled = false;
                     document.getElementById('file-btn').disabled = false;
+
+                    // Handle message history properly
+                    if (wasReconnectingToSameRoom) {
+                        console.log('Reconnecting to same room, preserving existing messages');
+                        // Keep existing messages, server will send any new ones we missed
+                    } else {
+                        // Save current messages before switching rooms
+                        if (this.currentRoom && this.messages.length > 0) {
+                            const previousRoomId = this.currentRoom.id;
+                            this.messagesByRoom[previousRoomId] = [...this.messages];
+                        }
+                        
+                        // For new room or initial join, clear messages and wait for server history
+                        this.messages = [];
+                        
+                        // If we have cached messages for this room, restore them
+                        // Server will send fresh history which will be merged with these
+                        if (this.messagesByRoom[message.room.id]) {
+                            console.log('Restoring cached messages for room:', message.room.name);
+                            this.messages = [...this.messagesByRoom[message.room.id]];
+                        }
+                    }
+                    
+                    this.updateMessagesDisplay();
 
                     // Show/hide remove and clear history buttons based on admin and room type
                     const removeBtn = document.getElementById('remove-room-btn');
@@ -2040,9 +2114,11 @@ func generateChatJS(adminName: String) -> String {
                     if (clearBtn) clearBtn.style.display = (this.username === ADMIN_USERNAME) ? 'inline-block' : 'none';
 
                     // Show system message if Lobby
-                    if (message.room.name === 'Lobby') {
+                    if (message.room.name === 'Lobby' && !wasReconnectingToSameRoom) {
                         this.showTemporarySystemMessage('You are now in the Lobby.', 10000);
                     }
+                    
+                    // Handle admin status
                     if (message.type === 'roomJoined' && typeof message.isAdmin !== 'undefined') {
                         document.body.classList.remove('admin', 'user');
                         if (message.isAdmin) {
@@ -2126,7 +2202,8 @@ func generateChatJS(adminName: String) -> String {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
             
-            // Connect to server
+            // Connect to server (this will NOT be a reconnection for initial login)
+            this.isReconnecting = false;
             this.connect();
         }
         
@@ -2175,6 +2252,12 @@ func generateChatJS(adminName: String) -> String {
         joinRoom(roomId) {
             const room = this.rooms.find(r => r.id === roomId);
             if (!room) return;
+            
+            // Save current room messages before switching
+            if (this.currentRoom && this.currentRoom.id !== roomId) {
+                this.messagesByRoom[this.currentRoom.id] = [...this.messages];
+            }
+            
             this.currentRoom = room;
             document.getElementById('current-room-name').textContent = room.name;
             document.getElementById('leave-room-btn').disabled = false;
@@ -2183,6 +2266,7 @@ func generateChatJS(adminName: String) -> String {
             document.getElementById('send-btn').disabled = false;
             document.getElementById('invite-btn').disabled = false;
             document.getElementById('file-btn').disabled = false;
+            
             // Show/hide remove and clear history buttons based on admin
             const removeBtn = document.getElementById('remove-room-btn');
             const clearBtn = document.getElementById('clear-history-btn');
@@ -2208,8 +2292,12 @@ func generateChatJS(adminName: String) -> String {
             }
             if (clearBtn) clearBtn.style.display = (this.username === ADMIN_USERNAME) ? 'inline-block' : 'none';
             
-            // Clear messages
-            this.messages = [];
+            // Load saved messages for this room or clear if none exist
+            if (this.messagesByRoom[roomId]) {
+                this.messages = [...this.messagesByRoom[roomId]];
+            } else {
+                this.messages = [];
+            }
             this.updateMessagesDisplay();
             
             // Update room selection
@@ -2218,7 +2306,7 @@ func generateChatJS(adminName: String) -> String {
             });
             document.querySelector(`[data-room-id="${roomId}"]`).classList.add('active');
             
-            // Send join room message
+            // Send join room message to server
             this.sendToServer({
                 type: 'joinRoom',
                 roomId: roomId
@@ -2485,17 +2573,41 @@ func generateChatJS(adminName: String) -> String {
         }
         
         addMessage(message) {
-            this.messages.push(message);
-            this.updateMessagesDisplay();
+            // Check for duplicate messages to prevent repeats on reconnection
+            const isDuplicate = this.messages.some(existingMessage => {
+                return existingMessage.content === message.content &&
+                       existingMessage.sender === message.sender &&
+                       existingMessage.timestamp === message.timestamp &&
+                       existingMessage.type === message.type;
+            });
+            
+            if (!isDuplicate) {
+                this.messages.push(message);
+                
+                // Save to room-specific storage immediately
+                if (this.currentRoom) {
+                    this.messagesByRoom[this.currentRoom.id] = [...this.messages];
+                }
+                
+                this.updateMessagesDisplay();
+            }
         }
         
         addSystemMessage(content) {
-            const message = {
-                type: 'system',
-                content: content,
-                timestamp: new Date().toISOString()
-            };
-            this.addMessage(message);
+            // Check for duplicate system messages
+            const isDuplicate = this.messages.some(existingMessage => {
+                return existingMessage.content === content &&
+                       existingMessage.type === 'system';
+            });
+            
+            if (!isDuplicate) {
+                const message = {
+                    type: 'system',
+                    content: content,
+                    timestamp: new Date().toISOString()
+                };
+                this.addMessage(message);
+            }
         }
         
         updateMessagesDisplay() {

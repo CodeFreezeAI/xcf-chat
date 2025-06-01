@@ -180,6 +180,8 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     private func handleUserJoin(_ json: [String: Any], client: WebSocketClient) {
         guard let username = json["username"] as? String else { return }
         let emoji = (json["emoji"] as? String) ?? "👤"
+        let isReconnecting = (json["isReconnecting"] as? Bool) ?? false
+        
         client.username = username
         userEmojis[username] = emoji
         users[username] = client
@@ -190,9 +192,12 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
             "rooms": rooms.values.map { roomToDict($0) }
         ])
         
-        // Auto-join Lobby
-        if let lobby = rooms.values.first(where: { $0.name == "Lobby" }) {
-            handleJoinRoom(["roomId": lobby.id.uuidString], client: client)
+        // Only auto-join Lobby for new connections, not reconnections
+        // Let the frontend handle room rejoining for reconnections
+        if !isReconnecting {
+            if let lobby = rooms.values.first(where: { $0.name == "Lobby" }) {
+                handleJoinRoom(["roomId": lobby.id.uuidString], client: client)
+            }
         }
         
         DispatchQueue.main.async {
