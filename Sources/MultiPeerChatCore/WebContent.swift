@@ -633,7 +633,6 @@ func generateCSS() -> String {
         height: 100%;
         height: 100dvh;
         height: -webkit-fill-available;
-        min-height: 790px;
         display: flex;
         flex-direction: column;
         overflow: hidden;
