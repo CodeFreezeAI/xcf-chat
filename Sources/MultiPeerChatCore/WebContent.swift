@@ -549,6 +549,7 @@ func generateCSS() -> String {
         height: 100%;
         height: 100dvh;
         height: -webkit-fill-available;
+        min-height: 790px;
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -618,14 +619,14 @@ func generateCSS() -> String {
         align-items: center;
         justify-content: center;
         height: 100%;
-        gap: 1.5rem;
+        gap: 0.75rem;
         padding: 2rem;
     }
 
     .login-form h2 {
         color: white;
         font-size: 2rem;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.5rem;
     }
 
     .login-form input {
