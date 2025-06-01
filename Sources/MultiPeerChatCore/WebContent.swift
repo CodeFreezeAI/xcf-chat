@@ -1336,6 +1336,12 @@ func generateCSS() -> String {
         color: var(--system-message-text);
         font-style: italic;
         font-size: 0.9rem;
+        transition: opacity 1s ease-out, transform 0.5s ease-out;
+    }
+
+    .message.system.expiring {
+        opacity: 0;
+        transform: translateY(-10px);
     }
 
     .message-header {
@@ -2604,9 +2610,61 @@ func generateChatJS(adminName: String) -> String {
                 const message = {
                     type: 'system',
                     content: content,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    isExpiring: this.username !== ADMIN_USERNAME // Only expire for non-admin users
                 };
                 this.addMessage(message);
+                
+                // Auto-remove system messages after 10 seconds for non-admin users
+                if (this.username !== ADMIN_USERNAME) {
+                    setTimeout(() => {
+                        this.removeSystemMessage(message);
+                    }, 10000);
+                }
+            }
+        }
+        
+        removeSystemMessage(messageToRemove) {
+            // Find the DOM element for this system message
+            const messageElements = document.querySelectorAll('.message.system');
+            let targetElement = null;
+            
+            for (let element of messageElements) {
+                if (element.textContent === messageToRemove.content) {
+                    targetElement = element;
+                    break;
+                }
+            }
+            
+            // Animate out the DOM element first
+            if (targetElement) {
+                targetElement.classList.add('expiring');
+                setTimeout(() => {
+                    if (targetElement.parentNode) {
+                        targetElement.remove();
+                    }
+                }, 1000); // Match CSS transition duration
+            }
+            
+            // Remove from messages array
+            const index = this.messages.findIndex(msg => 
+                msg.type === 'system' && 
+                msg.content === messageToRemove.content && 
+                msg.timestamp === messageToRemove.timestamp
+            );
+            
+            if (index !== -1) {
+                this.messages.splice(index, 1);
+                
+                // Update room-specific storage
+                if (this.currentRoom) {
+                    this.messagesByRoom[this.currentRoom.id] = [...this.messages];
+                }
+                
+                // Update display after a short delay to allow animation
+                setTimeout(() => {
+                    this.updateMessagesDisplay();
+                }, 1100);
             }
         }
         
@@ -2746,11 +2804,18 @@ func generateChatJS(adminName: String) -> String {
             container.appendChild(msg);
             container.scrollTop = container.scrollHeight;
 
-            setTimeout(() => {
-                msg.style.transition = 'opacity 1s';
-                msg.style.opacity = 0;
-                setTimeout(() => msg.remove(), 1000);
-            }, durationMs);
+            // Only auto-remove for non-admin users
+            if (this.username !== ADMIN_USERNAME) {
+                setTimeout(() => {
+                    msg.style.transition = 'opacity 1s';
+                    msg.style.opacity = 0;
+                    setTimeout(() => {
+                        if (msg.parentNode) {
+                            msg.remove();
+                        }
+                    }, 1000);
+                }, durationMs);
+            }
         }
 
         removeRoom() {
