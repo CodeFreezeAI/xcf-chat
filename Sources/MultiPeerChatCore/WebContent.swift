@@ -8,7 +8,85 @@ func generateIndexHTML() -> String {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-        <title><span id="rp-id"></span></title>
+        
+        <!-- Primary Meta Tags -->
+        <title><span id="rp-id"></span> - Secure Real-time Chat</title>
+        <meta name="title" content="XCF Chat - Secure Real-time Chat Platform">
+        <meta name="description" content="Anonymous • Passwordless • Emoji Avatars • WebAuthn FIDO2 Passkey Security">
+        <meta name="keywords" content="chat, real-time, secure, WebAuthn, emoji, file sharing, instant messaging, group chat, rooms">
+        <meta name="author" content="XCF Chat">
+        <meta name="robots" content="index, follow">
+        
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://chat.xcf.ai/">
+        <meta property="og:title" content="XCF Chat - Secure Real-time Chat Platform">
+        <meta property="og:description" content="Anonymous • Passwordless • Emoji Avatars • WebAuthn FIDO2 Passkey Security">
+        <meta property="og:image" content="https://chat.xcf.ai/chat-preview.png">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+        <meta property="og:image:alt" content="XCF Chat - Modern chat interface with emoji avatars">
+        <meta property="og:site_name" content="XCF Chat">
+        <meta property="og:locale" content="en_US">
+        
+        <!-- Twitter -->
+        <meta property="twitter:card" content="summary_large_image">
+        <meta property="twitter:url" content="https://chat.xcf.ai/">
+        <meta property="twitter:title" content="XCF Chat - Secure Real-time Chat Platform">
+        <meta property="twitter:description" content="Anonymous • Passwordless • Emoji Avatars • WebAuthn FIDO2 Passkey Security">
+        <meta property="twitter:image" content="https://chat.xcf.ai/chat-preview.png">
+        <meta property="twitter:image:alt" content="XCF Chat - Modern chat interface with emoji avatars">
+        
+        <!-- LinkedIn -->
+        <meta property="linkedin:owner" content="">
+        
+        <!-- Apple / iMessage -->
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="apple-mobile-web-app-title" content="XCF Chat">
+        <meta name="apple-touch-fullscreen" content="yes">
+        <link rel="apple-touch-icon" sizes="57x57" href="/icons/apple-icon-57x57.png">
+        <link rel="apple-touch-icon" sizes="60x60" href="/icons/apple-icon-60x60.png">
+        <link rel="apple-touch-icon" sizes="72x72" href="/icons/apple-icon-72x72.png">
+        <link rel="apple-touch-icon" sizes="76x76" href="/icons/apple-icon-76x76.png">
+        <link rel="apple-touch-icon" sizes="114x114" href="/icons/apple-icon-114x114.png">
+        <link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-icon-120x120.png">
+        <link rel="apple-touch-icon" sizes="144x144" href="/icons/apple-icon-144x144.png">
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-icon-152x152.png">
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png">
+        
+        <!-- Favicons -->
+        <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="96x96" href="/icons/favicon-96x96.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+        <link rel="shortcut icon" href="/favicon.ico">
+        
+        <!-- Microsoft -->
+        <meta name="msapplication-TileColor" content="#007AFF">
+        <meta name="msapplication-TileImage" content="/icons/ms-icon-144x144.png">
+        <meta name="msapplication-config" content="/browserconfig.xml">
+        
+        <!-- Android -->
+        <meta name="theme-color" content="#007AFF">
+        <meta name="mobile-web-app-capable" content="yes">
+        
+        <!-- Web App Manifest -->
+        <link rel="manifest" href="/manifest.json">
+        
+        <!-- Additional Meta Tags -->
+        <meta name="format-detection" content="telephone=no">
+        <meta name="format-detection" content="date=no">
+        <meta name="format-detection" content="address=no">
+        <meta name="format-detection" content="email=no">
+        
+        <!-- Security -->
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; img-src 'self' data: blob: https:; media-src 'self' blob: https:;">
+        
+        <!-- Preconnect for performance -->
+        <link rel="preconnect" href="https://chat.xcf.ai">
+        <link rel="preconnect" href="https://upload.xcf.ai">
+        
         <link rel="stylesheet" href="/style.css">
     </head>
     <body>

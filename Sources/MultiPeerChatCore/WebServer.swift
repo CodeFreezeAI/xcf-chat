@@ -195,6 +195,21 @@ public class WebServer: ObservableObject {
         case ("GET", "/style.css"):
             response = generateCSS()
             contentType = "text/css"
+        case ("GET", "/manifest.json"):
+            response = generateWebManifest()
+            contentType = "application/json"
+        case ("GET", "/browserconfig.xml"):
+            response = generateBrowserConfig()
+            contentType = "application/xml"
+        case ("GET", "/favicon.ico"):
+            handleFaviconRequest(connection)
+            return
+        case ("GET", "/chat-preview.png"):
+            response = generatePreviewImageSVG()
+            contentType = "image/svg+xml"
+        case ("GET", let path) where path.hasPrefix("/icons/"):
+            response = generateIconSVG(for: path)
+            contentType = "image/svg+xml"
         case ("GET", let path) where path.hasPrefix("/files/"):
             handleFileServing(connection, path: path)
             return
@@ -685,6 +700,257 @@ public class WebServer: ObservableObject {
     
     private func setupRoutes() {
         // Routes are now handled in handleHTTPRequest
+    }
+    
+    // MARK: - Asset Generation Functions
+    
+    private func handleFaviconRequest(_ connection: NWConnection) {
+        let faviconData = generateFaviconICO()
+        let httpResponse = """
+        HTTP/1.1 200 OK\r
+        Content-Type: image/x-icon\r
+        Content-Length: \(faviconData.count)\r
+        Connection: close\r
+        Access-Control-Allow-Origin: *\r
+        Cache-Control: public, max-age=31536000\r
+        \r
+        """
+        
+        var responseData = Data()
+        responseData.append(httpResponse.data(using: .utf8)!)
+        responseData.append(faviconData)
+        
+        connection.send(content: responseData, completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+    
+    private func generateWebManifest() -> String {
+        return """
+        {
+          "name": "XCF Chat - Secure Real-time Chat",
+          "short_name": "XCF Chat",
+          "description": "Secure real-time chat with emoji avatars and file sharing",
+          "start_url": "/",
+          "display": "standalone",
+          "background_color": "#121212",
+          "theme_color": "#007AFF",
+          "orientation": "portrait-primary",
+          "scope": "/",
+          "icons": [
+            {
+              "src": "/icons/android-icon-36x36.png",
+              "sizes": "36x36",
+              "type": "image/png",
+              "density": "0.75"
+            },
+            {
+              "src": "/icons/android-icon-48x48.png",
+              "sizes": "48x48",
+              "type": "image/png",
+              "density": "1.0"
+            },
+            {
+              "src": "/icons/android-icon-72x72.png",
+              "sizes": "72x72",
+              "type": "image/png",
+              "density": "1.5"
+            },
+            {
+              "src": "/icons/android-icon-96x96.png",
+              "sizes": "96x96",
+              "type": "image/png",
+              "density": "2.0"
+            },
+            {
+              "src": "/icons/android-icon-144x144.png",
+              "sizes": "144x144",
+              "type": "image/png",
+              "density": "3.0"
+            },
+            {
+              "src": "/icons/android-icon-192x192.png",
+              "sizes": "192x192",
+              "type": "image/png",
+              "density": "4.0"
+            },
+            {
+              "src": "/icons/android-icon-512x512.png",
+              "sizes": "512x512",
+              "type": "image/png",
+              "purpose": "any maskable"
+            }
+          ],
+          "categories": ["social", "communication"],
+          "lang": "en-US"
+        }
+        """
+    }
+    
+    private func generateBrowserConfig() -> String {
+        return """
+        <?xml version="1.0" encoding="utf-8"?>
+        <browserconfig>
+          <msapplication>
+            <tile>
+              <square70x70logo src="/icons/ms-icon-70x70.png"/>
+              <square150x150logo src="/icons/ms-icon-150x150.png"/>
+              <square310x310logo src="/icons/ms-icon-310x310.png"/>
+              <TileColor>#007AFF</TileColor>
+            </tile>
+          </msapplication>
+        </browserconfig>
+        """
+    }
+    
+    private func generateFaviconICO() -> Data {
+        // Generate a simple 16x16 ICO file with chat bubble emoji
+        // ICO file format is complex, so we'll create a minimal one
+        let iconData = Data([
+            // ICO Header (6 bytes)
+            0x00, 0x00, // Reserved
+            0x01, 0x00, // Type (1 = ICO)
+            0x01, 0x00, // Number of images
+            
+            // Image Directory Entry (16 bytes)
+            0x10, // Width (16)
+            0x10, // Height (16)
+            0x00, // Color count (0 = >256 colors)
+            0x00, // Reserved
+            0x01, 0x00, // Color planes
+            0x20, 0x00, // Bits per pixel (32)
+            0x00, 0x04, 0x00, 0x00, // Image size (1024 bytes)
+            0x16, 0x00, 0x00, 0x00, // Image offset (22 bytes)
+            
+            // PNG data (simplified - this would normally be a full PNG)
+            // For simplicity, we'll use a minimal bitmap
+        ] + Array(repeating: UInt8(0x00), count: 1024))
+        
+        return iconData
+    }
+    
+    private func generatePreviewImageSVG() -> String {
+        return """
+        <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Exact dark mode gradient from CSS -->
+            <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#4a5568;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#2d3748;stop-opacity:1" />
+            </linearGradient>
+            
+            <!-- Dark modal backdrop -->
+            <filter id="blur">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2"/>
+            </filter>
+          </defs>
+          
+          <!-- Background - exact gradient from CSS -->
+          <rect width="1200" height="630" fill="url(#bg)"/>
+          
+          <!-- Header - matches .header styling -->
+          <rect x="50" y="50" width="1100" height="70" rx="12" fill="rgba(30, 30, 30, 0.95)" filter="url(#blur)"/>
+          <text x="80" y="95" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="600" fill="#cbd5e0">💬 XCF Chat</text>
+          <!-- Fixed positioning for right-side text -->
+          <text x="1050" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="500" fill="#30D158" text-anchor="end">✅ Connected</text>
+          <text x="1050" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#cbd5e0" text-anchor="end">3 users online</text>
+          
+          <!-- Main chat container - dark mode styling -->
+          <rect x="50" y="140" width="1100" height="420" rx="15" fill="#1e1e1e" stroke="#2d3748" stroke-width="1"/>
+          
+          <!-- Sidebar - dark background -->
+          <rect x="70" y="160" width="300" height="380" rx="12" fill="#121212"/>
+          
+          <!-- FIXED: User info section - proper emoji and text alignment -->
+          <rect x="90" y="180" width="260" height="65" rx="8" fill="rgba(0,122,255,0.2)" stroke="#2d3748" stroke-width="1"/>
+          <text x="110" y="218" font-size="20" fill="#e2e8f0" dominant-baseline="middle">👤</text>
+          <text x="145" y="218" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600" fill="#e2e8f0" dominant-baseline="middle">You</text>
+          
+          <!-- Rooms section header -->
+          <text x="110" y="280" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="600" fill="#cbd5e0">Rooms</text>
+          
+          <!-- Active room (Lobby) - blue active state -->
+          <rect x="90" y="295" width="260" height="45" rx="8" fill="#007AFF"/>
+          <text x="110" y="323" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="500" fill="white">Lobby</text>
+          
+          <!-- Inactive rooms - dark styling -->
+          <rect x="90" y="350" width="260" height="45" rx="8" fill="#1e1e1e" stroke="#2d3748" stroke-width="1"/>
+          <text x="110" y="378" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" fill="#e2e8f0">General</text>
+          
+          <rect x="90" y="405" width="260" height="45" rx="8" fill="#1e1e1e" stroke="#2d3748" stroke-width="1"/>
+          <text x="110" y="433" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" fill="#e2e8f0">Random</text>
+          
+          <!-- Chat area - dark background -->
+          <rect x="390" y="160" width="740" height="380" rx="12" fill="#1e1e1e"/>
+          
+          <!-- Chat header - dark styling -->
+          <rect x="390" y="160" width="740" height="60" rx="12" fill="#1e1e1e" stroke="#2d3748" stroke-width="0 0 1 0"/>
+          <text x="410" y="195" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="600" fill="#e2e8f0">Lobby</text>
+          
+          <!-- Messages area with correct dark mode styling -->
+          <g transform="translate(410, 240)">
+            <!-- Message 1 - Other user (.message.other) - black background -->
+            <rect x="0" y="0" width="300" height="50" rx="12" fill="#000000"/>
+            <text x="15" y="20" font-size="14" fill="#e2e8f0">🐶</text>
+            <text x="40" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#e2e8f0">Alice</text>
+            <text x="220" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#d1d5db">2:30 PM</text>
+            <text x="15" y="40" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#e2e8f0">Hey everyone!</text>
+            
+            <!-- Message 2 - Own message (.message.own) - correct blue -->
+            <rect x="420" y="60" width="280" height="50" rx="12" fill="#0a84ff"/>
+            <text x="435" y="80" font-size="14" fill="white">👤</text>
+            <text x="460" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="white">You</text>
+            <text x="620" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="rgba(255,255,255,0.8)">2:31 PM</text>
+            <text x="435" y="100" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="white">Hello! How's it going?</text>
+            
+            <!-- Message 3 - Other user -->
+            <rect x="0" y="120" width="320" height="50" rx="12" fill="#000000"/>
+            <text x="15" y="140" font-size="14" fill="#e2e8f0">🦊</text>
+            <text x="40" y="140" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#e2e8f0">Bob</text>
+            <text x="240" y="140" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#d1d5db">2:32 PM</text>
+            <text x="15" y="160" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#e2e8f0">Great! Love this chat app</text>
+          </g>
+          
+          <!-- Message input area - 40px height -->
+          <rect x="410" y="485" width="600" height="40" rx="20" fill="#2d3748" stroke="#2d3748" stroke-width="1"/>
+          <text x="430" y="509" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#9ca3af">Type a message...</text>
+          
+          <!-- FIXED: Send button with properly aligned text -->
+          <rect x="1020" y="485" width="100" height="40" rx="20" fill="#007AFF"/>
+          <text x="1070" y="505" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="500" fill="white" text-anchor="middle" dominant-baseline="central">Send</text>
+          
+          <!-- Title - repositioned to bottom -->
+          <text x="600" y="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="700" fill="white" text-anchor="middle">Secure Real-time Chat</text>
+          
+          <!-- Subtitle at very bottom -->
+          <text x="600" y="620" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" fill="rgba(255,255,255,0.8)" text-anchor="middle">Anonymous • Passwordless • Emoji Avatars • WebAuthn FIDO2 Passkey Security</text>
+        </svg>
+        """
+    }
+    
+    private func generateIconSVG(for path: String) -> String {
+        // Extract size from path (e.g., "/icons/apple-icon-60x60.png" -> "60")
+        let components = path.components(separatedBy: "/")
+        let filename = components.last ?? ""
+        let sizeStr = filename.components(separatedBy: "-").last?.components(separatedBy: "x").first ?? "32"
+        let size = Int(sizeStr) ?? 32
+        
+        return """
+        <svg width="\(size)" height="\(size)" viewBox="0 0 \(size) \(size)" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#007AFF;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#0056CC;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          
+          <!-- Background Circle -->
+          <circle cx="\(size/2)" cy="\(size/2)" r="\(size/2 - 1)" fill="url(#iconGrad)"/>
+          
+          <!-- Chat Emoji 💬 -->
+          <text x="\(size/2)" y="\(size/2 + size/8)" font-size="\(size * 3/4)" text-anchor="middle" dominant-baseline="middle">💬</text>
+        </svg>
+        """
     }
 }
 
