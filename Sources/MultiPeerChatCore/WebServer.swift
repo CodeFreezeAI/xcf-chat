@@ -108,14 +108,55 @@ public class WebServer: ObservableObject {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, isComplete, error in
             guard let self = self, let data = data else { return }
             
+            // First check if this might be a binary upload by looking at the headers only
+            let headerEndMarker = "\r\n\r\n".data(using: .utf8)!
+            
+            if let headerEndRange = data.range(of: headerEndMarker) {
+                let headerData = data.subdata(in: 0..<headerEndRange.upperBound)
+                if let headerString = String(data: headerData, encoding: .utf8) {
+                    print("🔍 HEADER CHECK - Length: \(headerString.count)")
+                    if headerString.contains("POST /upload") || headerString.lowercased().contains("multipart/form-data") {
+                        print("📤 Binary upload detected - using special binary handling")
+                        self.handleFileUploadBinary(connection, initialData: data, headerString: headerString)
+                        return
+                    }
+                }
+            }
+            
             let request = String(data: data, encoding: .utf8) ?? ""
+            
+            // Add comprehensive debugging for Cloudflare issues
+            print("🔍 RAW REQUEST DATA (first 500 chars):")
+            print(String(request.prefix(500)))
+            print("🔍 REQUEST LENGTH: \(request.count)")
+            
+            // Parse request line to extract method and path
+            let lines = request.components(separatedBy: "\r\n")
+            let requestLine = lines.first ?? ""
+            print("🔍 REQUEST LINE: '\(requestLine)'")
+            let components = requestLine.components(separatedBy: " ")
+            print("🔍 REQUEST COMPONENTS: \(components)")
+            let method = components.count > 0 ? components[0] : ""
+            let path = components.count > 1 ? components[1] : ""
+            
+            // Add logging for debugging Cloudflare issues
+            print("🌐 Received request: \(method) \(path)")
+            if method == "POST" && path == "/upload" {
+                print("📤 Upload request detected - using special handling")
+            }
+            
+            // Check for multipart upload regardless of path
+            let isMultipartUpload = request.lowercased().contains("content-type: multipart/form-data")
+            if isMultipartUpload {
+                print("📤 Multipart upload detected by Content-Type")
+            }
             
             if request.contains("Upgrade: websocket") {
                 // Handle WebSocket upgrade
                 self.handleWebSocketUpgrade(connection, request: request)
-            } else if request.contains("POST /upload") {
-                // Handle file upload with special processing
-                self.handleFileUploadRequest(connection, initialData: data, request: request)
+            } else if method == "OPTIONS" {
+                // Handle CORS preflight
+                self.handleCORSPreflight(connection, path: path)
             } else if request.starts(with: "POST") {
                 // Handle POST requests: ensure we read the full body
                 // Find Content-Length
@@ -215,6 +256,10 @@ public class WebServer: ObservableObject {
             return
         case ("GET", let path) where path.hasPrefix("/thumbnails/"):
             handleThumbnailServing(connection, path: path)
+            return
+        case ("POST", "/upload"):
+            // Handle file uploads using WebAuthn-style processing 
+            handleFileUploadSimple(connection, request: request)
             return
         case ("POST", "/webauthn/register/begin"):
             handleWebAuthnRegisterBegin(connection, request: request)
@@ -408,7 +453,9 @@ public class WebServer: ObservableObject {
             for line in lines {
                 if line.lowercased().hasPrefix("content-type:") && line.contains("boundary=") {
                     if let b = line.components(separatedBy: "boundary=").last {
-                        return b.trimmingCharacters(in: .whitespaces)
+                        let extractedBoundary = b.trimmingCharacters(in: .whitespaces)
+                        // The boundary in multipart data is just the extracted boundary, not with extra dashes
+                        return extractedBoundary
                     }
                 }
             }
@@ -434,46 +481,137 @@ public class WebServer: ObservableObject {
                 if allData.count >= expectedLength {
                     print("📦 Total data received:", allData.count, "bytes")
                     
-                    // Parse multipart data
-                    let parts = String(data: allData, encoding: .utf8)?
-                        .components(separatedBy: "--\(boundary)")
-                        .filter { !$0.isEmpty && !$0.contains("--") } ?? []
+                    // Don't convert the entire data to string - it contains binary content
+                    // Instead, find the boundary markers in the raw data
                     
-                    print("📦 Found \(parts.count) parts")
+                    let boundaryData = boundary.data(using: .utf8)!
+                    print("🔍 EXTRACTED BOUNDARY: '\(boundary)'")
+                    print("🔍 Looking for boundary in binary data...")
                     
-                    var fileData: Data?
+                    // Find the first occurrence of the boundary
+                    guard let firstBoundaryRange = allData.range(of: boundaryData) else {
+                        print("❌ Could not find boundary in data")
+                        self.sendErrorResponse(connection, error: "Invalid multipart format")
+                        return
+                    }
+                    
+                    print("✅ Found boundary at position \(firstBoundaryRange.lowerBound)")
+                    
+                    // Look for the form-data part after the first boundary
+                    let afterFirstBoundary = allData[firstBoundaryRange.upperBound...]
+                    
+                    // Convert just the headers part to string to parse them
+                    // Headers end at the first occurrence of \r\n\r\n
+                    let headerEndMarker = "\r\n\r\n".data(using: .utf8)!
+                    
+                    guard let headerEndRange = afterFirstBoundary.range(of: headerEndMarker) else {
+                        print("❌ Could not find end of headers")
+                        self.sendErrorResponse(connection, error: "Invalid multipart headers")
+                        return
+                    }
+                    
+                    // Extract just the headers as string
+                    let headerData = Data(afterFirstBoundary[..<headerEndRange.lowerBound])
+                    guard let headerString = String(data: headerData, encoding: .utf8) else {
+                        print("❌ Could not parse headers as UTF-8")
+                        self.sendErrorResponse(connection, error: "Invalid header encoding")
+                        return
+                    }
+                    
+                    print("📄 Headers: \(headerString)")
+                    
+                    // Parse headers to extract filename and content type
                     var fileName: String?
                     var mimeType: String?
                     
-                    for part in parts {
-                        if part.contains("Content-Disposition: form-data") {
-                            // Extract filename
-                            if let filenameRange = part.range(of: "filename=\""),
-                               let endQuoteRange = part[filenameRange.upperBound...].firstIndex(of: "\"") {
-                                fileName = String(part[filenameRange.upperBound..<endQuoteRange])
-                                print("📄 Original filename:", fileName ?? "none")
+                    if headerString.contains("Content-Disposition: form-data") {
+                        // Extract filename
+                        if let filenameMatch = headerString.range(of: "filename=\"") {
+                            let fromFilename = headerString[filenameMatch.upperBound...]
+                            if let endQuote = fromFilename.firstIndex(of: "\"") {
+                                fileName = String(fromFilename[..<endQuote])
+                                print("📄 Extracted filename: '\(fileName!)'")
                             }
-                            
-                            // Extract Content-Type
-                            if let contentTypeRange = part.range(of: "Content-Type: "),
-                               let newlineRange = part[contentTypeRange.upperBound...].firstIndex(of: "\r\n") {
-                                mimeType = String(part[contentTypeRange.upperBound..<newlineRange])
-                                print("📄 MIME type:", mimeType ?? "none")
+                        }
+                        
+                        // Extract Content-Type - be more flexible with line endings
+                        let contentTypePatterns = ["Content-Type: ", "content-type: "]
+                        for pattern in contentTypePatterns {
+                            if let contentTypeMatch = headerString.range(of: pattern, options: .caseInsensitive) {
+                                let fromContentType = headerString[contentTypeMatch.upperBound...]
+                                let mimeTypeString = String(fromContentType)
+                                
+                                // Try different line ending patterns
+                                if let endLine = mimeTypeString.firstIndex(of: "\r") {
+                                    mimeType = String(mimeTypeString[..<endLine])
+                                } else if let endLine = mimeTypeString.firstIndex(of: "\n") {
+                                    mimeType = String(mimeTypeString[..<endLine])
+                                } else {
+                                    // Take the whole remaining string if no line ending found
+                                    mimeType = mimeTypeString.trimmingCharacters(in: .whitespacesAndNewlines)
+                                }
+                                
+                                if !mimeType!.isEmpty {
+                                    print("📄 Extracted MIME type: '\(mimeType!)'")
+                                    break
+                                }
                             }
-                            
-                            // Extract file data
-                            if let dataStart = part.range(of: "\r\n\r\n")?.upperBound {
-                                let dataString = String(part[dataStart...])
-                                fileData = dataString.data(using: .utf8)
-                                print("📄 File data size:", fileData?.count ?? 0, "bytes")
+                        }
+                        
+                        // If still no MIME type found, try to infer from filename
+                        if mimeType == nil || mimeType!.isEmpty {
+                            print("⚠️ No MIME type found in headers, inferring from filename")
+                            if let name = fileName {
+                                let ext = (name as NSString).pathExtension.lowercased()
+                                switch ext {
+                                case "png": mimeType = "image/png"
+                                case "jpg", "jpeg": mimeType = "image/jpeg"
+                                case "gif": mimeType = "image/gif"
+                                case "pdf": mimeType = "application/pdf"
+                                case "txt": mimeType = "text/plain"
+                                case "zip": mimeType = "application/zip"
+                                default: mimeType = "application/octet-stream"
+                                }
+                                print("📄 Inferred MIME type: '\(mimeType!)'")
                             }
                         }
                     }
                     
-                    guard let data = fileData,
-                          let originalName = fileName,
-                          let mime = mimeType else {
-                        print("❌ Missing required file data")
+                    // Extract the file data - it starts right after the header end marker
+                    let fileDataStart = firstBoundaryRange.upperBound + headerData.count + headerEndMarker.count
+                    
+                    // Find the ending boundary
+                    let endBoundaryPattern = "\r\n\(boundary)".data(using: .utf8)!
+                    let fileDataSearchStart = fileDataStart
+                    let remainingData = allData[fileDataSearchStart...]
+                    
+                    var fileData: Data
+                    if let endBoundaryRange = remainingData.range(of: endBoundaryPattern) {
+                        // Extract data up to the end boundary
+                        fileData = Data(remainingData[..<endBoundaryRange.lowerBound])
+                        print("📄 Extracted file data size: \(fileData.count) bytes (with end boundary)")
+                    } else {
+                        // No end boundary found, take all remaining data and trim manually
+                        fileData = Data(remainingData)
+                        
+                        // Try to remove trailing boundary by looking at the end
+                        if fileData.count > boundary.count + 10 {
+                            let endPortion = Data(fileData.suffix(boundary.count + 10))
+                            if let endString = String(data: endPortion, encoding: .utf8) {
+                                if let lastBoundaryIndex = endString.lastIndex(of: "-") {
+                                    let boundary_start = endString[..<lastBoundaryIndex].lastIndex(of: "\n") ?? endString.startIndex
+                                    let trimLength = endString.distance(from: boundary_start, to: endString.endIndex)
+                                    fileData = Data(fileData.dropLast(trimLength))
+                                }
+                            }
+                        }
+                        print("📄 Extracted file data size: \(fileData.count) bytes (manual trim)")
+                    }
+                    
+                    guard let originalName = fileName,
+                          let mime = mimeType,
+                          !fileData.isEmpty else {
+                        print("❌ Missing required file data - filename: \(fileName ?? "nil"), mimeType: \(mimeType ?? "nil"), dataSize: \(fileData.count)")
                         self.sendErrorResponse(connection, error: "Missing required file data")
                         return
                     }
@@ -489,7 +627,7 @@ public class WebServer: ObservableObject {
                     
                     do {
                         try FileManager.default.createDirectory(at: uploadsPath, withIntermediateDirectories: true)
-                        try data.write(to: filePath)
+                        try fileData.write(to: filePath)
                         print("✅ File saved successfully")
                         
                         // Create and save the attachment
@@ -497,7 +635,7 @@ public class WebServer: ObservableObject {
                             fileName: uniqueFileName,
                             originalFileName: originalName,
                             mimeType: mime,
-                            fileSize: Int64(data.count),
+                            fileSize: Int64(fileData.count),
                             filePath: "uploads/\(uniqueFileName)",
                             thumbnailPath: nil
                         )
@@ -541,6 +679,105 @@ public class WebServer: ObservableObject {
         }
         
         readMore()
+    }
+    
+    private func handleFileUploadSimple(_ connection: NWConnection, request: String) {
+        print("📥 Simple upload handler - received request")
+        print("📦 Request length: \(request.count)")
+        
+        // For now, just return a success response to test if the route works
+        let response: [String: Any] = [
+            "success": true,
+            "message": "Upload endpoint reached successfully",
+            "requestLength": request.count
+        ]
+        
+        do {
+            let responseData = try JSONSerialization.data(withJSONObject: response)
+            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
+        } catch {
+            sendErrorResponse(connection, error: "Failed to create response")
+        }
+    }
+    
+    private func handleFileUploadBinary(_ connection: NWConnection, initialData: Data, headerString: String) {
+        print("📥 Binary upload handler started")
+        print("📦 Initial data length: \(initialData.count)")
+        print("📦 Header length: \(headerString.count)")
+        
+        // Extract Content-Length from headers
+        let contentLength: Int? = {
+            let lines = headerString.components(separatedBy: "\r\n")
+            for line in lines {
+                if line.lowercased().hasPrefix("content-length:") {
+                    let value = line.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true).last?.trimmingCharacters(in: .whitespaces)
+                    return Int(value ?? "")
+                }
+            }
+            return nil
+        }()
+        
+        print("📦 Expected content length: \(contentLength ?? -1)")
+        
+        // Find where headers end
+        let headerEndMarker = "\r\n\r\n".data(using: .utf8)!
+        guard let headerEndRange = initialData.range(of: headerEndMarker) else {
+            print("❌ Could not find header end in binary data")
+            sendErrorResponse(connection, error: "Invalid HTTP request format")
+            return
+        }
+        
+        let bodyStart = headerEndRange.upperBound
+        let initialBodyData = initialData.subdata(in: bodyStart..<initialData.count)
+        var allBodyData = Data()
+        allBodyData.append(initialBodyData)
+        
+        print("📦 Initial body data length: \(initialBodyData.count)")
+        
+        // If we have a content length, read until we have all the data
+        if let expectedLength = contentLength {
+            func readMoreBinary() {
+                if allBodyData.count >= expectedLength {
+                    print("📦 All binary data received: \(allBodyData.count) bytes")
+                    processBinaryUpload(connection, bodyData: allBodyData, headerString: headerString)
+                    return
+                }
+                
+                connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { data, _, _, error in
+                    if let data = data, !data.isEmpty {
+                        allBodyData.append(data)
+                        print("📦 Received more binary data: \(data.count) bytes, total: \(allBodyData.count)")
+                        readMoreBinary()
+                    } else {
+                        print("📦 Binary read complete with \(allBodyData.count) bytes")
+                        self.processBinaryUpload(connection, bodyData: allBodyData, headerString: headerString)
+                    }
+                }
+            }
+            readMoreBinary()
+        } else {
+            print("❌ No content length found")
+            sendErrorResponse(connection, error: "Missing Content-Length header")
+        }
+    }
+    
+    private func processBinaryUpload(_ connection: NWConnection, bodyData: Data, headerString: String) {
+        print("📦 Processing binary upload: \(bodyData.count) bytes")
+        
+        // For now, just return success to test if we can receive the data
+        let response: [String: Any] = [
+            "success": true,
+            "message": "Binary upload processed successfully",
+            "bytesReceived": bodyData.count,
+            "headerLength": headerString.count
+        ]
+        
+        do {
+            let responseData = try JSONSerialization.data(withJSONObject: response)
+            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
+        } catch {
+            sendErrorResponse(connection, error: "Failed to create response")
+        }
     }
     
     private func handleFileServing(_ connection: NWConnection, path: String) {
@@ -634,6 +871,24 @@ public class WebServer: ObservableObject {
         Access-Control-Allow-Origin: *\r
         \r
         \(errorJSON)
+        """
+        
+        connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+    
+    private func handleCORSPreflight(_ connection: NWConnection, path: String) {
+        let httpResponse = """
+        HTTP/1.1 200 OK\r
+        Access-Control-Allow-Origin: *\r
+        Access-Control-Allow-Methods: GET, POST, OPTIONS\r
+        Access-Control-Allow-Headers: Content-Type, Content-Length\r
+        Access-Control-Max-Age: 86400\r
+        Content-Length: 0\r
+        Connection: close\r
+        \r
+        
         """
         
         connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed { _ in

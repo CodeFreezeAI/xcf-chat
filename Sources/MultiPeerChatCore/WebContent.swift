@@ -89,7 +89,6 @@ func generateIndexHTML() -> String {
         
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
-        <link rel="preconnect" href="https://upload.xcf.ai">
         
         <link rel="stylesheet" href="/style.css">
     </head>
@@ -265,7 +264,7 @@ func generateIndexHTML() -> String {
                         
                         <div class="message-input-container">
                             <div class="file-upload-area">
-                                <input type="file" id="file-input" accept="image/*,.pdf,.doc,.docx,.txt,.zip" style="display: none;" multiple>
+                                <input type="file" id="file-input" style="display:none;" accept="image/*,.pdf,.doc,.docx,.txt,.zip" multiple>
                                 <button id="file-btn" class="circle-attachment-btn" onclick="selectFiles()" title="Attach files" disabled>📎</button>
                             </div>
                             <input type="text" id="message-input" placeholder="Type a message..." disabled>
@@ -323,12 +322,14 @@ func generateIndexHTML() -> String {
         <script src="/chat.js"></script>
         <script>
         // Hide upload button and file input for now
+        /*
         window.addEventListener('DOMContentLoaded', function() {
             var fileBtn = document.getElementById('file-btn');
             var fileInput = document.getElementById('file-input');
             if (fileBtn) fileBtn.style.display = 'none';
             if (fileInput) fileInput.style.display = 'none';
         });
+        */
 
         // WebAuthn Implementation
         async function registerWebAuthn() {
@@ -2697,12 +2698,23 @@ func generateChatJS(adminName: String) -> String {
         async uploadFile(file) {
             const formData = new FormData();
             formData.append('file', file);
+            
+            console.log('📤 Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+            console.log('📤 FormData entries:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`  ${key}:`, value);
+            }
+            
             try {
-                console.log('📤 Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
-                const response = await fetch('http://upload.xcf.ai/upload', {
+                const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
+                    // Note: Don't set Content-Type header manually - let browser set it with boundary
                 });
+                
+                console.log('📤 Response status:', response.status);
+                console.log('📤 Response headers:', response.headers);
+                
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('❌ Upload failed:', response.status, errorText);
