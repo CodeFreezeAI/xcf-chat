@@ -649,6 +649,33 @@ func generateCSS() -> String {
         outline: none;
     }
 
+    .selected-emoji {
+        font-size: 4rem !important;
+        width: 80px !important;
+        height: 80px !important;
+        margin-bottom: 1rem !important;
+        flex-shrink: 0;
+    }
+
+    .emoji-scroll-container {
+        height: 150px;
+        max-width: 300px;
+        flex-shrink: 0;
+    }
+
+    .emoji-picker {
+        flex-shrink: 0;
+    }
+
+    .auth-options {
+        gap: 12px;
+        margin-top: 15px;
+        margin-bottom: 2rem;
+        width: 90%;
+        max-width: 300px;
+        flex-shrink: 0;
+    }
+
     .login-form button {
         padding: 1rem 2rem;
         font-size: 1.1rem;
@@ -1051,21 +1078,50 @@ func generateCSS() -> String {
 
         /* MOBILE LOGIN FORM */
         .login-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             padding: 1rem;
             gap: 1rem;
             justify-content: flex-start;
             padding-top: 2rem;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            height: 100%;
+            min-height: 100%;
+            box-sizing: border-box;
+            /* Ensure content is accessible when keyboard appears */
+            padding-bottom: calc(2rem + env(keyboard-inset-height, 0px));
         }
 
         .login-form h2 {
             font-size: 1.5rem;
             margin-bottom: 0.5rem;
+            flex-shrink: 0;
+            color: white;
         }
 
         .login-form input {
             width: 90%;
             max-width: 300px;
             font-size: 16px; /* Prevent zoom on iOS */
+            flex-shrink: 0;
+            padding: 1rem 1.5rem;
+            border: 2px solid var(--border-color);
+            border-radius: 50px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            background-color: var(--input-bg);
+            color: var(--input-text);
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .login-form input:focus {
+            border: 2px solid var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+            outline: none;
         }
 
         .selected-emoji {
@@ -1073,18 +1129,26 @@ func generateCSS() -> String {
             width: 80px !important;
             height: 80px !important;
             margin-bottom: 1rem !important;
+            flex-shrink: 0;
         }
 
         .emoji-scroll-container {
             height: 150px;
             max-width: 300px;
+            flex-shrink: 0;
+        }
+
+        .emoji-picker {
+            flex-shrink: 0;
         }
 
         .auth-options {
             gap: 12px;
             margin-top: 15px;
+            margin-bottom: 2rem;
             width: 90%;
             max-width: 300px;
+            flex-shrink: 0;
         }
 
         /* MOBILE CHAT SCREEN - COMPLETE REDESIGN */
@@ -2969,6 +3033,26 @@ func generateChatJS(adminName: String) -> String {
         
         // Focus username input
         document.getElementById('username-input').focus();
+        
+        // Mobile keyboard handling for login form
+        const usernameInput = document.getElementById('username-input');
+        if (usernameInput) {
+            usernameInput.addEventListener('focus', () => {
+                // On mobile, scroll to ensure auth buttons are visible when keyboard appears
+                if (window.innerWidth <= 768) {
+                    setTimeout(() => {
+                        const authOptions = document.querySelector('.auth-options');
+                        if (authOptions) {
+                            authOptions.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'end',
+                                inline: 'nearest'
+                            });
+                        }
+                    }, 300); // Delay to allow keyboard to appear
+                }
+            });
+        }
         
         // Close modals when clicking outside
         document.addEventListener('click', (e) => {
