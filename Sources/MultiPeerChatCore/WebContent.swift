@@ -242,6 +242,8 @@ func generateIndexHTML() -> String {
             var fileInput = document.getElementById('file-input');
             if (fileBtn) fileBtn.style.display = 'none';
             if (fileInput) fileInput.style.display = 'none';
+            var removeBtn = document.getElementById('remove-room-btn');
+            if (removeBtn) removeBtn.style.display = 'none';
         });
 
         // WebAuthn Implementation
