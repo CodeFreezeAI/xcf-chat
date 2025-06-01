@@ -1178,7 +1178,6 @@ func generateCSS() -> String {
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             height: 100%;
-            min-height: 100%;
             box-sizing: border-box;
             /* Ensure content is accessible when keyboard appears */
             padding-bottom: calc(2rem + env(keyboard-inset-height, 0px));
