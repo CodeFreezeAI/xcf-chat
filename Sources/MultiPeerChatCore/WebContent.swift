@@ -625,7 +625,7 @@ func generateCSS() -> String {
     .login-form h2 {
         color: white;
         font-size: 2rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.25rem;
     }
 
     .login-form input {
@@ -659,12 +659,18 @@ func generateCSS() -> String {
 
     .emoji-scroll-container {
         height: 150px;
+        width: 100%;
         max-width: 300px;
         flex-shrink: 0;
     }
 
     .emoji-picker {
         flex-shrink: 0;
+        width: 90%;
+        max-width: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
     .auth-options {
@@ -1094,16 +1100,21 @@ func generateCSS() -> String {
             padding-bottom: calc(2rem + env(keyboard-inset-height, 0px));
         }
 
+        /* Create a form content container to constrain all elements to same width */
+        .login-form > * {
+            width: 90% !important;
+            max-width: 300px !important;
+        }
+
         .login-form h2 {
             font-size: 1.5rem;
             margin-bottom: 0.5rem;
             flex-shrink: 0;
             color: white;
+            text-align: center;
         }
 
         .login-form input {
-            width: 90%;
-            max-width: 300px;
             font-size: 16px; /* Prevent zoom on iOS */
             flex-shrink: 0;
             padding: 1rem 1.5rem;
@@ -1130,25 +1141,29 @@ func generateCSS() -> String {
             height: 80px !important;
             margin-bottom: 1rem !important;
             flex-shrink: 0;
+            align-self: center;
         }
 
         .emoji-scroll-container {
             height: 150px;
-            max-width: 300px;
+            width: 100%;
             flex-shrink: 0;
         }
 
         .emoji-picker {
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .auth-options {
             gap: 12px;
             margin-top: 15px;
             margin-bottom: 2rem;
-            width: 90%;
-            max-width: 300px;
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
         }
 
         /* MOBILE CHAT SCREEN - COMPLETE REDESIGN */
@@ -1955,7 +1970,39 @@ func generateCSS() -> String {
 
         .emoji-scroll-container {
             height: 150px;
+            width: 100%;
             max-width: 300px;
+            flex-shrink: 0;
+        }
+
+        .emoji-picker {
+            flex-shrink: 0;
+            width: 90%;
+            max-width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+
+    /* FORCE CONSISTENT WIDTHS ON MOBILE - OVERRIDE ALL DESKTOP STYLES */
+    @media (max-width: 768px) {
+        .login-form > *,
+        .login-form .emoji-picker,
+        .login-form .auth-options,
+        .login-form input {
+            width: 90% !important;
+            max-width: 300px !important;
+        }
+        
+        .login-form .emoji-scroll-container {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        
+        .login-form .auth-options button {
+            width: 100% !important;
+            max-width: 100% !important;
         }
     }
     """
