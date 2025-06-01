@@ -128,8 +128,8 @@ func generateIndexHTML() -> String {
                         </div>
                         <input type="text" id="username-input" placeholder="Enter your username" maxlength="20">
                         <div class="auth-options">
-                            <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Biometrics</button>
-                            <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Biometrics</button>
+                            <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
+                            <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
                         </div>
                     </div>
                 </div>
@@ -310,7 +310,7 @@ func generateIndexHTML() -> String {
                 
                 if (!verificationResponse.ok) throw new Error('Registration verification failed');
                 
-                alert('Biometric registration successful! You can now login with your biometrics.');
+                alert('Registration successful! You can now login using your Passkey.');
             } catch (error) {
                 console.error('WebAuthn registration error:', error);
                 alert('Registration failed: ' + error.message);
@@ -1942,6 +1942,10 @@ func generateChatJS() -> String {
         }
         
         clearChatHistory() {
+            if (this.username !== 'XCF Admin') {
+                alert('Only XCF Admin can clear history.');
+                return;
+            }
             if (!this.currentRoom) return;
             
             if (confirm('Are you sure you want to clear the chat history for this room? This action cannot be undone.')) {
@@ -2321,6 +2325,10 @@ func generateChatJS() -> String {
         }
 
         removeRoom() {
+            if (this.username !== 'XCF Admin') {
+                alert('Only XCF Admin can remove rooms.');
+                return;
+            }
             if (!this.currentRoom || this.currentRoom.name === 'Lobby') return;
             if (confirm(`Are you sure you want to remove the room '${this.currentRoom.name}'? This cannot be undone.`)) {
                 this.sendToServer({ type: 'removeRoom', roomId: this.currentRoom.id });

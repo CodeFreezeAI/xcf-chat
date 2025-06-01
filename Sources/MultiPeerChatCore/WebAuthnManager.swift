@@ -70,7 +70,7 @@ class WebAuthnManager {
                 "attestation": "direct",
                 "authenticatorSelection": [
                     "authenticatorAttachment": "platform",
-                    "userVerification": "preferred",
+                    "userVerification": "required",
                     "requireResidentKey": false
                 ]
             ]
@@ -111,7 +111,7 @@ class WebAuthnManager {
                 "timeout": 60000,
                 "rpId": rpId,
                 "allowCredentials": allowCredentials,
-                "userVerification": "preferred"
+                "userVerification": "required"
             ]
         ]
         

@@ -18,6 +18,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     private var cancellables = Set<AnyCancellable>()
     private let persistenceManager = PersistenceManager.shared
     private let rpId: String
+    private let ADMIN_USERNAME = "XCF Admin"
     
     
     public init(rpId: String) {
@@ -419,6 +420,10 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     }
     
     private func handleClearChatHistory(_ json: [String: Any], client: WebSocketClient) {
+        guard client.username == ADMIN_USERNAME else {
+            sendToClient(client, message: ["type": "error", "message": "Only XCF Admin can clear history."])
+            return
+        }
         guard let roomId = json["roomId"] as? String,
               let roomUUID = UUID(uuidString: roomId) else { return }
         
@@ -437,6 +442,10 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     }
     
     private func handleRemoveRoom(_ json: [String: Any], client: WebSocketClient) {
+        guard client.username == ADMIN_USERNAME else {
+            sendToClient(client, message: ["type": "error", "message": "Only XCF Admin can remove rooms."])
+            return
+        }
         guard let roomId = json["roomId"] as? String,
               let room = rooms[roomId],
               room.name.lowercased() != "lobby" else {
