@@ -467,6 +467,9 @@ func generateCSS() -> String {
         --other-username: #111;
         --remove-room-color: #FF5E3A;
         --remove-room-color-hover: #E04A1F;
+        
+        /* Safari scrollbar appearance - light mode */
+        color-scheme: light;
     }
 
     /* Dark Mode Colors */
@@ -502,6 +505,9 @@ func generateCSS() -> String {
             --other-bg: #000;
             --other-text: #e2e8f0;
             --other-username: #e2e8f0;
+            
+            /* Safari scrollbar appearance - dark mode */
+            color-scheme: dark;
         }
         .message.other {
             background: #000 !important;
@@ -2005,6 +2011,115 @@ func generateCSS() -> String {
             width: 100% !important;
             max-width: 100% !important;
         }
+    }
+
+    /* GLOBAL SCROLLBAR STYLING */
+    /* Light mode scrollbars */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        transition: background 0.3s ease;
+        -webkit-appearance: none;
+        appearance: none;
+        border: none;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.4);
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    /* Dark mode scrollbars */
+    @media (prefers-color-scheme: dark) {
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    }
+
+    /* Safari-specific scrollbar force styling */
+    html {
+        overflow-x: hidden;
+    }
+
+    /* Force scrollbar styling on all scrollable containers */
+    .messages-container,
+    .sidebar,
+    .rooms-list-container,
+    .emoji-scroll-container,
+    .file-preview-container,
+    .modal-content {
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .messages-container::-webkit-scrollbar,
+    .sidebar::-webkit-scrollbar,
+    .rooms-list-container::-webkit-scrollbar,
+    .file-preview-container::-webkit-scrollbar {
+        width: 8px;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+    }
+
+    .messages-container::-webkit-scrollbar-track,
+    .sidebar::-webkit-scrollbar-track,
+    .rooms-list-container::-webkit-scrollbar-track,
+    .file-preview-container::-webkit-scrollbar-track {
+        background: var(--bg-primary);
+        border-radius: 4px;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb,
+    .sidebar::-webkit-scrollbar-thumb,
+    .rooms-list-container::-webkit-scrollbar-thumb,
+    .file-preview-container::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 4px;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        border: none;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb:hover,
+    .sidebar::-webkit-scrollbar-thumb:hover,
+    .rooms-list-container::-webkit-scrollbar-thumb:hover,
+    .file-preview-container::-webkit-scrollbar-thumb:hover {
+        background: var(--text-secondary);
+    }
+
+    /* Firefox scrollbar styling */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border-color) var(--bg-primary);
     }
     """
 }
