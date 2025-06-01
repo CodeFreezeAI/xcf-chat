@@ -943,9 +943,14 @@ func generateCSS() -> String {
         flex: 1;
         overflow-y: auto;
         padding: 1rem 1.5rem;
+        padding-bottom: 155px !important; /* Increased from 120px + 35px more space */
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
+        -webkit-overflow-scrolling: touch;
+        min-height: 0;
+        /* Ensure messages don't get hidden behind input */
+        margin-bottom: 35px !important; /* Added 35px bottom margin */
     }
 
     .welcome-message {
@@ -1087,25 +1092,138 @@ func generateCSS() -> String {
 
     /* Mobile adjustments for message input */
     @media (max-width: 768px) {
+        /* Ensure body and container take full height */
+        body {
+            height: 100vh;
+            height: -webkit-fill-available;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        .container {
+            height: 100vh;
+            height: -webkit-fill-available;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Chat screen takes full height */
+        #chat-screen {
+            height: 100vh;
+            height: -webkit-fill-available;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Make chat area flex container with sticky input */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            min-height: 0;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 1.5rem;
+            padding-bottom: 120px !important; /* More space for fixed input */
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            -webkit-overflow-scrolling: touch;
+            min-height: 0;
+            /* Ensure messages don't get hidden behind input */
+            margin-bottom: 0;
+        }
+
         .message-input-container {
-            padding: 1rem;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            padding: 1rem !important;
+            background: var(--bg-secondary) !important;
+            border-top: 1px solid var(--border-color) !important;
+            display: flex !important;
             flex-direction: row !important;
-            gap: 10px;
-            align-items: center;
+            gap: 10px !important;
+            align-items: center !important;
+            z-index: 1000 !important;
+            box-sizing: border-box !important;
+            /* iOS Safari fixes */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            /* Ensure it stays above Safari's bottom bar */
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+            /* Add shadow to separate from messages */
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1) !important;
         }
         
         .message-input-container input {
-            width: 100%;
-            margin-left: 0;
-            margin-bottom: 35px !important;
+            flex: 1 !important;
+            margin: 0 !important;
+            padding: 0.75rem 1rem !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 25px !important;
+            background-color: var(--input-bg) !important;
+            color: var(--input-text) !important;
+            /* Prevent zoom on focus for iOS */
+            font-size: 16px !important;
+            /* Ensure input doesn't get cut off */
+            min-height: 44px !important;
         }
         
         .message-input-container button {
-            width: auto;
-            min-width: 60px;
-            margin-left: 0;
-            margin-bottom: 35px !important;
+            padding: 0.75rem 1.5rem !important;
+            background: var(--accent-color) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 25px !important;
+            cursor: pointer !important;
+            font-size: 1rem !important;
+            margin: 0 !important;
+            min-width: 60px !important;
+            min-height: 44px !important;
+        }
 
+        /* File upload button positioning */
+        .file-upload-area {
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        .circle-attachment-btn {
+            width: 44px !important;
+            height: 44px !important;
+            font-size: 1.5rem !important;
+            margin: 0 !important;
+        }
+
+        /* Ensure proper header spacing on mobile */
+        .header {
+            flex-shrink: 0;
+        }
+
+        /* Ensure sidebar doesn't interfere */
+        .sidebar {
+            flex-shrink: 0;
+        }
+    }
+
+    /* Additional fix for very small screens */
+    @media (max-width: 480px) {
+        .message-input-container {
+            padding: 0.75rem !important;
+            padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)) !important;
+        }
+
+        .messages-container {
+            padding-bottom: 135px !important; /* Increased from 100px + 35px */
+            margin-bottom: 35px !important;
         }
     }
 
@@ -1995,6 +2113,60 @@ func generateCSS() -> String {
     body.admin #clear-history-btn,
     body.admin #remove-room-btn {
         display: inline-block;
+    }
+
+    /* Desktop message input fixes */
+    @media (min-width: 769px) {
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 1.5rem;
+            padding-bottom: 80px; /* Space for message input */
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            min-height: 0;
+        }
+
+        .message-input-container {
+            flex-shrink: 0;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--bg-secondary);
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .message-input-container input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            font-size: 1rem;
+            background-color: var(--input-bg);
+            color: var(--input-text);
+        }
+
+        .message-input-container button {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
     }
     """
 }
