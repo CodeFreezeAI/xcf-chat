@@ -163,7 +163,7 @@ func generateIndexHTML() -> String {
                             <div class="room-actions">
                                 <div class="room-info-mobile">
                                     <button id="clear-history-btn" class="clear-history-btn" onclick="clearChatHistory()" disabled>Clear History</button>
-                                    <button id="remove-room-btn" class="remove-room-btn" onclick="removeRoom()">Remove</button>
+                                    <button id="remove-room-btn" class="remove-room-btn" onclick="removeRoom()" style="display:none;">Remove</button>
                                     <button id="leave-room-btn" class="leave-room-btn" onclick="leaveRoom()" disabled>Leave Room</button>
                                     <button id="logout-btn" onclick="logout()" style="margin-left: 1rem;">Logout</button>
                                 </div>
@@ -244,6 +244,11 @@ func generateIndexHTML() -> String {
             if (fileInput) fileInput.style.display = 'none';
             var removeBtn = document.getElementById('remove-room-btn');
             if (removeBtn) removeBtn.style.display = 'none';
+            // If the current room is Lobby, force hide
+            var currentRoomName = document.getElementById('current-room-name');
+            if (currentRoomName && currentRoomName.textContent.trim() === 'Lobby') {
+                removeBtn.style.display = 'none';
+            }
         });
 
         // WebAuthn Implementation
@@ -424,7 +429,7 @@ func generateIndexHTML() -> String {
 func generateCSS() -> String {
     return """
     #clear-history-btn, #remove-room-btn { display: none !important; }
-    body.admin #clear-history-btn, body.admin #remove-room-btn { display: inline-block !important; }
+    body.admin #clear-history-btn { display: inline-block !important; }
     :root {
         /* Light Mode Colors */
         --bg-primary: #eceff1;
@@ -1931,10 +1936,14 @@ func generateChatJS(adminName: String) -> String {
             // Show/hide remove and clear history buttons based on admin
             const removeBtn = document.getElementById('remove-room-btn');
             const clearBtn = document.getElementById('clear-history-btn');
-            if (room.name !== 'Lobby' && this.username === ADMIN_USERNAME) {
-                if (removeBtn) {
-                    removeBtn.style.display = '';
-                    removeBtn.textContent = `Remove ${room.name}`;
+            if (room.name !== 'Lobby') {
+                if (this.username === ADMIN_USERNAME) {
+                    if (removeBtn) {
+                        removeBtn.style.display = '';
+                        removeBtn.textContent = `Remove ${room.name}`;
+                    }
+                } else {
+                    if (removeBtn) removeBtn.style.display = 'none';
                 }
             } else {
                 if (removeBtn) removeBtn.style.display = 'none';
