@@ -163,7 +163,7 @@ func generateIndexHTML() -> String {
                             <div class="room-actions">
                                 <div class="room-info-mobile">
                                     <button id="clear-history-btn" class="clear-history-btn" onclick="clearChatHistory()" disabled>Clear History</button>
-                                    <button id="remove-room-btn" class="remove-room-btn" onclick="removeRoom()" style="display:none;">Remove</button>
+                                    <button id="remove-room-btn" class="remove-room-btn" onclick="removeRoom()">Remove</button>
                                     <button id="leave-room-btn" class="leave-room-btn" onclick="leaveRoom()" disabled>Leave Room</button>
                                     <button id="logout-btn" onclick="logout()" style="margin-left: 1rem;">Logout</button>
                                 </div>
@@ -421,6 +421,8 @@ func generateIndexHTML() -> String {
 // MARK: - CSS Content
 func generateCSS() -> String {
     return """
+    #clear-history-btn, #remove-room-btn { display: none !important; }
+    body.admin #clear-history-btn, body.admin #remove-room-btn { display: inline-block !important; }
     :root {
         /* Light Mode Colors */
         --bg-primary: #eceff1;
@@ -1645,6 +1647,15 @@ func generateCSS() -> String {
     .room-actions .remove-room-btn:hover {
         background: var(--remove-room-color-hover);
     }
+
+    body.user #clear-history-btn,
+    body.user #remove-room-btn {
+        display: none !important;
+    }
+    body.admin #clear-history-btn,
+    body.admin #remove-room-btn {
+        display: inline-block !important;
+    }
     """
 }
 
@@ -1774,6 +1785,14 @@ func generateChatJS(adminName: String) -> String {
                     // Show system message if Lobby
                     if (message.room.name === 'Lobby') {
                         this.showTemporarySystemMessage('You are now in the Lobby.', 10000);
+                    }
+                    if (message.type === 'roomJoined' && typeof message.isAdmin !== 'undefined') {
+                        document.body.classList.remove('admin', 'user');
+                        if (message.isAdmin) {
+                            document.body.classList.add('admin');
+                        } else {
+                            document.body.classList.add('user');
+                        }
                     }
                     break;
                     
@@ -1911,16 +1930,14 @@ func generateChatJS(adminName: String) -> String {
             const removeBtn = document.getElementById('remove-room-btn');
             const clearBtn = document.getElementById('clear-history-btn');
             if (room.name !== 'Lobby' && this.username === ADMIN_USERNAME) {
-                removeBtn.style.display = '';
-                removeBtn.textContent = `Remove ${room.name}`;
+                if (removeBtn) {
+                    removeBtn.style.display = '';
+                    removeBtn.textContent = `Remove ${room.name}`;
+                }
             } else {
-                removeBtn.style.display = 'none';
+                if (removeBtn) removeBtn.style.display = 'none';
             }
-            if (this.username === ADMIN_USERNAME) {
-                clearBtn.style.display = '';
-            } else {
-                clearBtn.style.display = 'none';
-            }
+            if (clearBtn) clearBtn.style.display = (this.username === ADMIN_USERNAME) ? '' : 'none';
             
             // Clear messages
             this.messages = [];

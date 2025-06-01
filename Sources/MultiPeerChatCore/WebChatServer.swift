@@ -290,9 +290,11 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         }
         
         // Notify client of room join for UI update
+        let isAdmin = (username == ADMIN_USERNAME)
         sendToClient(client, message: [
             "type": "roomJoined",
-            "room": roomToDict(room)
+            "room": roomToDict(room),
+            "isAdmin": isAdmin
         ])
         
         // Notify others in the room
