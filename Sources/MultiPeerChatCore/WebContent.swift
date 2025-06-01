@@ -169,7 +169,7 @@ func generateIndexHTML() -> String {
                                     <button id="clear-history-btn" class="clear-history-btn" onclick="clearChatHistory()" disabled>Clear</button>
                                     <button id="remove-room-btn" class="remove-room-btn" onclick="removeRoom()">Remove</button>
                                     <button id="leave-room-btn" class="leave-room-btn" onclick="leaveRoom()" disabled>Leave</button>
-                                    <button id="logout-btn" onclick="logout()" style="margin-left: 1rem;">Logout</button>
+                                    <button id="logout-btn" onclick="logout()">Logout</button>
                                 </div>
                             </div>
                         </div>
@@ -674,6 +674,8 @@ func generateCSS() -> String {
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         color: var(--text-primary);
         border: 1px solid var(--border-color);
+        height: 60px;
+        box-sizing: border-box;
     }
 
     .user-avatar {
@@ -688,10 +690,15 @@ func generateCSS() -> String {
         display: flex;
         align-items: center;
         cursor: pointer;
-        padding: 10px;
-        background: var(--bg-secondary);
-        border-bottom: 1px solid var(--border-color);
-        gap: 10px;
+        padding: 1rem;
+        background: var(--bg-primary) !important;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border-color);
+        margin-bottom: 0;
+        gap: 0.75rem;
+        height: 60px;
+        box-sizing: border-box;
     }
 
     .rooms-section-header .toggle-icon {
@@ -759,10 +766,9 @@ func generateCSS() -> String {
     }
 
     .rooms-list-container {
-        max-height: 250px;
-        overflow-y: auto;
-        transition: max-height 0.3s ease, opacity 0.3s ease;
-        padding-top: 1rem;
+        max-height: none;
+        overflow: visible;
+        padding-top: 0;
     }
 
     .rooms-list-container.collapsed {
@@ -901,6 +907,7 @@ func generateCSS() -> String {
     #logout-btn {
         background-color: var(--accent-color);
         color: white;
+        margin-left: 6px;
     }
 
     #logout-btn:hover {
@@ -1220,7 +1227,7 @@ func generateCSS() -> String {
         max-height: 250px;
         overflow-y: auto;
         transition: max-height 0.3s ease, opacity 0.3s ease;
-        padding-top: 1rem;
+        padding-top: 0.5rem;
     }
 
     .rooms-list-container.collapsed {
@@ -1263,11 +1270,11 @@ func generateCSS() -> String {
         }
 
         .selected-emoji {
-            font-size: 4rem; /* Reduced from 8rem */
-            width: 80px; /* Reduced from 128px */
-            height: 80px; /* Reduced from 128px */
-            margin-bottom: 1rem; /* Reduced from 2rem */
-            padding: 10px; /* Reduced from 15px */
+            font-size: 6rem !important; /* 75% of 8rem */
+            width: 96px !important; /* 75% of 128px */
+            height: 96px !important; /* 75% of 128px */
+            margin-bottom: 1rem !important; /* Reduced from 2rem */
+            padding: 11.25px !important; /* 75% of 15px */
         }
 
         .emoji-scroll-container {
@@ -1508,6 +1515,8 @@ func generateCSS() -> String {
 
         #logout-btn {
             background-color: var(--accent-color);
+            color: white;
+            margin-left: 6px;
         }
 
         #logout-btn:hover {
@@ -2602,10 +2611,14 @@ func generateChatJS(adminName: String) -> String {
             const container = document.getElementById('messages-container');
             
             if (this.messages.length === 0) {
+                const welcomeText = this.currentRoom ? 
+                    `Welcome to ${this.currentRoom.name}!` : 
+                    `Welcome to ${window.location.hostname}!`;
+                    
                 container.innerHTML = `
                     <div class="welcome-message">
-                        <h3>Welcome to <span id="rp-id"></span>! 🎉</h3>
-                        <p>Create a room or join an existing one to start chatting.</p>
+                        <h3>${welcomeText} 🎉</h3>
+                        <p>${this.currentRoom ? 'Start chatting with others in this room.' : 'Create a room or join an existing one to start chatting.'}</p>
                     </div>
                 `;
                 return;
