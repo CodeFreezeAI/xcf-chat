@@ -1469,7 +1469,6 @@ func generateCSS() -> String {
 
     /* MESSAGE BUBBLE STYLES */
     .message {
-        max-width: 70%;
         padding: 0.75rem 1rem;
         border-radius: 12px;
         word-wrap: break-word;
@@ -3039,7 +3038,7 @@ func generateChatJS(adminName: String) -> String {
                     messageEl.innerHTML = `
                         <div class="message-header">
                             <span class="user-emoji">${message.emoji || '👤'}</span>
-                            <span class="username">${isOwn ? 'You' : message.sender}</span>
+                            <span class="username">${message.sender}</span>
                             <span class="time">${time}</span>
                         </div>
                         <div class="message-content">${this.escapeHtml(message.content)}</div>
