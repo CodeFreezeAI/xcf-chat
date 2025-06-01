@@ -1,8 +1,7 @@
 import Foundation
 import Network
-import Combine
+import CommonCrypto
 
-var globalRpIdServer = "chat.xcf.ai"
 public protocol WebServerDelegate: AnyObject {
     func webServer(_ server: WebServer, didReceiveMessage message: String, from client: WebSocketClient)
     func webServer(_ server: WebServer, clientDidConnect client: WebSocketClient)
@@ -19,10 +18,11 @@ public class WebServer: ObservableObject {
     @Published public var isRunning = false
     @Published public var connectedClients: Int = 0
     
-    private let rpId: String = globalRpIdServer
+    private let rpId: String
     private let webAuthnManager: WebAuthnManager
     
-    public init() {
+    public init(rpId: String) {
+        self.rpId = rpId
         self.webAuthnManager = WebAuthnManager(rpId: rpId)
     }
     
@@ -190,7 +190,7 @@ public class WebServer: ObservableObject {
             response = generateIndexHTML()
             contentType = "text/html"
         case ("GET", "/chat.js"):
-            response = generateChatJS()
+            response = generateChatJS(adminName: ADMIN_USERNAME)
             contentType = "application/javascript"
         case ("GET", "/style.css"):
             response = generateCSS()
@@ -816,6 +816,3 @@ extension Data {
         return Data(digest)
     }
 }
-
-// Import CommonCrypto for SHA1
-import CommonCrypto 

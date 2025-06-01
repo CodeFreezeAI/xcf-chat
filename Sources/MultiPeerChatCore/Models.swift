@@ -1,5 +1,7 @@
 import Foundation
 
+public let ADMIN_USERNAME = "XCF Admin"
+
 // MARK: - User Model
 public struct User: Codable, Hashable, Identifiable {
     public let id: UUID
@@ -188,4 +190,5 @@ public enum NetworkMessage: Codable {
     public static func from(data: Data) -> NetworkMessage? {
         try? JSONDecoder().decode(NetworkMessage.self, from: data)
     }
-} 
+}
+

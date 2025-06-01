@@ -281,6 +281,11 @@ func generateIndexHTML() -> String {
                 
                 const options = await response.json();
                 
+                if (!options.publicKey || !options.publicKey.challenge) {
+                    alert('WebAuthn registration error: Invalid options from server.');
+                    return;
+                }
+                
                 // Convert base64 strings to ArrayBuffer
                 options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
                 options.publicKey.user.id = base64ToArrayBuffer(options.publicKey.user.id);
@@ -330,6 +335,10 @@ func generateIndexHTML() -> String {
             })
             .then(response => response.json())
             .then(options => {
+                if (!options.publicKey || !options.publicKey.challenge) {
+                    alert('WebAuthn authentication error: Invalid options from server.');
+                    throw new Error('Invalid WebAuthn options');
+                }
                 // Convert challenge to ArrayBuffer
                 options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
                 // Convert each allowCredentials id to ArrayBuffer
@@ -448,6 +457,8 @@ func generateCSS() -> String {
         --other-bg: var(--bg-secondary);
         --other-text: #111;
         --other-username: #111;
+        --remove-room-color: #FF5E3A; /* Between orange and red */
+        --remove-room-color-hover: #E04A1F;
     }
 
     /* Dark Mode Colors */
@@ -1623,12 +1634,26 @@ func generateCSS() -> String {
     #webauthn-login-btn:hover {
         background-color: #F57C00;
     }
+
+    .room-actions .remove-room-btn {
+        background-color: var(--remove-room-color);
+        transition: background 0.3s ease;
+        margin-right: 0.5rem;
+        color: white;
+    }
+
+    .room-actions .remove-room-btn:hover {
+        background: var(--remove-room-color-hover);
+    }
     """
 }
 
 // MARK: - JavaScript Content
-func generateChatJS() -> String {
+func generateChatJS(adminName: String) -> String {
     return """
+    // Add at the top of the JS section (before class ChatClient):
+    const ADMIN_USERNAME = '\(adminName)';
+
     class ChatClient {
         constructor() {
             this.ws = null;
@@ -1874,10 +1899,7 @@ func generateChatJS() -> String {
         joinRoom(roomId) {
             const room = this.rooms.find(r => r.id === roomId);
             if (!room) return;
-            
             this.currentRoom = room;
-            
-            // Update UI
             document.getElementById('current-room-name').textContent = room.name;
             document.getElementById('leave-room-btn').disabled = false;
             document.getElementById('clear-history-btn').disabled = false;
@@ -1885,14 +1907,19 @@ func generateChatJS() -> String {
             document.getElementById('send-btn').disabled = false;
             document.getElementById('invite-btn').disabled = false;
             document.getElementById('file-btn').disabled = false;
-            
-            // Show/hide remove button
+            // Show/hide remove and clear history buttons based on admin
             const removeBtn = document.getElementById('remove-room-btn');
-            if (room.name !== 'Lobby') {
+            const clearBtn = document.getElementById('clear-history-btn');
+            if (room.name !== 'Lobby' && this.username === ADMIN_USERNAME) {
                 removeBtn.style.display = '';
                 removeBtn.textContent = `Remove ${room.name}`;
             } else {
                 removeBtn.style.display = 'none';
+            }
+            if (this.username === ADMIN_USERNAME) {
+                clearBtn.style.display = '';
+            } else {
+                clearBtn.style.display = 'none';
             }
             
             // Clear messages
@@ -1942,8 +1969,8 @@ func generateChatJS() -> String {
         }
         
         clearChatHistory() {
-            if (this.username !== 'XCF Admin') {
-                alert('Only XCF Admin can clear history.');
+            if (this.username !== ADMIN_USERNAME) {
+                alert('Only ' + ADMIN_USERNAME + ' can clear history.');
                 return;
             }
             if (!this.currentRoom) return;
@@ -2325,8 +2352,8 @@ func generateChatJS() -> String {
         }
 
         removeRoom() {
-            if (this.username !== 'XCF Admin') {
-                alert('Only XCF Admin can remove rooms.');
+            if (this.username !== ADMIN_USERNAME) {
+                alert('Only ' + ADMIN_USERNAME + ' can remove rooms.');
                 return;
             }
             if (!this.currentRoom || this.currentRoom.name === 'Lobby') return;

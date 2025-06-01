@@ -1,6 +1,5 @@
 import Foundation
 import Network
-import Combine
 
 public protocol NetworkManagerDelegate: AnyObject {
     func networkManager(_ manager: NetworkManager, didReceiveMessage message: NetworkMessage, from peer: NWConnection)

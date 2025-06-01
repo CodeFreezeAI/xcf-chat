@@ -2,12 +2,14 @@ import Foundation
 import Network
 import Combine
 
+// ADMIN_USERNAME is now defined in Models.swift
+
 public class WebChatServer: ObservableObject, WebServerDelegate {
     @Published public var isRunning = false
     @Published public var connectedUsers = 0
     @Published public var totalRooms = 0
     
-    private let webServer = WebServer()
+    private var webServer: WebServer
     private var rooms: [String: Room] = [:]
     private var users: [String: WebSocketClient] = [:]
     private var userRooms: [String: String] = [:] // userId -> roomId
@@ -18,11 +20,11 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     private var cancellables = Set<AnyCancellable>()
     private let persistenceManager = PersistenceManager.shared
     private let rpId: String
-    private let ADMIN_USERNAME = "XCF Admin"
     
     
     public init(rpId: String) {
         self.rpId = rpId
+        self.webServer = WebServer(rpId: rpId)
         webServer.delegate = self
         
         // Observe webServer's running state
@@ -421,7 +423,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     
     private func handleClearChatHistory(_ json: [String: Any], client: WebSocketClient) {
         guard client.username == ADMIN_USERNAME else {
-            sendToClient(client, message: ["type": "error", "message": "Only XCF Admin can clear history."])
+            sendToClient(client, message: ["type": "error", "message": "Only an admin can clear history."])
             return
         }
         guard let roomId = json["roomId"] as? String,
@@ -443,7 +445,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     
     private func handleRemoveRoom(_ json: [String: Any], client: WebSocketClient) {
         guard client.username == ADMIN_USERNAME else {
-            sendToClient(client, message: ["type": "error", "message": "Only XCF Admin can remove rooms."])
+            sendToClient(client, message: ["type": "error", "message": "Only an admin can remove rooms."])
             return
         }
         guard let roomId = json["roomId"] as? String,
