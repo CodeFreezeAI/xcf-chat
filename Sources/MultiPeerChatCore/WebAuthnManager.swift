@@ -86,9 +86,9 @@ class WebAuthnManager {
         
         if let username = username {
             // If username is provided, only allow that specific credential
-            guard let credential = credentials[username] else {
-                throw WebAuthnError.credentialNotFound
-            }
+        guard let credential = credentials[username] else {
+            throw WebAuthnError.credentialNotFound
+        }
             allowCredentials = [[
                 "type": "public-key",
                 "id": credential.id,

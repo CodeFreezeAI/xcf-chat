@@ -7,7 +7,7 @@ func generateIndexHTML() -> String {
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
         <title><span id="rp-id"></span></title>
         <link rel="stylesheet" href="/style.css">
     </head>
@@ -425,9 +425,10 @@ func generateIndexHTML() -> String {
 // MARK: - CSS Content
 func generateCSS() -> String {
     return """
-    /* Updated: 2024-12-19 - Mobile Layout Fixed */
+    /* COMPLETELY REVAMPED MOBILE-FIRST CSS - 2024-12-19 */
     #clear-history-btn { display: none !important; }
     body.admin #clear-history-btn { display: inline-block !important; }
+    
     :root {
         /* Light Mode Colors */
         --bg-primary: #eceff1;
@@ -464,7 +465,7 @@ func generateCSS() -> String {
         --other-bg: var(--bg-secondary);
         --other-text: #111;
         --other-username: #111;
-        --remove-room-color: #FF5E3A; /* Between orange and red */
+        --remove-room-color: #FF5E3A;
         --remove-room-color-hover: #E04A1F;
     }
 
@@ -507,7 +508,7 @@ func generateCSS() -> String {
             color: #e2e8f0;
         }
         .message.own {
-            background: #0a84ff !important; /* macOS system blue */
+            background: #0a84ff !important;
             color: #fff;
         }
     }
@@ -519,22 +520,41 @@ func generateCSS() -> String {
         transition: background-color 0.3s ease, color 0.3s ease;
     }
 
+    /* PROPER MOBILE VIEWPORT HANDLING */
+    html {
+        height: 100%;
+        /* Modern viewport units for mobile */
+        height: 100dvh;
+        height: -webkit-fill-available;
+        overflow: hidden;
+    }
+
     body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%), var(--bg-primary);
-        min-height: 100vh;
+        height: 100%;
+        height: 100dvh;
+        height: -webkit-fill-available;
         color: var(--text-primary);
         line-height: 1.6;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
     }
 
     .container {
-        max-width: 100%;
-        margin: 0 auto;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        height: -webkit-fill-available;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
 
+    /* DESKTOP-FIRST HEADER */
     .header {
         background: var(--modal-bg);
         backdrop-filter: blur(10px);
@@ -544,6 +564,8 @@ func generateCSS() -> String {
         align-items: center;
         box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
         color: var(--text-primary);
+        flex-shrink: 0;
+        z-index: 100;
     }
 
     .header h1 {
@@ -572,6 +594,7 @@ func generateCSS() -> String {
         flex: 1;
         position: relative;
         overflow: hidden;
+        min-height: 0;
     }
 
     .screen {
@@ -596,6 +619,7 @@ func generateCSS() -> String {
         justify-content: center;
         height: 100%;
         gap: 1.5rem;
+        padding: 2rem;
     }
 
     .login-form h2 {
@@ -641,7 +665,7 @@ func generateCSS() -> String {
         background: var(--accent-color-hover);
     }
 
-    /* Chat Screen */
+    /* DESKTOP CHAT SCREEN */
     #chat-screen {
         display: flex;
         background: var(--modal-bg);
@@ -651,7 +675,7 @@ func generateCSS() -> String {
         overflow: hidden;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
         color: var(--text-primary);
-        flex: 1;
+        height: 100%;
     }
 
     .sidebar {
@@ -661,6 +685,8 @@ func generateCSS() -> String {
         display: flex;
         flex-direction: column;
         padding: 1.5rem;
+        overflow-y: auto;
+        flex-shrink: 0;
     }
 
     .user-info {
@@ -684,6 +710,7 @@ func generateCSS() -> String {
 
     .rooms-section {
         position: relative;
+        flex: 1;
     }
 
     .rooms-section-header {
@@ -695,7 +722,7 @@ func generateCSS() -> String {
         border-radius: 12px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         border: 1px solid var(--border-color);
-        margin-bottom: 0;
+        margin-bottom: 0.5rem;
         gap: 0.75rem;
         height: 60px;
         box-sizing: border-box;
@@ -740,35 +767,11 @@ func generateCSS() -> String {
         background: var(--accent-color-hover);
     }
 
-    /* Ensure create room button has proper styling on all screen sizes */
-    button[onclick="showCreateRoom()"] {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        border: none;
-        background: var(--accent-color);
-        color: white;
-        cursor: pointer;
-        font-size: 1.2rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    button[onclick="showCreateRoom()"]:hover {
-        background: var(--accent-color-hover);
-    }
-
-    .rooms-section {
-        grid-column: 1 / -1;
-        margin-top: 0;
-        margin-bottom: 0; /* Ensure no bottom margin */
-    }
-
     .rooms-list-container {
-        max-height: none;
-        overflow: visible;
+        max-height: 300px;
+        overflow-y: auto;
         padding-top: 0;
+        transition: max-height 0.3s ease, opacity 0.3s ease;
     }
 
     .rooms-list-container.collapsed {
@@ -826,19 +829,24 @@ func generateCSS() -> String {
         color: white;
     }
 
+    /* DESKTOP CHAT AREA */
     .chat-area {
         flex: 1;
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        min-height: 0;
     }
 
     .chat-header {
         display: flex;
-        flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        padding: 0.75rem; /* Reduced from 1rem */
+        padding: 1rem 1.5rem;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+        flex-shrink: 0;
+        z-index: 10;
     }
 
     .chat-header h3 {
@@ -847,29 +855,30 @@ func generateCSS() -> String {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        font-size: 1rem;
+        font-size: 1.1rem;
     }
 
     .room-actions {
         display: flex;
         align-items: center;
-        gap: 8px; /* Reduced from 12px */
+        gap: 12px;
     }
 
     .room-actions .room-info-mobile {
         display: flex;
         align-items: center;
-        gap: 6px; /* Reduced from 10px */
+        gap: 10px;
     }
 
     .room-actions button {
-        padding: 0.5rem 1rem;
+        padding: 0.6rem 1.2rem;
         background: var(--accent-color);
         color: white;
         border: none;
         border-radius: 6px;
         cursor: pointer;
         font-size: 0.9rem;
+        transition: background 0.3s ease;
     }
 
     .room-actions button:disabled {
@@ -879,7 +888,6 @@ func generateCSS() -> String {
 
     .room-actions .leave-room-btn {
         background-color: var(--dark-red-color);
-        color: white;
     }
 
     .room-actions .leave-room-btn:hover {
@@ -888,7 +896,6 @@ func generateCSS() -> String {
 
     .room-actions .clear-history-btn {
         background-color: var(--orange-color);
-        color: white;
     }
 
     .room-actions .clear-history-btn:hover {
@@ -897,7 +904,6 @@ func generateCSS() -> String {
 
     .room-actions .remove-room-btn {
         background-color: var(--remove-room-color);
-        color: white;
     }
 
     .room-actions .remove-room-btn:hover {
@@ -906,51 +912,23 @@ func generateCSS() -> String {
 
     #logout-btn {
         background-color: var(--accent-color);
-        color: white;
-        margin-left: 6px;
     }
 
     #logout-btn:hover {
         background-color: var(--accent-color-hover);
     }
 
-    .invite-section {
-        margin-top: 1rem;
-    }
-
-    .invite-section button {
-        width: 100%;
-        padding: 0.75rem;
-        background: var(--dark-green-color);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        transition: background 0.3s ease;
-    }
-
-    .invite-section button:hover {
-        background: var(--dark-green-color-hover);
-    }
-
-    .invite-section button:disabled {
-        background: var(--disabled-bg);
-        cursor: not-allowed;
-    }
-
+    /* DESKTOP MESSAGES CONTAINER */
     .messages-container {
         flex: 1;
         overflow-y: auto;
         padding: 1rem 1.5rem;
-        padding-bottom: 155px !important; /* Increased from 120px + 35px more space */
+        padding-bottom: 1rem;
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
         -webkit-overflow-scrolling: touch;
         min-height: 0;
-        /* Ensure messages don't get hidden behind input */
-        margin-bottom: 35px !important; /* Added 35px bottom margin */
     }
 
     .welcome-message {
@@ -959,72 +937,16 @@ func generateCSS() -> String {
         margin-top: 2rem;
     }
 
-    /* Message Bubble Styles - grouped and clean */
-    .message {
-        max-width: 70%;
-        padding: 0.75rem 1rem;
-        border-radius: 12px;
-        word-wrap: break-word;
-        margin-bottom: 0.75rem;
-    }
-    .message.own {
-        align-self: flex-end;
-        background: var(--own-bg);
-        color: var(--own-text);
-    }
-    .message.other {
-        align-self: flex-start;
-        background: var(--other-bg);
-        color: var(--other-text);
-    }
-    .message.other .username {
-        color: var(--other-username);
-    }
-    .message.system {
-        align-self: center;
-        background: var(--system-message-bg);
-        color: var(--system-message-text);
-        font-style: italic;
-        font-size: 0.9rem;
-    }
-    .message-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-        font-size: 1rem;
-        background: none;
-        box-shadow: none;
-        border: none;
-        padding: 0;
-    }
-    .user-emoji {
-        font-size: 1.5rem;
-        margin-right: 0.5rem;
-        line-height: 1;
-    }
-    .username {
-        font-weight: 600;
-        margin-right: auto;
-    }
-    .time {
-        color: var(--time-other);
-        font-size: 0.9rem;
-        margin-left: 1rem;
-        white-space: nowrap;
-    }
-    .message-content {
-        font-size: 1.2rem;
-        word-break: break-word;
-    }
-
-    /* Message Input Styles */
+    /* DESKTOP MESSAGE INPUT */
     .message-input-container {
         padding: 1.5rem;
         border-top: 1px solid var(--border-color);
         display: flex;
         align-items: center;
         gap: 1rem;
+        background: var(--bg-secondary);
+        flex-shrink: 0;
+        z-index: 10;
     }
 
     .message-input-container input {
@@ -1035,11 +957,12 @@ func generateCSS() -> String {
         font-size: 1rem;
         background-color: var(--input-bg);
         color: var(--input-text);
+        outline: none;
     }
 
-    .message-input-container input:disabled {
-        background: #f7fafc;
-        cursor: not-allowed;
+    .message-input-container input:focus {
+        border: 2px solid var(--accent-color);
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
     }
 
     .message-input-container button {
@@ -1050,35 +973,31 @@ func generateCSS() -> String {
         border-radius: 25px;
         cursor: pointer;
         font-size: 1rem;
+        transition: background 0.3s ease;
     }
 
-    .message-input-container button:disabled {
-        background: var(--disabled-bg);
-        cursor: not-allowed;
+    .message-input-container button:hover {
+        background: var(--accent-color-hover);
     }
 
-    /* File Upload Area */
     .file-upload-area {
         display: flex;
         align-items: center;
     }
 
     .circle-attachment-btn {
-        width: 48px;
-        height: 48px;
-        aspect-ratio: 1/1;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
+        border: none;
         background: var(--accent-color);
         color: white;
-        border: none;
+        cursor: pointer;
+        font-size: 1.2rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2rem;
-        font-family: "SF Pro", "SF Pro Icons", "Apple Symbols", "system-ui", sans-serif;
-        cursor: pointer;
-        transition: background 0.3s;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: background 0.3s ease;
     }
 
     .circle-attachment-btn:hover {
@@ -1090,144 +1009,370 @@ func generateCSS() -> String {
         cursor: not-allowed;
     }
 
-    /* Mobile adjustments for message input */
+    /* MOBILE COMPLETE OVERHAUL */
     @media (max-width: 768px) {
-        /* Ensure body and container take full height */
+        /* ENSURE PROPER MOBILE VIEWPORT */
+        html {
+            height: 100%;
+            height: 100dvh;
+            height: -webkit-fill-available;
+        }
+
         body {
-            height: 100vh;
+            height: 100%;
+            height: 100dvh;
             height: -webkit-fill-available;
             overflow: hidden;
-            overscroll-behavior: none;
+            position: fixed;
+            width: 100%;
         }
 
         .container {
-            height: 100vh;
+            height: 100%;
+            height: 100dvh;
             height: -webkit-fill-available;
-            display: flex;
-            flex-direction: column;
         }
 
-        /* Chat screen takes full height */
+        /* MOBILE HEADER - COMPACT */
+        .header {
+            padding: 0.5rem 1rem;
+            min-height: 60px;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+        }
+
+        .status {
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        /* MOBILE LOGIN FORM */
+        .login-form {
+            padding: 1rem;
+            gap: 1rem;
+            justify-content: flex-start;
+            padding-top: 2rem;
+        }
+
+        .login-form h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-form input {
+            width: 90%;
+            max-width: 300px;
+            font-size: 16px; /* Prevent zoom on iOS */
+        }
+
+        .selected-emoji {
+            font-size: 4rem !important;
+            width: 80px !important;
+            height: 80px !important;
+            margin-bottom: 1rem !important;
+        }
+
+        .emoji-scroll-container {
+            height: 150px;
+            max-width: 300px;
+        }
+
+        .auth-options {
+            gap: 12px;
+            margin-top: 15px;
+            max-width: 90%;
+        }
+
+        /* MOBILE CHAT SCREEN - COMPLETE REDESIGN */
         #chat-screen {
-            height: 100vh;
-            height: -webkit-fill-available;
-            display: flex;
             flex-direction: column;
+            height: 100%;
         }
 
-        /* Make chat area flex container with sticky input */
+        /* MOBILE SIDEBAR - COMPACT TOP SECTION */
+        .sidebar {
+            width: 100%;
+            height: auto;
+            max-height: 150px;
+            padding: 0.75rem;
+            border-right: none;
+            border-bottom: 1px solid var(--border-color);
+            overflow: visible;
+            flex-shrink: 0;
+        }
+
+        .sidebar-top {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-info {
+            padding: 0.75rem;
+            margin-bottom: 0;
+            height: auto;
+            min-height: 50px;
+        }
+
+        .user-avatar {
+            font-size: 1.2rem;
+        }
+
+        .rooms-section-header {
+            padding: 0.75rem;
+            margin-bottom: 0;
+            height: auto;
+            min-height: 50px;
+            grid-column: 2;
+        }
+
+        .rooms-section-header h3 {
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .rooms-section-header button {
+            width: 24px;
+            height: 24px;
+            font-size: 1rem;
+        }
+
+        .rooms-section {
+            grid-column: 1 / -1;
+        }
+
+        .rooms-list-container {
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        .rooms-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+
+        .room-item {
+            padding: 0.4rem 0.8rem;
+            margin-bottom: 0;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* MOBILE CHAT AREA - FILLS REMAINING SPACE */
         .chat-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            position: relative;
             min-height: 0;
+            overflow: hidden;
         }
 
+        /* MOBILE CHAT HEADER - STATIC */
+        .chat-header {
+            padding: 0.75rem;
+            flex-shrink: 0;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            z-index: 10;
+        }
+
+        .chat-header h3 {
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .room-actions {
+            gap: 6px;
+        }
+
+        .room-actions .room-info-mobile {
+            gap: 6px;
+        }
+
+        .room-actions button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            border-radius: 4px;
+        }
+
+        /* MOBILE MESSAGES - SCROLLABLE MIDDLE SECTION */
         .messages-container {
             flex: 1;
             overflow-y: auto;
-            padding: 1rem 1.5rem;
-            padding-bottom: 120px !important; /* More space for fixed input */
+            padding: 1rem;
+            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
             -webkit-overflow-scrolling: touch;
             min-height: 0;
-            /* Ensure messages don't get hidden behind input */
-            margin-bottom: 0;
         }
 
+        /* MOBILE MESSAGE INPUT - FIXED TO BOTTOM */
         .message-input-container {
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            width: 100% !important;
-            padding: 1rem !important;
-            background: var(--bg-secondary) !important;
-            border-top: 1px solid var(--border-color) !important;
-            display: flex !important;
-            flex-direction: row !important;
-            gap: 10px !important;
-            align-items: center !important;
-            z-index: 1000 !important;
-            box-sizing: border-box !important;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            padding-bottom: calc(1rem + 50px + env(safe-area-inset-bottom)) !important;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1) !important;
-            /* iPhone specific fixes */
-            -webkit-backdrop-filter: blur(10px);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
-        }
-        
-        .message-input-container input {
-            flex: 1 !important;
-            margin: 0 !important;
-            padding: 0.75rem 1rem !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 25px !important;
-            background-color: var(--input-bg) !important;
-            color: var(--input-text) !important;
-            font-size: 16px !important;
-            min-height: 44px !important;
-            box-sizing: border-box !important;
-        }
-        
-        .message-input-container button {
-            padding: 0.75rem 1.5rem !important;
-            background: var(--accent-color) !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 25px !important;
-            cursor: pointer !important;
-            font-size: 1rem !important;
-            margin: 0 !important;
-            min-width: 60px !important;
-            min-height: 44px !important;
-            box-sizing: border-box !important;
+            -webkit-backdrop-filter: blur(10px);
         }
 
-        /* File upload button positioning */
-        .file-upload-area {
-            display: flex !important;
-            align-items: center !important;
+        .message-input-container input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            font-size: 16px; /* Prevent zoom on iOS */
+            background-color: var(--input-bg);
+            color: var(--input-text);
+            min-height: 44px;
+        }
+
+        .message-input-container button {
+            padding: 0.75rem 1.2rem;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            min-height: 44px;
+            min-width: 60px;
         }
 
         .circle-attachment-btn {
-            width: 44px !important;
-            height: 44px !important;
-            font-size: 1.5rem !important;
-            margin: 0 !important;
+            width: 44px;
+            height: 44px;
+            font-size: 1.2rem;
         }
 
-        /* Ensure proper header spacing on mobile */
-        .header {
-            flex-shrink: 0;
+        /* HIDE INVITE BUTTON ON MOBILE */
+        .invite-section {
+            display: none;
         }
 
-        /* Ensure sidebar doesn't interfere */
-        .sidebar {
-            flex-shrink: 0;
+        /* MODAL ADJUSTMENTS FOR MOBILE */
+        .modal-content {
+            width: 90%;
+            max-width: none;
+            margin: 1rem;
         }
     }
 
-    /* Additional fix for very small screens */
-    @media (max-width: 480px) {
-        .message-input-container {
-            padding: 0.75rem !important;
-            padding-bottom: calc(0.75rem + 60px + env(safe-area-inset-bottom)) !important;
+    /* TINY MOBILE SCREENS */
+    @media (max-width: 375px) {
+        .header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .status {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .sidebar {
+            max-height: 120px;
+            padding: 0.5rem;
         }
 
         .messages-container {
-            padding-bottom: 170px !important; /* Increased even more for iPhone */
-            margin-bottom: 50px !important; /* Increased margin */
+            padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+        }
+
+        .room-actions button {
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
         }
     }
 
-    /* Modal */
+    /* MESSAGE BUBBLE STYLES */
+    .message {
+        max-width: 70%;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        word-wrap: break-word;
+        margin-bottom: 0.75rem;
+    }
+
+    .message.own {
+        align-self: flex-end;
+        background: var(--own-bg);
+        color: var(--own-text);
+    }
+
+    .message.other {
+        align-self: flex-start;
+        background: var(--other-bg);
+        color: var(--other-text);
+    }
+
+    .message.other .username {
+        color: var(--other-username);
+    }
+
+    .message.system {
+        align-self: center;
+        background: var(--system-message-bg);
+        color: var(--system-message-text);
+        font-style: italic;
+        font-size: 0.9rem;
+    }
+
+    .message-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+        background: none;
+        box-shadow: none;
+        border: none;
+        padding: 0;
+    }
+
+    .user-emoji {
+        font-size: 1.5rem;
+        margin-right: 0.5rem;
+        line-height: 1;
+    }
+
+    .username {
+        font-weight: 600;
+        margin-right: auto;
+    }
+
+    .time {
+        color: var(--time-other);
+        font-size: 0.9rem;
+        margin-left: 1rem;
+        white-space: nowrap;
+    }
+
+    .message-content {
+        font-size: 1.2rem;
+        word-break: break-word;
+    }
+
+    /* MODAL STYLES */
     .modal {
         position: fixed;
         top: 0;
@@ -1248,6 +1393,8 @@ func generateCSS() -> String {
         min-width: 400px;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         color: var(--text-primary);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
     }
 
     .modal-content h3 {
@@ -1262,6 +1409,14 @@ func generateCSS() -> String {
         border-radius: 6px;
         margin-bottom: 1rem;
         font-size: 1rem;
+        background-color: var(--input-bg);
+        color: var(--input-text);
+    }
+
+    .modal-content input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
     }
 
     .modal-actions {
@@ -1276,11 +1431,16 @@ func generateCSS() -> String {
         border-radius: 6px;
         cursor: pointer;
         font-size: 1rem;
+        transition: background 0.3s ease;
     }
 
     .modal-actions button:first-child {
         background: var(--accent-color);
         color: white;
+    }
+
+    .modal-actions button:first-child:hover {
+        background: var(--accent-color-hover);
     }
 
     .modal-actions button:last-child {
@@ -1306,445 +1466,14 @@ func generateCSS() -> String {
         border: none;
         border-radius: 6px;
         cursor: pointer;
+        transition: background 0.3s ease;
     }
 
-    /* Rooms Collapsible Section */
-    .rooms-section {
-        position: relative;
+    .invite-link-container button:hover {
+        background: var(--accent-color-hover);
     }
 
-    .rooms-section-header {
-        display: flex;
-        align-items: center;
-        cursor: pointer;
-        padding: 10px;
-        background: var(--bg-secondary);
-        border-bottom: 1px solid var(--border-color);
-        gap: 10px;
-    }
-
-    .rooms-section-header .toggle-icon {
-        transition: transform 0.3s ease;
-        font-size: 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 20px;
-        height: 20px;
-    }
-
-    .rooms-section-header .toggle-icon.rotated {
-        transform: rotate(90deg);
-    }
-
-    .rooms-section-header h3 {
-        margin-left: 5px;
-    }
-
-    .rooms-list-container {
-        max-height: 250px;
-        overflow-y: auto;
-        transition: max-height 0.3s ease, opacity 0.3s ease;
-        padding-top: 0.5rem;
-    }
-
-    .rooms-list-container.collapsed {
-        max-height: 0;
-        overflow: hidden;
-        opacity: 0;
-    }
-
-    /* Mobile Specific Adjustments */
-    @media (max-width: 768px) {
-        .container {
-            margin: 0;
-        }
-
-        /* Reduce header height on mobile */
-        .header {
-            padding: 0.375rem 0.75rem; /* Reduced by 25% from 0.5rem 1rem */
-        }
-
-        .header h1 {
-            font-size: 1rem; /* Reduced by 25% from 1.2rem */
-        }
-
-        .status {
-            gap: 0.375rem; /* Reduced by 25% from 0.5rem */
-            font-size: 0.8rem; /* Reduced from 0.9rem */
-        }
-
-        /* Login screen mobile adjustments */
-        .login-form {
-            gap: 1rem; /* Reduced from 1.5rem */
-            padding: 1rem;
-            justify-content: flex-start;
-            padding-top: 2rem;
-        }
-
-        .login-form h2 {
-            font-size: 1.5rem; /* Reduced from 2rem */
-            margin-bottom: 0.5rem; /* Reduced from 1rem */
-        }
-
-        .selected-emoji {
-            font-size: 6rem !important; /* 75% of 8rem */
-            width: 96px !important; /* 75% of 128px */
-            height: 96px !important; /* 75% of 128px */
-            margin-bottom: 1rem !important; /* Reduced from 2rem */
-            padding: 11.25px !important; /* 75% of 15px */
-        }
-
-        .emoji-scroll-container {
-            height: 180px; /* Reduced from 240px */
-            max-width: 320px; /* Reduced from 400px */
-        }
-
-        .emoji-picker {
-            margin: 0 auto 0.5rem auto; /* Reduced bottom margin */
-        }
-
-        .login-form input {
-            width: 280px; /* Reduced from 300px */
-            padding: 0.875rem 1.25rem; /* Slightly reduced padding */
-            font-size: 1rem; /* Reduced from 1.1rem */
-        }
-
-        .auth-options {
-            gap: 12px; /* Reduced from 15px */
-            margin-top: 15px; /* Reduced from 20px */
-            max-width: 280px; /* Reduced from 300px */
-        }
-
-        .auth-options button {
-            padding: 10px 16px; /* Reduced from 12px 20px */
-            font-size: 15px; /* Reduced from 16px */
-        }
-
-        #chat-screen {
-            margin: 0;
-            border-radius: 0;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        .sidebar {
-            width: 100%;
-            height: auto;
-            max-height: 15%; /* Reduced from 20% to eliminate more dead space */
-            border-right: none;
-            border-bottom: 1px solid var(--border-color);
-            overflow-y: auto;
-            padding: 0.25rem; /* Reduced from 0.5rem */
-            display: flex;
-            flex-direction: column;
-            gap: 0; /* Removed gap completely */
-        }
-
-        .sidebar-top {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            align-items: stretch; /* Changed from center to stretch for equal heights */
-            gap: 0.25rem; /* Reduced from 0.5rem */
-            margin-bottom: 0; /* Ensure no bottom margin */
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.4rem; /* Reduced from 0.5rem */
-            background: var(--bg-primary);
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 0;
-            grid-column: 1;
-            height: 100%; /* Ensure full height to match rooms section */
-            box-sizing: border-box;
-        }
-
-        .user-avatar {
-            font-size: 1.2rem;
-        }
-
-        .rooms-section-header {
-            padding: 0.4rem; /* Reduced from 0.5rem */
-            justify-content: space-between;
-            align-items: center;
-            grid-column: 2;
-            background: var(--bg-primary);
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 0;
-            display: flex;
-            cursor: pointer;
-            height: 100%; /* Ensure full height to match user info */
-            box-sizing: border-box;
-        }
-
-        .rooms-section-header h3 {
-            margin: 0;
-            font-size: 1rem;
-            color: var(--text-secondary);
-        }
-
-        .rooms-section-header .toggle-icon {
-            font-size: 1rem;
-            margin-right: 0.5rem;
-            transition: transform 0.3s ease;
-        }
-
-        .rooms-section-header button {
-            width: 24px;
-            height: 24px;
-            font-size: 1rem;
-            border-radius: 50%;
-            border: none;
-            background: var(--accent-color);
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 0.5rem;
-        }
-
-        .rooms-section {
-            grid-column: 1 / -1;
-            margin-top: 0;
-            margin-bottom: 0; /* Ensure no bottom margin */
-        }
-
-        .rooms-list-container {
-            max-height: 200px; /* Increased from 120px to show more rooms */
-            padding-top: 0.25rem; /* Reduced from 0.5rem */
-            overflow-y: auto;
-            transition: max-height 0.3s ease, opacity 0.3s ease;
-        }
-
-        .rooms-list-container.collapsed {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-        }
-
-        /* Mobile: Display rooms in a horizontal row */
-        .rooms-list {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: wrap;
-            gap: 0.25rem;
-        }
-
-        .room-item {
-            padding: 0.4rem 0.6rem; /* Reduced from 0.5rem 0.75rem */
-            margin-bottom: 0; /* Remove bottom margin for horizontal layout */
-            font-size: 0.9rem;
-            background: var(--bg-primary);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: 1px solid transparent;
-            color: var(--text-primary);
-            width: auto; /* Auto width to fit text content */
-            flex-shrink: 0; /* Don't shrink the buttons */
-            white-space: nowrap; /* Keep text on one line */
-        }
-
-        .room-item:hover {
-            background: var(--room-hover-bg);
-            color: var(--text-primary);
-            border-color: var(--accent-color);
-        }
-
-        .room-item.active {
-            background: var(--accent-color);
-            color: white;
-        }
-
-        .chat-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .chat-header {
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-        }
-
-        .chat-header h3 {
-            margin: 0;
-            flex-grow: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-size: 1rem;
-        }
-
-        .room-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .room-actions .room-info-mobile {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .room-actions button {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.9rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            color: white;
-        }
-
-        .room-actions .clear-history-btn {
-            background-color: var(--orange-color);
-        }
-
-        .room-actions .clear-history-btn:hover {
-            background: var(--orange-color-hover);
-        }
-
-        .room-actions .remove-room-btn {
-            background-color: var(--remove-room-color);
-        }
-
-        .room-actions .remove-room-btn:hover {
-            background: var(--remove-room-color-hover);
-        }
-
-        .room-actions .leave-room-btn {
-            background-color: var(--dark-red-color);
-        }
-
-        .room-actions .leave-room-btn:hover {
-            background: var(--dark-red-color-hover);
-        }
-
-        #logout-btn {
-            background-color: var(--accent-color);
-            color: white;
-            margin-left: 6px;
-        }
-
-        #logout-btn:hover {
-            background-color: var(--accent-color-hover);
-        }
-
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 0.75rem;
-        }
-
-        .user-avatar {
-            font-size: 1.2rem;
-        }
-
-        .rooms-section-header {
-            padding: 0.75rem;
-        }
-
-        .room-actions button {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
-        }
-
-        .message-input-container {
-            padding: 1rem;
-            flex-direction: row !important;
-            gap: 10px;
-            align-items: center;
-        }
-        .message-input-container input {
-            width: 100%;
-            margin-bottom: 0;
-        }
-        .message-input-container button {
-            width: auto;
-            min-width: 60px;
-            margin-left: 0;
-        }
-
-        .modal-content {
-            min-width: 90%;
-            margin: 1rem;
-            width: calc(100% - 2rem);
-        }
-
-        .invite-section button {
-            width: 100%;
-        }
-
-        /* Ensure text doesn't overflow */
-        #current-room-name, .room-item {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
-        }
-    }
-
-    /* Additional mobile-specific tweaks */
-    @media (max-width: 375px) {
-        .header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 1rem;
-        }
-
-        .status {
-            width: 100%;
-            justify-content: space-between;
-        }
-
-        .rooms-section {
-            width: 100%;
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-        }
-    }
-
-    .error-message {
-        color: var(--system-message-text);
-        background-color: var(--system-message-bg);
-        padding: 12px 15px;
-        border-radius: 8px;
-        margin-bottom: 15px;
-        text-align: center;
-        font-weight: 500;
-        border: 2px solid var(--system-message-text);
-        animation: fadeIn 0.3s ease-out;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* EMOJI PICKER STYLES - Updated at $(Date()) */
+    /* EMOJI PICKER STYLES */
     .emoji-picker {
         display: flex;
         flex-direction: column;
@@ -1767,6 +1496,7 @@ func generateCSS() -> String {
         background: rgba(255, 255, 255, 0.1);
         border-radius: 20px;
         backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         padding: 15px;
         box-sizing: content-box;
     }
@@ -1778,17 +1508,18 @@ func generateCSS() -> String {
     .emoji-scroll-container {
         width: 100%;
         max-width: 400px;
-        height: 240px !important;
-        background: #2a2a2a !important;
+        height: 240px;
+        background: rgba(42, 42, 42, 0.8);
         border-radius: 12px;
         padding: 10px;
-        overflow-y: scroll !important;
-        overflow-x: hidden !important;
+        overflow-y: auto;
+        overflow-x: hidden;
         scrollbar-width: thin;
         scrollbar-color: rgba(255,255,255,0.3) transparent;
-        box-sizing: border-box !important;
+        box-sizing: border-box;
         margin: 0 auto;
-        position: relative;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
     }
 
     .emoji-scroll-container::-webkit-scrollbar {
@@ -1805,8 +1536,8 @@ func generateCSS() -> String {
     }
 
     .emoji-grid {
-        display: grid !important;
-        grid-template-columns: repeat(6, 1fr) !important;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
         gap: 8px;
         width: 100%;
         padding: 0;
@@ -1815,19 +1546,18 @@ func generateCSS() -> String {
     }
 
     .emoji-option {
-        font-size: 1.8rem !important;
-        width: 100% !important;
-        height: 40px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+        font-size: 1.8rem;
+        width: 100%;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
         border-radius: 6px;
         transition: all 0.2s ease;
-        box-sizing: border-box !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        max-width: none !important;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
     }
 
     .emoji-option:hover {
@@ -1840,217 +1570,7 @@ func generateCSS() -> String {
         transform: scale(1.05);
     }
 
-    .room-actions .leave-room-btn {
-        background-color: var(--dark-red-color);
-        transition: background 0.3s ease;
-    }
-
-    .room-actions .leave-room-btn:hover {
-        background: var(--dark-red-color-hover);
-    }
-
-    .room-actions .clear-history-btn {
-        background-color: var(--orange-color);
-        transition: background 0.3s ease;
-        margin-right: 0.5rem;
-    }
-
-    .room-actions .clear-history-btn:hover {
-        background: var(--orange-color-hover);
-    }
-
-    /* File Upload Styles */
-    .file-preview-container {
-        max-height: 300px;
-        overflow-y: auto;
-        margin-bottom: 1rem;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 1rem;
-        background: var(--bg-primary);
-    }
-
-    .file-preview-item {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
-        background: var(--bg-secondary);
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
-    }
-
-    .file-preview-item:last-child {
-        margin-bottom: 0;
-    }
-
-    .file-preview-thumbnail {
-        width: 60px;
-        height: 60px;
-        border-radius: 8px;
-        object-fit: cover;
-        background: var(--bg-primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        border: 1px solid var(--border-color);
-    }
-
-    .file-preview-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .file-preview-name {
-        font-weight: 500;
-        color: var(--text-primary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .file-preview-size {
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-    }
-
-    .file-preview-remove {
-        background: var(--red-color);
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
-        cursor: pointer;
-        font-size: 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .file-preview-remove:hover {
-        background: var(--red-color-hover);
-    }
-
-    .file-upload-controls {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    #file-caption {
-        padding: 0.75rem;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        background: var(--input-bg);
-        color: var(--input-text);
-        font-size: 1rem;
-    }
-
-    #file-caption:focus {
-        outline: none;
-        border-color: var(--accent-color);
-        box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
-    }
-
-    /* Message attachment styles */
-    .message-attachment {
-        margin-top: 0.5rem;
-        border-radius: 12px;
-        background: var(--bg-secondary);
-        padding: 0.5rem;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        border: 1px solid var(--border-color);
-        box-sizing: border-box;
-        max-width: 100%;
-    }
-
-    .message-attachment-image {
-        display: block;
-        max-width: 100%;
-        max-height: 400px;
-        border-radius: 8px;
-        object-fit: contain;
-        background: #222;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        image-rendering: auto;
-    }
-
-    .message-attachment-file {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 1rem;
-        text-decoration: none;
-        color: var(--text-primary);
-        transition: background 0.2s ease;
-    }
-
-    .message-attachment-file:hover {
-        background: var(--bg-primary);
-    }
-
-    .message-attachment-icon {
-        width: 40px;
-        height: 40px;
-        background: var(--accent-color);
-        color: white;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        flex-shrink: 0;
-    }
-
-    .message-attachment-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .message-attachment-name {
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .message-attachment-size {
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-    }
-
-    /* Mobile adjustments for file upload */
-    @media (max-width: 768px) {
-        .file-preview-container {
-            max-height: 200px;
-        }
-        
-        .file-preview-item {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
-        }
-        
-        .file-preview-thumbnail {
-            width: 50px;
-            height: 50px;
-        }
-        
-        .message-attachment-image {
-            max-width: 250px;
-            max-height: 150px;
-        }
-    }
-
-    #invite-btn {
-        display: none !important;
-    }
-
+    /* AUTH OPTIONS */
     .auth-options {
         display: flex;
         flex-direction: column;
@@ -2095,77 +1615,276 @@ func generateCSS() -> String {
         background-color: #F57C00;
     }
 
-    .room-actions .remove-room-btn {
-        background-color: var(--remove-room-color);
-        transition: background 0.3s ease;
-        margin-right: 0.5rem;
+    /* FILE UPLOAD STYLES */
+    .file-preview-container {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1rem;
+        background: var(--bg-primary);
+    }
+
+    .file-preview-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    .file-preview-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .file-preview-thumbnail {
+        width: 60px;
+        height: 60px;
+        border-radius: 8px;
+        object-fit: cover;
+        background: var(--bg-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        border: 1px solid var(--border-color);
+        flex-shrink: 0;
+    }
+
+    .file-preview-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .file-preview-name {
+        font-weight: 500;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .file-preview-size {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .file-preview-remove {
+        background: var(--red-color);
         color: white;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s ease;
+        flex-shrink: 0;
     }
 
-    .room-actions .remove-room-btn:hover {
-        background: var(--remove-room-color-hover);
+    .file-preview-remove:hover {
+        background: var(--red-color-hover);
     }
 
+    .file-upload-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    #file-caption {
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--input-bg);
+        color: var(--input-text);
+        font-size: 1rem;
+    }
+
+    #file-caption:focus {
+        outline: none;
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+    }
+
+    /* MESSAGE ATTACHMENT STYLES */
+    .message-attachment {
+        margin-top: 0.5rem;
+        border-radius: 12px;
+        background: var(--bg-secondary);
+        padding: 0.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid var(--border-color);
+        box-sizing: border-box;
+        max-width: 100%;
+    }
+
+    .message-attachment-image {
+        display: block;
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 8px;
+        object-fit: contain;
+        background: #222;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .message-attachment-file {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: background 0.2s ease;
+        width: 100%;
+    }
+
+    .message-attachment-file:hover {
+        background: var(--bg-primary);
+    }
+
+    .message-attachment-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--accent-color);
+        color: white;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .message-attachment-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .message-attachment-name {
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .message-attachment-size {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    /* ERROR MESSAGE STYLES */
+    .error-message {
+        color: var(--system-message-text);
+        background-color: var(--system-message-bg);
+        padding: 12px 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        text-align: center;
+        font-weight: 500;
+        border: 2px solid var(--system-message-text);
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* INVITE SECTION */
+    .invite-section {
+        margin-top: 1rem;
+    }
+
+    .invite-section button {
+        width: 100%;
+        padding: 0.75rem;
+        background: var(--dark-green-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background 0.3s ease;
+    }
+
+    .invite-section button:hover {
+        background: var(--dark-green-color-hover);
+    }
+
+    .invite-section button:disabled {
+        background: var(--disabled-bg);
+        cursor: not-allowed;
+    }
+
+    #invite-btn {
+        display: none !important;
+    }
+
+    /* ADMIN/USER PERMISSIONS */
     body.user #clear-history-btn,
     body.user #remove-room-btn {
         display: none !important;
     }
+
     body.admin #clear-history-btn,
     body.admin #remove-room-btn {
         display: inline-block;
     }
 
-    /* Desktop message input fixes */
-    @media (min-width: 769px) {
-        .chat-area {
-            display: flex;
+    /* MOBILE FILE UPLOAD ADJUSTMENTS */
+    @media (max-width: 768px) {
+        .file-preview-container {
+            max-height: 200px;
+        }
+        
+        .file-preview-item {
             flex-direction: column;
-            overflow: hidden;
-            height: 100%;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .file-preview-thumbnail {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .message-attachment-image {
+            max-width: 250px;
+            max-height: 150px;
         }
 
-        .messages-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1rem 1.5rem;
-            padding-bottom: 80px; /* Space for message input */
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            min-height: 0;
-        }
-
-        .message-input-container {
-            flex-shrink: 0;
+        .modal-content {
+            width: 90%;
+            max-width: none;
+            margin: 1rem;
             padding: 1.5rem;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            background: var(--bg-secondary);
-            position: sticky;
-            bottom: 0;
-            z-index: 100;
         }
 
-        .message-input-container input {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 25px;
-            font-size: 1rem;
-            background-color: var(--input-bg);
-            color: var(--input-text);
+        .auth-options {
+            max-width: 90%;
         }
 
-        .message-input-container button {
-            padding: 0.75rem 1.5rem;
-            background: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 1rem;
+        .selected-emoji {
+            font-size: 4rem !important;
+            width: 80px !important;
+            height: 80px !important;
+            margin-bottom: 1rem !important;
+        }
+
+        .emoji-scroll-container {
+            height: 150px;
+            max-width: 300px;
         }
     }
     """
