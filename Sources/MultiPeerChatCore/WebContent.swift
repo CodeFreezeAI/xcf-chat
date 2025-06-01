@@ -1125,6 +1125,53 @@ func generateCSS() -> String {
             margin: 0;
         }
 
+        /* Login screen mobile adjustments */
+        .login-form {
+            gap: 1rem; /* Reduced from 1.5rem */
+            padding: 1rem;
+            justify-content: flex-start;
+            padding-top: 2rem;
+        }
+
+        .login-form h2 {
+            font-size: 1.5rem; /* Reduced from 2rem */
+            margin-bottom: 0.5rem; /* Reduced from 1rem */
+        }
+
+        .selected-emoji {
+            font-size: 4rem; /* Reduced from 8rem */
+            width: 80px; /* Reduced from 128px */
+            height: 80px; /* Reduced from 128px */
+            margin-bottom: 1rem; /* Reduced from 2rem */
+            padding: 10px; /* Reduced from 15px */
+        }
+
+        .emoji-scroll-container {
+            height: 180px !important; /* Reduced from 240px */
+            max-width: 320px; /* Reduced from 400px */
+        }
+
+        .emoji-picker {
+            margin: 0 auto 0.5rem auto; /* Reduced bottom margin */
+        }
+
+        .login-form input {
+            width: 280px; /* Reduced from 300px */
+            padding: 0.875rem 1.25rem; /* Slightly reduced padding */
+            font-size: 1rem; /* Reduced from 1.1rem */
+        }
+
+        .auth-options {
+            gap: 12px; /* Reduced from 15px */
+            margin-top: 15px; /* Reduced from 20px */
+            max-width: 280px; /* Reduced from 300px */
+        }
+
+        .auth-options button {
+            padding: 10px 16px; /* Reduced from 12px 20px */
+            font-size: 15px; /* Reduced from 16px */
+        }
+
         #chat-screen {
             margin: 0;
             border-radius: 0;
