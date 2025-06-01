@@ -1154,13 +1154,13 @@ func generateCSS() -> String {
             align-items: center !important;
             z-index: 1000 !important;
             box-sizing: border-box !important;
-            /* iOS Safari fixes */
             transform: translateZ(0);
             -webkit-transform: translateZ(0);
-            /* Ensure it stays above Safari's bottom bar */
-            padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
-            /* Add shadow to separate from messages */
+            padding-bottom: calc(1rem + 50px + env(safe-area-inset-bottom)) !important;
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1) !important;
+            /* iPhone specific fixes */
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
         }
         
         .message-input-container input {
@@ -1171,10 +1171,9 @@ func generateCSS() -> String {
             border-radius: 25px !important;
             background-color: var(--input-bg) !important;
             color: var(--input-text) !important;
-            /* Prevent zoom on focus for iOS */
             font-size: 16px !important;
-            /* Ensure input doesn't get cut off */
             min-height: 44px !important;
+            box-sizing: border-box !important;
         }
         
         .message-input-container button {
@@ -1188,6 +1187,7 @@ func generateCSS() -> String {
             margin: 0 !important;
             min-width: 60px !important;
             min-height: 44px !important;
+            box-sizing: border-box !important;
         }
 
         /* File upload button positioning */
@@ -1218,12 +1218,12 @@ func generateCSS() -> String {
     @media (max-width: 480px) {
         .message-input-container {
             padding: 0.75rem !important;
-            padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)) !important;
+            padding-bottom: calc(0.75rem + 60px + env(safe-area-inset-bottom)) !important;
         }
 
         .messages-container {
-            padding-bottom: 135px !important; /* Increased from 100px + 35px */
-            margin-bottom: 35px !important;
+            padding-bottom: 170px !important; /* Increased even more for iPhone */
+            margin-bottom: 50px !important; /* Increased margin */
         }
     }
 
