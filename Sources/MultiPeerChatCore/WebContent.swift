@@ -42,7 +42,7 @@ func generateIndexHTML() -> String {
         
         <!-- Apple / iMessage -->
         <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
         <meta name="apple-mobile-web-app-title" content="XCF Chat">
         <meta name="apple-touch-fullscreen" content="yes">
         <link rel="apple-touch-icon" sizes="57x57" href="/icons/apple-icon-57x57.png">
@@ -67,7 +67,11 @@ func generateIndexHTML() -> String {
         <meta name="msapplication-config" content="/browserconfig.xml">
         
         <!-- Android -->
-        <meta name="theme-color" content="#007AFF">
+        <!-- Light mode theme color -->
+        <meta name="theme-color" content="#eceff1" media="(prefers-color-scheme: light)">
+        
+        <!-- Dark mode theme color -->
+        <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
         <meta name="mobile-web-app-capable" content="yes">
         
         <!-- Web App Manifest -->
