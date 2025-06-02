@@ -9,13 +9,26 @@ public enum WebAuthnProtocol {
 public class WebAuthnManager {
     private var credentials: [String: WebAuthnCredential] = [:]
     private var credentialIdToUsername: [String: String] = [:]
-    private let credentialsFile = "webauthn_credentials.json"
+    private let webAuthnProtocol: WebAuthnProtocol
+    private var credentialsFile: String {
+        switch webAuthnProtocol {
+        case .fido2CBOR:
+            return "webauthn_credentials_fido2.json"
+        case .u2fV1A:
+            return "webauthn_credentials_u2f.json"
+        }
+    }
     private let rpId: String
-    private let authProtocol: WebAuthnProtocol
+    private let rpName: String?
+    private let rpIcon: String?
+    private let defaultUserIcon: String?
     
-    public init(rpId: String, webAuthnProtocol: WebAuthnProtocol = .fido2CBOR) {
+    public init(rpId: String, webAuthnProtocol: WebAuthnProtocol = .fido2CBOR, rpName: String? = nil, rpIcon: String? = nil, defaultUserIcon: String? = nil) {
         self.rpId = rpId
-        self.authProtocol = webAuthnProtocol
+        self.webAuthnProtocol = webAuthnProtocol
+        self.rpName = rpName
+        self.rpIcon = rpIcon
+        self.defaultUserIcon = defaultUserIcon
         loadCredentials()
     }
     
@@ -322,18 +335,38 @@ public class WebAuthnManager {
         let challenge = generateChallenge()
         let userId = generateUserId()
         
+        // Use configured icons or generate sensible defaults
+        // Prefer HTTPS for better passkey manager compatibility
+        let rpIconUrl = rpIcon ?? "https://\(rpId)/icon-192.png"
+        let userIconUrl = defaultUserIcon ?? generateUserIcon(for: username)
+        let displayName = rpName ?? rpId
+        
+        var rpData: [String: Any] = [
+            "name": displayName,
+            "id": rpId
+        ]
+        
+        // Only add icon if we have one
+        if !rpIconUrl.isEmpty {
+            rpData["icon"] = rpIconUrl
+        }
+        
+        var userData: [String: Any] = [
+            "id": userId,
+            "name": username,
+            "displayName": username
+        ]
+        
+        // Only add user icon if we have one
+        if !userIconUrl.isEmpty {
+            userData["icon"] = userIconUrl
+        }
+        
         let options: [String: Any] = [
             "publicKey": [
                 "challenge": challenge,
-                "rp": [
-                    "name": rpId,
-                    "id": rpId
-                ],
-                "user": [
-                    "id": userId,
-                    "name": username,
-                    "displayName": username
-                ],
+                "rp": rpData,
+                "user": userData,
                 "pubKeyCredParams": [
                     ["type": "public-key", "alg": -7],  // ES256
                     ["type": "public-key", "alg": -257] // RS256
@@ -349,6 +382,13 @@ public class WebAuthnManager {
         ]
         
         return options
+    }
+    
+    private func generateUserIcon(for username: String) -> String {
+        // Generate a user icon URL based on username
+        // You could use services like Gravatar, UI Avatars, or your own avatar service
+        let encodedUsername = username.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? username
+        return "https://ui-avatars.com/api/?name=\(encodedUsername)&background=007bff&color=white&size=64"
     }
     
     public func generateAuthenticationOptions(username: String?) throws -> [String: Any] {
@@ -419,7 +459,7 @@ public class WebAuthnManager {
             throw WebAuthnError.invalidCredential
         }
         
-        switch authProtocol {
+        switch webAuthnProtocol {
         case .fido2CBOR:
             try verifyFIDO2Registration(username: username, id: id, response: response)
         case .u2fV1A:
@@ -545,7 +585,7 @@ public class WebAuthnManager {
             try verifyU2FAuthentication(response: response, storedCredential: storedCredential, id: id)
         default:
             // Fallback to current protocol setting
-            switch authProtocol {
+            switch webAuthnProtocol {
             case .fido2CBOR:
                 try verifyFIDO2Authentication(response: response, storedCredential: storedCredential, id: id)
             case .u2fV1A:
@@ -669,6 +709,20 @@ public class WebAuthnManager {
             throw WebAuthnError.invalidCredential
         }
         
+        // Extract and validate U2F counter (4 bytes at offset 1, big endian)
+        let counterBytes = sigData.subdata(in: 1..<5)
+        let newSignCount = counterBytes.withUnsafeBytes { bytes in
+            UInt32(bigEndian: bytes.bindMemory(to: UInt32.self).first!)
+        }
+        
+        // Validate sign count (must be greater than stored value, unless stored is 0 for first use)
+        if storedCredential.signCount > 0 && newSignCount <= storedCredential.signCount {
+            print("[WebAuthn] U2F sign count validation failed: new=\(newSignCount), stored=\(storedCredential.signCount)")
+            throw WebAuthnError.signCountInvalid
+        }
+        
+        print("[WebAuthn] U2F sign count validation passed: new=\(newSignCount), stored=\(storedCredential.signCount)")
+        
         // Extract signature (remaining bytes after user presence + counter)
         let signature = sigData.subdata(in: 5..<sigData.count)
         
@@ -688,6 +742,9 @@ public class WebAuthnManager {
             print("[WebAuthn] id does not match storedCredential.id")
             throw WebAuthnError.invalidCredential
         }
+        
+        // Update the stored credential with new sign count
+        try updateCredentialSignCount(credential: storedCredential, newSignCount: newSignCount)
     }
     
     private func verifyU2FSignature(signedData: Data, signature: Data, publicKey: String) throws {

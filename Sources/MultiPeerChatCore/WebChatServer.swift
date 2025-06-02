@@ -21,6 +21,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     private let persistenceManager = PersistenceManager.shared
     private let rpId: String
     private let webAuthnProtocol: WebAuthnProtocol
+    private var port: UInt16?
     
     
     public init(rpId: String, webAuthnProtocol: WebAuthnProtocol = .fido2CBOR) {
@@ -92,6 +93,12 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     }
     
     public func start(on port: UInt16) {
+        // Store the port and recreate WebServer with port for proper icon URLs
+        self.port = port
+        webServer.stop() // Stop the old one
+        webServer = WebServer(rpId: rpId, port: port)
+        webServer.delegate = self
+        
         webServer.start(on: port)
         
         // Explicitly set running state

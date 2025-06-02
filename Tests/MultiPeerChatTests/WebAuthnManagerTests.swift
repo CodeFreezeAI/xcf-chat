@@ -13,7 +13,7 @@ final class WebAuthnManagerTests: XCTestCase {
         webAuthnManager = WebAuthnManager(rpId: testRpId)
         
         // Clean up any existing test credentials
-        let testCredentialsFile = "webauthn_credentials.json"
+        let testCredentialsFile = "webauthn_credentials_fido2.json"
         if FileManager.default.fileExists(atPath: testCredentialsFile) {
             try? FileManager.default.removeItem(atPath: testCredentialsFile)
         }
@@ -21,7 +21,7 @@ final class WebAuthnManagerTests: XCTestCase {
     
     override func tearDown() {
         // Clean up test files
-        let testCredentialsFile = "webauthn_credentials.json"
+        let testCredentialsFile = "webauthn_credentials_fido2.json"
         try? FileManager.default.removeItem(atPath: testCredentialsFile)
         super.tearDown()
     }
@@ -557,5 +557,186 @@ final class WebAuthnManagerTests: XCTestCase {
         // Create new manager instance to test persistence
         let newManager = WebAuthnManager(rpId: testRpId)
         XCTAssertTrue(newManager.isUsernameRegistered(username))
+    }
+    
+    // MARK: - Icon Support Tests
+    
+    func testIconConfiguration() throws {
+        // Test with custom icons
+        let customRpIcon = "https://example.com/custom-icon.png"
+        let customUserIcon = "https://example.com/user-icon.png"
+        let customManager = WebAuthnManager(
+            rpId: testRpId,
+            rpName: "Custom App",
+            rpIcon: customRpIcon,
+            defaultUserIcon: customUserIcon
+        )
+        
+        let username = "icontest"
+        let options = try customManager.generateRegistrationOptions(username: username)
+        
+        XCTAssertNotNil(options["publicKey"])
+        let publicKey = options["publicKey"] as! [String: Any]
+        
+        // Verify RP icon
+        let rp = publicKey["rp"] as! [String: Any]
+        XCTAssertEqual(rp["name"] as! String, "Custom App")
+        XCTAssertEqual(rp["icon"] as! String, customRpIcon)
+        
+        // Verify user icon
+        let user = publicKey["user"] as! [String: Any]
+        XCTAssertEqual(user["icon"] as! String, customUserIcon)
+    }
+    
+    func testDefaultIconGeneration() throws {
+        // Test with default icon generation (no custom icons provided)
+        let defaultManager = WebAuthnManager(rpId: testRpId)
+        
+        let username = "defaulttest"
+        let options = try defaultManager.generateRegistrationOptions(username: username)
+        
+        XCTAssertNotNil(options["publicKey"])
+        let publicKey = options["publicKey"] as! [String: Any]
+        
+        // Verify RP uses default favicon
+        let rp = publicKey["rp"] as! [String: Any]
+        XCTAssertEqual(rp["icon"] as! String, "https://\(testRpId)/icon-192.png")
+        
+        // Verify user gets generated icon
+        let user = publicKey["user"] as! [String: Any]
+        let userIcon = user["icon"] as! String
+        XCTAssertTrue(userIcon.contains("ui-avatars.com"))
+        XCTAssertTrue(userIcon.contains("name=defaulttest"))
+    }
+    
+    func testEmptyIconHandling() throws {
+        // Test with empty strings for icons
+        let emptyIconManager = WebAuthnManager(
+            rpId: testRpId,
+            rpIcon: "",
+            defaultUserIcon: ""
+        )
+        
+        let username = "emptytest"
+        let options = try emptyIconManager.generateRegistrationOptions(username: username)
+        
+        XCTAssertNotNil(options["publicKey"])
+        let publicKey = options["publicKey"] as! [String: Any]
+        
+        // Verify RP and user don't have icon fields when empty
+        let rp = publicKey["rp"] as! [String: Any]
+        XCTAssertNil(rp["icon"])
+        
+        let user = publicKey["user"] as! [String: Any]
+        XCTAssertNil(user["icon"])
+    }
+    
+    func testDebugRegistrationOptions() throws {
+        // Use the same configuration as the actual WebServer
+        let publicIcon = "https://ui-avatars.com/api/?name=💬Chat&background=007AFF&color=white&size=192&format=png"
+        
+        let customManager = WebAuthnManager(
+            rpId: "localhost",
+            rpName: "Multi-Peer Chat",
+            rpIcon: publicIcon,
+            defaultUserIcon: nil
+        )
+        
+        let username = "testuser"
+        let options = try customManager.generateRegistrationOptions(username: username)
+        
+        print("=== DEBUG: Registration Options ===")
+        if let jsonData = try? JSONSerialization.data(withJSONObject: options, options: .prettyPrinted),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            print(jsonString)
+        }
+        print("=== END DEBUG ===")
+        
+        XCTAssertNotNil(options["publicKey"])
+        let publicKey = options["publicKey"] as! [String: Any]
+        
+        // Verify RP icon
+        let rp = publicKey["rp"] as! [String: Any]
+        XCTAssertEqual(rp["icon"] as! String, publicIcon)
+        
+        // Verify user icon
+        let user = publicKey["user"] as! [String: Any]
+        let userIcon = user["icon"] as! String
+        XCTAssertTrue(userIcon.contains("ui-avatars.com"))
+    }
+    
+    func testSignCountIncrement() throws {
+        let username = "signcounttest"
+        let (privateKey, _, coseKey) = createMockES256PublicKey()
+        
+        // First register the user
+        let attestationObjectData = createMockAttestationObject(coseKey: coseKey)
+        let clientDataJSON = createMockClientDataJSON(
+            type: "webauthn.create",
+            challenge: "test-challenge",
+            origin: "https://\(testRpId)"
+        )
+        
+        let credentialId = Data(repeating: 0x01, count: 16).base64EncodedString()
+        
+        let registrationCredential: [String: Any] = [
+            "id": credentialId,
+            "rawId": credentialId,
+            "response": [
+                "attestationObject": attestationObjectData.base64EncodedString(),
+                "clientDataJSON": clientDataJSON.base64EncodedString()
+            ],
+            "type": "public-key"
+        ]
+        
+        try webAuthnManager.verifyRegistration(username: username, credential: registrationCredential)
+        
+        // Verify initial sign count is 0
+        XCTAssertTrue(webAuthnManager.isUsernameRegistered(username))
+        
+        // Perform first authentication (sign count should go from 0 to 1)
+        for expectedSignCount in 1...3 {
+            let authClientDataJSON = createMockClientDataJSON(
+                type: "webauthn.get",
+                challenge: "auth-challenge-\(expectedSignCount)",
+                origin: "https://\(testRpId)"
+            )
+            
+            // Create mock authenticator data with the expected sign count
+            let rpIdHash = Data(SHA256.hash(data: testRpId.data(using: .utf8)!))
+            let flags: UInt8 = 0x05 // UP | UV flags
+            var signCountBytes = Data(count: 4)
+            signCountBytes.withUnsafeMutableBytes { bytes in
+                bytes.bindMemory(to: UInt32.self)[0] = UInt32(expectedSignCount).bigEndian
+            }
+            
+            var authenticatorData = Data()
+            authenticatorData.append(rpIdHash)
+            authenticatorData.append(flags)
+            authenticatorData.append(signCountBytes)
+            
+            // Create signature
+            let clientDataHash = SHA256.hash(data: authClientDataJSON)
+            var signedData = authenticatorData
+            signedData.append(Data(clientDataHash))
+            
+            let signature = try privateKey.signature(for: signedData)
+            
+            let authCredential: [String: Any] = [
+                "id": credentialId,
+                "response": [
+                    "clientDataJSON": authClientDataJSON.base64EncodedString(),
+                    "authenticatorData": authenticatorData.base64EncodedString(),
+                    "signature": signature.derRepresentation.base64EncodedString()
+                ],
+                "type": "public-key"
+            ]
+            
+            // This should not throw and should update the sign count
+            let result = try webAuthnManager.verifyAuthentication(username: "", credential: authCredential)
+            XCTAssertEqual(result, username)
+        }
+        
+        print("✅ Sign count increment test completed successfully!")
     }
 } 
