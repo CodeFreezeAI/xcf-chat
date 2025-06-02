@@ -819,12 +819,35 @@ public class WebAuthnManager {
         // U2F uses the same P-256 verification as FIDO2
         do {
             let p256PublicKey = try P256.Signing.PublicKey(x963Representation: publicKeyData)
-            let ecdsaSignature = try P256.Signing.ECDSASignature(derRepresentation: signature)
             
-            let isValid = p256PublicKey.isValidSignature(ecdsaSignature, for: signedData)
-            if !isValid {
+            // U2F signatures can be either DER or raw format
+            // Try raw format first (more common), then DER if that fails
+            var ecdsaSignature: P256.Signing.ECDSASignature?
+            
+            // Try raw format first (64 bytes: r + s)
+            if signature.count == 64 {
+                print("[WebAuthn] U2F trying raw signature format (64 bytes)")
+                ecdsaSignature = try? P256.Signing.ECDSASignature(rawRepresentation: signature)
+            }
+            
+            // If raw format failed or signature is not 64 bytes, try DER format
+            if ecdsaSignature == nil {
+                print("[WebAuthn] U2F trying DER signature format (\(signature.count) bytes)")
+                ecdsaSignature = try? P256.Signing.ECDSASignature(derRepresentation: signature)
+            }
+            
+            guard let finalSignature = ecdsaSignature else {
+                print("[WebAuthn] U2F signature verification failed: could not parse signature in either raw or DER format")
                 throw WebAuthnError.verificationFailed
             }
+            
+            let isValid = p256PublicKey.isValidSignature(finalSignature, for: signedData)
+            if !isValid {
+                print("[WebAuthn] U2F signature verification failed: signature validation failed")
+                throw WebAuthnError.verificationFailed
+            }
+            
+            print("[WebAuthn] ✅ U2F signature verification successful")
         } catch {
             print("[WebAuthn] U2F signature verification failed: \(error)")
             throw WebAuthnError.verificationFailed
@@ -918,19 +941,38 @@ public class WebAuthnManager {
             throw WebAuthnError.invalidCredential
         }
         
-        // Extract x and y coordinates (32 bytes each)
-        let _ = publicKeyData.subdata(in: 1..<33)
-        let _ = publicKeyData.subdata(in: 33..<65)
-        
         // Create P256 public key
         do {
             let p256PublicKey = try P256.Signing.PublicKey(x963Representation: publicKeyData)
-            let ecdsaSignature = try P256.Signing.ECDSASignature(derRepresentation: signature)
             
-            let isValid = p256PublicKey.isValidSignature(ecdsaSignature, for: signedData)
-            if !isValid {
+            // WebAuthn signatures can be either raw format (64 bytes) or DER format
+            // Try raw format first, then DER if that fails
+            var ecdsaSignature: P256.Signing.ECDSASignature?
+            
+            // Try raw format first (64 bytes: r + s concatenated)
+            if signature.count == 64 {
+                print("[WebAuthn] ES256 trying raw signature format (64 bytes)")
+                ecdsaSignature = try? P256.Signing.ECDSASignature(rawRepresentation: signature)
+            }
+            
+            // If raw format failed or signature is not 64 bytes, try DER format
+            if ecdsaSignature == nil {
+                print("[WebAuthn] ES256 trying DER signature format (\(signature.count) bytes)")
+                ecdsaSignature = try? P256.Signing.ECDSASignature(derRepresentation: signature)
+            }
+            
+            guard let finalSignature = ecdsaSignature else {
+                print("[WebAuthn] ES256 signature verification failed: could not parse signature in either raw or DER format")
                 throw WebAuthnError.verificationFailed
             }
+            
+            let isValid = p256PublicKey.isValidSignature(finalSignature, for: signedData)
+            if !isValid {
+                print("[WebAuthn] ES256 signature verification failed: signature validation failed")
+                throw WebAuthnError.verificationFailed
+            }
+            
+            print("[WebAuthn] ✅ ES256 signature verification successful")
         } catch {
             print("[WebAuthn] ES256 signature verification failed: \(error)")
             throw WebAuthnError.verificationFailed
