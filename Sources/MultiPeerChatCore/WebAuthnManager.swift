@@ -322,12 +322,26 @@ public class WebAuthnManager {
     private func saveCredentials() {
         let arr = Array(credentials.values)
         let url = URL(fileURLWithPath: credentialsFile)
+        print("[WebAuthn] 💾 Attempting to save \(arr.count) credentials to: \(credentialsFile)")
+        
         do {
             let data = try JSONEncoder().encode(arr)
+            print("[WebAuthn] 💾 Encoded \(data.count) bytes of credential data")
             try data.write(to: url)
-            print("[WebAuthn] Saved \(arr.count) credentials to disk.")
+            print("[WebAuthn] ✅ Successfully saved \(arr.count) credentials to disk.")
+            
+            // Verify the file was written correctly
+            if FileManager.default.fileExists(atPath: credentialsFile) {
+                let fileSize = try FileManager.default.attributesOfItem(atPath: credentialsFile)[.size] as? Int64 ?? 0
+                print("[WebAuthn] ✅ File verification: \(credentialsFile) exists, size: \(fileSize) bytes")
+            } else {
+                print("[WebAuthn] ⚠️ Warning: File does not exist after write: \(credentialsFile)")
+            }
         } catch {
-            print("[WebAuthn] Failed to save credentials: \(error)")
+            print("[WebAuthn] ❌ Failed to save credentials: \(error)")
+            print("[WebAuthn] ❌ Error type: \(type(of: error))")
+            print("[WebAuthn] ❌ Credentials file path: \(credentialsFile)")
+            print("[WebAuthn] ❌ Full file URL: \(url)")
         }
     }
     
@@ -613,32 +627,65 @@ public class WebAuthnManager {
             throw WebAuthnError.invalidCredential
         }
         
+        print("[WebAuthn] 🔍 Starting FIDO2 authentication verification...")
+        
         // Verify client data
-        try verifyClientData(clientDataJSONString, type: "webauthn.get")
+        do {
+            print("[WebAuthn] ✅ Verifying client data...")
+            try verifyClientData(clientDataJSONString, type: "webauthn.get")
+            print("[WebAuthn] ✅ Client data verification passed")
+        } catch {
+            print("[WebAuthn] ❌ Client data verification failed: \(error)")
+            throw error
+        }
         
         // Parse authenticator data to extract sign count
         guard let authenticatorData = Data(base64Encoded: authenticatorDataString) else {
+            print("[WebAuthn] ❌ Failed to decode authenticator data")
             throw WebAuthnError.invalidCredential
         }
         
         // Extract and validate sign count
-        let newSignCount = try extractAndValidateSignCount(from: authenticatorData, storedCredential: storedCredential)
-        
-        // Verify the signature
-        try verifySignature(
-            authenticatorData: authenticatorDataString,
-            clientDataJSON: clientDataJSONString,
-            signature: signatureString,
-            storedCredential: storedCredential
-        )
-        
-        if id != storedCredential.id {
-            print("[WebAuthn] id does not match storedCredential.id")
-            throw WebAuthnError.invalidCredential
+        let newSignCount: UInt32
+        do {
+            print("[WebAuthn] ✅ Extracting and validating sign count...")
+            newSignCount = try extractAndValidateSignCount(from: authenticatorData, storedCredential: storedCredential)
+            print("[WebAuthn] ✅ Sign count extraction passed: \(newSignCount)")
+        } catch {
+            print("[WebAuthn] ❌ Sign count validation failed: \(error)")
+            throw error
         }
         
+        // Verify the signature
+        do {
+            print("[WebAuthn] ✅ Verifying signature...")
+            try verifySignature(
+                authenticatorData: authenticatorDataString,
+                clientDataJSON: clientDataJSONString,
+                signature: signatureString,
+                storedCredential: storedCredential
+            )
+            print("[WebAuthn] ✅ Signature verification passed")
+        } catch {
+            print("[WebAuthn] ❌ Signature verification failed: \(error)")
+            throw error
+        }
+        
+        if id != storedCredential.id {
+            print("[WebAuthn] ❌ Credential ID mismatch: \(id) != \(storedCredential.id)")
+            throw WebAuthnError.invalidCredential
+        }
+        print("[WebAuthn] ✅ Credential ID verification passed")
+        
         // Update the stored credential with new sign count
-        try updateCredentialSignCount(credential: storedCredential, newSignCount: newSignCount)
+        do {
+            print("[WebAuthn] ✅ Updating credential sign count...")
+            try updateCredentialSignCount(credential: storedCredential, newSignCount: newSignCount)
+            print("[WebAuthn] ✅ Sign count update completed successfully")
+        } catch {
+            print("[WebAuthn] ❌ Failed to update sign count: \(error)")
+            throw error
+        }
     }
     
     private func extractAndValidateSignCount(from authenticatorData: Data, storedCredential: WebAuthnCredential) throws -> UInt32 {
@@ -664,6 +711,9 @@ public class WebAuthnManager {
     }
     
     private func updateCredentialSignCount(credential: WebAuthnCredential, newSignCount: UInt32) throws {
+        print("[WebAuthn] 📊 Starting sign count update for user: \(credential.username)")
+        print("[WebAuthn] 📊 Old sign count: \(credential.signCount), New sign count: \(newSignCount)")
+        
         // Update the credential in memory
         let updatedCredential = WebAuthnCredential(
             id: credential.id,
@@ -674,12 +724,24 @@ public class WebAuthnManager {
             protocolVersion: credential.protocolVersion
         )
         
+        print("[WebAuthn] 📊 Created updated credential with sign count: \(updatedCredential.signCount)")
+        
+        // Update both credential stores
         credentials[credential.username] = updatedCredential
+        print("[WebAuthn] 📊 Updated credentials dictionary for user: \(credential.username)")
+        
+        // Verify the update in memory
+        if let verifyCredential = credentials[credential.username] {
+            print("[WebAuthn] 📊 Memory verification: stored sign count is now \(verifyCredential.signCount)")
+        } else {
+            print("[WebAuthn] ⚠️ Warning: Could not find credential in memory after update")
+        }
         
         // Save to persistence
+        print("[WebAuthn] 📊 Calling saveCredentials()...")
         saveCredentials()
         
-        print("[WebAuthn] Updated sign count for \(credential.username): \(credential.signCount) -> \(newSignCount)")
+        print("[WebAuthn] ✅ Updated sign count for \(credential.username): \(credential.signCount) -> \(newSignCount)")
     }
     
     private func verifyU2FAuthentication(response: [String: Any], storedCredential: WebAuthnCredential, id: String) throws {

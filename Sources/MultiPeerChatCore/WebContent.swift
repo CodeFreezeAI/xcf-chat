@@ -92,7 +92,7 @@ func generateIndexHTML() -> String {
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
         
-        <link rel="stylesheet" href="/styleV1A.css">
+        <link rel="stylesheet" href="/styleV1b.css">
     </head>
     <body>
         <div class="container">
@@ -321,7 +321,7 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
-        <script src="/chatV1A.js"></script>
+        <script src="/chatV1b.js"></script>
         <script>
         // Hide upload button and file input for now
         /*
@@ -2413,7 +2413,7 @@ func generateChatJS(adminName: String) -> String {
                             console.log('DEBUG: Showing Remove button for admin in non-Lobby room');
                             if (removeBtn) {
                                 removeBtn.style.display = 'inline-block';
-                                removeBtn.textContent = `Remove ${message.room.name}`;
+                                removeBtn.textContent = 'Remove';
                                 console.log('DEBUG: Remove button display set to inline-block');
                             } else {
                                 console.log('DEBUG: Remove button element not found!');
@@ -2592,7 +2592,7 @@ func generateChatJS(adminName: String) -> String {
                     console.log('DEBUG: Showing Remove button for admin in non-Lobby room');
                     if (removeBtn) {
                         removeBtn.style.display = 'inline-block';
-                        removeBtn.textContent = `Remove ${room.name}`;
+                        removeBtn.textContent = 'Remove';
                         console.log('DEBUG: Remove button display set to inline-block');
                     } else {
                         console.log('DEBUG: Remove button element not found!');

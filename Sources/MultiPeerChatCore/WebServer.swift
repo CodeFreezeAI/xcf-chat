@@ -248,10 +248,10 @@ public class WebServer: ObservableObject {
         case ("GET", "/"):
             response = generateIndexHTML()
             contentType = "text/html"
-        case ("GET", "/chatV1A.js"):
+        case ("GET", "/chatV1b.js"):
             response = generateChatJS(adminName: ADMIN_USERNAME)
             contentType = "application/javascript"
-        case ("GET", "/styleV1A.css"):
+        case ("GET", "/styleV1b.css"):
             response = generateCSS()
             contentType = "text/css"
         case ("GET", "/manifest.json"):
@@ -441,36 +441,50 @@ public class WebServer: ObservableObject {
     }
     
     private func handleWebAuthnAuthenticateComplete(_ connection: NWConnection, request: String) {
+        print("[WebServer] 🔍 Received authentication completion request")
+        
         // Extract request body
         guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
+            print("[WebServer] ❌ Invalid request format - no body separator")
             sendErrorResponse(connection, error: "Invalid request format")
             return
         }
         
         let bodyString = String(request[bodyStart...])
+        print("[WebServer] 📦 Request body length: \(bodyString.count)")
+        
         guard let bodyData = bodyString.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
               let username = json["username"] as? String else {
+            print("[WebServer] ❌ Failed to parse request body or missing username")
             sendErrorResponse(connection, error: "Invalid request body")
             return
         }
         
+        print("[WebServer] 🆔 Authentication request for username: '\(username)'")
+        print("[WebServer] 📋 Credential data: \(json)")
+        
         do {
+            print("[WebServer] ✅ Calling WebAuthnManager.verifyAuthentication...")
             let foundUsername = try webAuthnManager.verifyAuthentication(username: username, credential: json)
+            print("[WebServer] ✅ Authentication successful! Found username: \(foundUsername ?? "nil")")
+            
             let response: [String: Any] = [
                 "success": true,
                 "username": foundUsername ?? username
             ]
             let responseData = try JSONSerialization.data(withJSONObject: response)
             if let jsonString = String(data: responseData, encoding: .utf8) {
-                print("📤 Sending response:", jsonString)
+                print("[WebServer] 📤 Sending success response: \(jsonString)")
                 sendJSONResponse(connection, json: jsonString)
             } else {
-                print("❌ Failed to create JSON response")
+                print("[WebServer] ❌ Failed to create JSON response")
                 sendErrorResponse(connection, error: "Failed to create response")
             }
         } catch {
-            sendErrorResponse(connection, error: "Authentication verification failed")
+            print("[WebServer] ❌ Authentication verification failed with error: \(error)")
+            print("[WebServer] ❌ Error type: \(type(of: error))")
+            sendErrorResponse(connection, error: "Authentication verification failed: \(error)")
         }
     }
     
