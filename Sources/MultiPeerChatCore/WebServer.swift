@@ -22,7 +22,7 @@ public class WebServer: ObservableObject {
     private let webAuthnManager: WebAuthnManager
     private let port: UInt16?
     
-    public init(rpId: String, port: UInt16? = nil) {
+    public init(rpId: String, port: UInt16? = nil, storageBackend: WebAuthnStorageBackend = .json("")) {
         self.rpId = rpId
         self.port = port
         
@@ -37,6 +37,7 @@ public class WebServer: ObservableObject {
         
         self.webAuthnManager = WebAuthnManager(
             rpId: rpId,
+            storageBackend: storageBackend,
             rpName: "Multi-Peer Chat",
             rpIcon: iconUrl,
             defaultUserIcon: nil // Will use the automatic generation

@@ -1,16 +1,76 @@
 import Foundation
 import CryptoKit
+import SwiftData
+
+public enum WebAuthnStorageBackend {
+    case json(String)           // JSON file path
+    case swiftData(String)      // Database file path
+}
 
 public enum WebAuthnProtocol {
     case fido2CBOR  // FIDO2/WebAuthn with CBOR attestation objects
     case u2fV1A     // Legacy U2F V1A format
 }
 
+public struct WebAuthnCredential: Codable {
+    let id: String
+    let publicKey: String // Now stores the actual public key, not credential ID
+    let signCount: UInt32
+    let username: String
+    let algorithm: Int // COSE algorithm identifier
+    let protocolVersion: String // Track which protocol was used
+}
+
+@Model
+public class WebAuthnCredentialModel {
+    @Attribute(.unique) public var id: String
+    public var publicKey: String
+    public var signCount: UInt32
+    @Attribute(.unique) public var username: String
+    public var algorithm: Int
+    public var protocolVersion: String
+    public var createdAt: Date
+    
+    public init(id: String, publicKey: String, signCount: UInt32, username: String, algorithm: Int, protocolVersion: String) {
+        self.id = id
+        self.publicKey = publicKey
+        self.signCount = signCount
+        self.username = username
+        self.algorithm = algorithm
+        self.protocolVersion = protocolVersion
+        self.createdAt = Date()
+    }
+    
+    // Convert to the existing WebAuthnCredential struct for compatibility
+    public var webAuthnCredential: WebAuthnCredential {
+        return WebAuthnCredential(
+            id: id,
+            publicKey: publicKey,
+            signCount: signCount,
+            username: username,
+            algorithm: algorithm,
+            protocolVersion: protocolVersion
+        )
+    }
+}
+
 public class WebAuthnManager {
     private var credentials: [String: WebAuthnCredential] = [:]
     private var credentialIdToUsername: [String: String] = [:]
     private let webAuthnProtocol: WebAuthnProtocol
+    private let storageBackend: WebAuthnStorageBackend
+    private var modelContainer: ModelContainer?
+    
     private var credentialsFile: String {
+        switch storageBackend {
+        case .json(let path):
+            return path.isEmpty ? defaultJSONPath : path
+        case .swiftData:
+            return "" // Not used for Swift Data
+        }
+    }
+    
+    private var defaultJSONPath: String {
         switch webAuthnProtocol {
         case .fido2CBOR:
             return "webauthn_credentials_fido2.json"
@@ -18,27 +78,62 @@ public class WebAuthnManager {
             return "webauthn_credentials_u2f.json"
         }
     }
+    
     private let rpId: String
     private let rpName: String?
     private let rpIcon: String?
     private let defaultUserIcon: String?
     
-    public init(rpId: String, webAuthnProtocol: WebAuthnProtocol = .fido2CBOR, rpName: String? = nil, rpIcon: String? = nil, defaultUserIcon: String? = nil) {
+    public init(
+        rpId: String, 
+        webAuthnProtocol: WebAuthnProtocol = .fido2CBOR,
+        storageBackend: WebAuthnStorageBackend = .json(""),
+        rpName: String? = nil, 
+        rpIcon: String? = nil, 
+        defaultUserIcon: String? = nil
+    ) {
         self.rpId = rpId
         self.webAuthnProtocol = webAuthnProtocol
+        self.storageBackend = storageBackend
         self.rpName = rpName
         self.rpIcon = rpIcon
         self.defaultUserIcon = defaultUserIcon
+        
+        setupStorage()
         loadCredentials()
     }
     
-    struct WebAuthnCredential: Codable {
-        let id: String
-        let publicKey: String // Now stores the actual public key, not credential ID
-        let signCount: UInt32
-        let username: String
-        let algorithm: Int // COSE algorithm identifier
-        let protocolVersion: String // Track which protocol was used
+    private func setupStorage() {
+        switch storageBackend {
+        case .json:
+            // No setup needed for JSON
+            break
+        case .swiftData(let dbPath):
+            do {
+                let schema = Schema([WebAuthnCredentialModel.self])
+                let modelConfiguration: ModelConfiguration
+                
+                if dbPath.isEmpty {
+                    // Use default location
+                    modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+                } else {
+                    // Use specified database file path
+                    let dbURL = URL(fileURLWithPath: dbPath)
+                    modelConfiguration = ModelConfiguration(schema: schema, url: dbURL)
+                }
+                
+                // Enable encryption for sensitive credential data
+                modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
+                print("[WebAuthn] ✅ Swift Data container initialized at: \(dbPath.isEmpty ? "default location" : dbPath)")
+            } catch {
+                print("[WebAuthn] ❌ Failed to initialize Swift Data container: \(error)")
+                print("[WebAuthn] ⚠️ Falling back to in-memory storage")
+                // Fallback to in-memory storage if database setup fails
+                let schema = Schema([WebAuthnCredentialModel.self])
+                let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+                modelContainer = try? ModelContainer(for: schema, configurations: [memoryConfig])
+            }
+        }
     }
     
     // MARK: - CBOR Parsing Utilities
@@ -304,6 +399,15 @@ public class WebAuthnManager {
     }
     
     private func loadCredentials() {
+        switch storageBackend {
+        case .json:
+            loadCredentialsFromJSON()
+        case .swiftData:
+            loadCredentialsFromSwiftData()
+        }
+    }
+    
+    private func loadCredentialsFromJSON() {
         let url = URL(fileURLWithPath: credentialsFile)
         guard FileManager.default.fileExists(atPath: credentialsFile) else { return }
         do {
@@ -313,22 +417,53 @@ public class WebAuthnManager {
                 credentials[cred.username] = cred
                 credentialIdToUsername[cred.id] = cred.username
             }
-            print("[WebAuthn] Loaded \(arr.count) credentials from disk.")
+            print("[WebAuthn] Loaded \(arr.count) credentials from JSON file.")
         } catch {
-            print("[WebAuthn] Failed to load credentials: \(error)")
+            print("[WebAuthn] Failed to load credentials from JSON: \(error)")
+        }
+    }
+    
+    private func loadCredentialsFromSwiftData() {
+        guard let container = modelContainer else {
+            print("[WebAuthn] ❌ No model container available")
+            return
+        }
+        
+        do {
+            let context = ModelContext(container)
+            let request = FetchDescriptor<WebAuthnCredentialModel>()
+            let models = try context.fetch(request)
+            
+            for model in models {
+                let cred = model.webAuthnCredential
+                credentials[cred.username] = cred
+                credentialIdToUsername[cred.id] = cred.username
+            }
+            print("[WebAuthn] Loaded \(models.count) credentials from Swift Data.")
+        } catch {
+            print("[WebAuthn] Failed to load credentials from Swift Data: \(error)")
         }
     }
     
     private func saveCredentials() {
+        switch storageBackend {
+        case .json:
+            saveCredentialsToJSON()
+        case .swiftData:
+            saveCredentialsToSwiftData()
+        }
+    }
+    
+    private func saveCredentialsToJSON() {
         let arr = Array(credentials.values)
         let url = URL(fileURLWithPath: credentialsFile)
-        print("[WebAuthn] 💾 Attempting to save \(arr.count) credentials to: \(credentialsFile)")
+        print("[WebAuthn] 💾 Attempting to save \(arr.count) credentials to JSON: \(credentialsFile)")
         
         do {
             let data = try JSONEncoder().encode(arr)
             print("[WebAuthn] 💾 Encoded \(data.count) bytes of credential data")
             try data.write(to: url)
-            print("[WebAuthn] ✅ Successfully saved \(arr.count) credentials to disk.")
+            print("[WebAuthn] ✅ Successfully saved \(arr.count) credentials to JSON.")
             
             // Verify the file was written correctly
             if FileManager.default.fileExists(atPath: credentialsFile) {
@@ -338,10 +473,90 @@ public class WebAuthnManager {
                 print("[WebAuthn] ⚠️ Warning: File does not exist after write: \(credentialsFile)")
             }
         } catch {
-            print("[WebAuthn] ❌ Failed to save credentials: \(error)")
+            print("[WebAuthn] ❌ Failed to save credentials to JSON: \(error)")
             print("[WebAuthn] ❌ Error type: \(type(of: error))")
             print("[WebAuthn] ❌ Credentials file path: \(credentialsFile)")
             print("[WebAuthn] ❌ Full file URL: \(url)")
+        }
+    }
+    
+    private func saveCredentialsToSwiftData() {
+        guard let container = modelContainer else {
+            print("[WebAuthn] ❌ No model container available for saving")
+            return
+        }
+        
+        do {
+            let context = ModelContext(container)
+            
+            // Clear existing credentials and rebuild from memory
+            try context.delete(model: WebAuthnCredentialModel.self)
+            
+            // Insert current credentials
+            for cred in credentials.values {
+                let model = WebAuthnCredentialModel(
+                    id: cred.id,
+                    publicKey: cred.publicKey,
+                    signCount: cred.signCount,
+                    username: cred.username,
+                    algorithm: cred.algorithm,
+                    protocolVersion: cred.protocolVersion
+                )
+                context.insert(model)
+            }
+            
+            try context.save()
+            print("[WebAuthn] ✅ Successfully saved \(credentials.count) credentials to Swift Data.")
+        } catch {
+            print("[WebAuthn] ❌ Failed to save credentials to Swift Data: \(error)")
+        }
+    }
+    
+    // MARK: - Migration Support
+    
+    public func migrateFromJSON(jsonPath: String) throws {
+        guard case .swiftData = storageBackend else {
+            throw WebAuthnError.invalidCredential // Reusing existing error type
+        }
+        
+        // Load credentials from JSON file
+        let url = URL(fileURLWithPath: jsonPath)
+        guard FileManager.default.fileExists(atPath: jsonPath) else {
+            print("[WebAuthn] 📦 No JSON file found at \(jsonPath) - nothing to migrate")
+            return
+        }
+        
+        do {
+            let data = try Data(contentsOf: url)
+            let jsonCredentials = try JSONDecoder().decode([WebAuthnCredential].self, from: data)
+            
+            print("[WebAuthn] 📦 Migrating \(jsonCredentials.count) credentials from JSON to Swift Data...")
+            
+            // Add to current credentials (don't overwrite existing)
+            var migratedCount = 0
+            for cred in jsonCredentials {
+                if credentials[cred.username] == nil {
+                    credentials[cred.username] = cred
+                    credentialIdToUsername[cred.id] = cred.username
+                    migratedCount += 1
+                } else {
+                    print("[WebAuthn] ⚠️ Skipping duplicate credential for \(cred.username)")
+                }
+            }
+            
+            // Save to Swift Data
+            saveCredentialsToSwiftData()
+            
+            print("[WebAuthn] ✅ Migration completed: \(migratedCount) credentials migrated")
+            
+            // Optionally backup the JSON file
+            let backupPath = jsonPath + ".backup"
+            try? FileManager.default.copyItem(atPath: jsonPath, toPath: backupPath)
+            print("[WebAuthn] 📦 JSON file backed up to: \(backupPath)")
+            
+        } catch {
+            print("[WebAuthn] ❌ Migration failed: \(error)")
+            throw error
         }
     }
     
@@ -756,11 +971,48 @@ public class WebAuthnManager {
             print("[WebAuthn] ⚠️ Warning: Could not find credential in memory after update")
         }
         
-        // Save to persistence
-        print("[WebAuthn] 📊 Calling saveCredentials()...")
-        saveCredentials()
+        // Save to persistence - use targeted update for Swift Data
+        switch storageBackend {
+        case .json:
+            print("[WebAuthn] 📊 Calling saveCredentials() for JSON...")
+            saveCredentials()
+        case .swiftData:
+            try updateSignCountInSwiftData(username: credential.username, newSignCount: newSignCount)
+        }
         
         print("[WebAuthn] ✅ Updated sign count for \(credential.username): \(credential.signCount) -> \(newSignCount)")
+    }
+    
+    private func updateSignCountInSwiftData(username: String, newSignCount: UInt32) throws {
+        guard let container = modelContainer else {
+            print("[WebAuthn] ❌ No model container available for sign count update")
+            throw WebAuthnError.verificationFailed
+        }
+        
+        do {
+            let context = ModelContext(container)
+            
+            // Find the specific credential to update
+            let predicate = #Predicate<WebAuthnCredentialModel> { model in
+                model.username == username
+            }
+            let request = FetchDescriptor<WebAuthnCredentialModel>(predicate: predicate)
+            let models = try context.fetch(request)
+            
+            guard let model = models.first else {
+                print("[WebAuthn] ❌ Could not find credential model for \(username)")
+                throw WebAuthnError.credentialNotFound
+            }
+            
+            // Update only the sign count
+            model.signCount = newSignCount
+            
+            try context.save()
+            print("[WebAuthn] ✅ Swift Data sign count updated for \(username): \(newSignCount)")
+        } catch {
+            print("[WebAuthn] ❌ Failed to update sign count in Swift Data: \(error)")
+            throw error
+        }
     }
     
     private func verifyU2FAuthentication(response: [String: Any], storedCredential: WebAuthnCredential, id: String) throws {

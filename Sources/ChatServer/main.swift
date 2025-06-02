@@ -6,7 +6,9 @@ if let rpArgIndex = CommandLine.arguments.firstIndex(of: "--rp-id"), CommandLine
     globalRpId = CommandLine.arguments[rpArgIndex + 1]
 }
 // Pass rpId to WebServer
-let server = WebChatServer(rpId: globalRpId)
+let server = WebChatServer(
+    rpId: globalRpId,
+    storageBackend: WebAuthnStorageBackend.swiftData("/var/lib/webauthn/credentials.sqlite"))
 
 print("🌐 💬 \(globalRpId) Web Server")
 print("============================")
