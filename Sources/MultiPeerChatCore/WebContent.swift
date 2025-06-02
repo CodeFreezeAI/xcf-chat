@@ -90,7 +90,7 @@ func generateIndexHTML() -> String {
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
         
-        <link rel="stylesheet" href="/styleX.css">
+        <link rel="stylesheet" href="/style.css">
     </head>
     <body>
         <div class="container">
@@ -319,7 +319,7 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
-        <script src="/chatX.js"></script>
+        <script src="/chat.js"></script>
         <script>
         // Hide upload button and file input for now
         /*
@@ -2695,17 +2695,9 @@ func generateChatJS(adminName: String) -> String {
             });
         }
         
-        async uploadFile(file, caption = '', roomId = null) {
+        async uploadFile(file) {
             const formData = new FormData();
             formData.append('file', file);
-            
-            // Add caption and roomId to the form data
-            if (caption) {
-                formData.append('caption', caption);
-            }
-            if (roomId) {
-                formData.append('roomId', roomId);
-            }
             
             console.log('📤 Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
             console.log('📤 FormData entries:');
@@ -2740,6 +2732,23 @@ func generateChatJS(adminName: String) -> String {
                 console.error('❌ File upload error:', error);
                 throw error;
             }
+        }
+        
+        async sendFileMessage(attachment, caption = '') {
+            if (!this.currentRoom) return;
+            
+            console.log('Sending file message:', {
+                roomId: this.currentRoom.id,
+                attachment: attachment,
+                caption: caption
+            });
+            
+            this.sendToServer({
+                type: 'sendFileMessage',
+                roomId: this.currentRoom.id,
+                attachment: attachment,
+                caption: caption
+            });
         }
         
         selectFiles() {
@@ -2842,9 +2851,8 @@ func generateChatJS(adminName: String) -> String {
             try {
                 for (const file of this.selectedFiles) {
                     console.log('📤 Processing file:', file.name);
-                    const attachment = await this.uploadFile(file, caption, this.currentRoom?.id);
-                    // Note: Don't send WebSocket message - HTTP handler already broadcasts the message
-                    console.log('✅ File uploaded successfully:', attachment);
+                    const attachment = await this.uploadFile(file);
+                    await this.sendFileMessage(attachment, caption);
                 }
                 
                 this.hideFileUploadModal();

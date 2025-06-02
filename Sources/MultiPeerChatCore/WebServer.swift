@@ -108,7 +108,21 @@ public class WebServer: ObservableObject {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, isComplete, error in
             guard let self = self, let data = data else { return }
             
-            // First, convert what we can to string to check the request line
+            // First check if this might be a binary upload by looking at the headers only
+            let headerEndMarker = "\r\n\r\n".data(using: .utf8)!
+            
+            if let headerEndRange = data.range(of: headerEndMarker) {
+                let headerData = data.subdata(in: 0..<headerEndRange.upperBound)
+                if let headerString = String(data: headerData, encoding: .utf8) {
+                    print("🔍 HEADER CHECK - Length: \(headerString.count)")
+                    if headerString.contains("POST /upload") || headerString.lowercased().contains("multipart/form-data") {
+                        print("📤 Binary upload detected - using special binary handling")
+                        self.handleFileUploadBinary(connection, initialData: data, headerString: headerString)
+                        return
+                    }
+                }
+            }
+            
             let request = String(data: data, encoding: .utf8) ?? ""
             
             // Add comprehensive debugging for Cloudflare issues
@@ -127,25 +141,14 @@ public class WebServer: ObservableObject {
             
             // Add logging for debugging Cloudflare issues
             print("🌐 Received request: \(method) \(path)")
-            
-            // ONLY check for binary upload if this is actually a POST /upload request
             if method == "POST" && path == "/upload" {
-                print("📤 Upload request detected - checking for binary content")
-                
-                // Check if this contains multipart data by looking at headers
-                let headerEndMarker = "\r\n\r\n".data(using: .utf8)!
-                if let headerEndRange = data.range(of: headerEndMarker) {
-                    let headerData = data.subdata(in: 0..<headerEndRange.upperBound)
-                    if let headerString = String(data: headerData, encoding: .utf8) {
-                        print("🔍 HEADER CHECK - Length: \(headerString.count)")
-                        if headerString.lowercased().contains("multipart/form-data") {
-                            print("📤 Binary upload detected - using special binary handling")
-                            self.handleFileUploadBinary(connection, initialData: data, headerString: headerString)
-                            return
-                        }
-                    }
-                }
-                print("📤 POST /upload but not multipart - using regular handling")
+                print("📤 Upload request detected - using special handling")
+            }
+            
+            // Check for multipart upload regardless of path
+            let isMultipartUpload = request.lowercased().contains("content-type: multipart/form-data")
+            if isMultipartUpload {
+                print("📤 Multipart upload detected by Content-Type")
             }
             
             if request.contains("Upgrade: websocket") {
@@ -227,10 +230,10 @@ public class WebServer: ObservableObject {
         case ("GET", "/"):
             response = generateIndexHTML()
             contentType = "text/html"
-        case ("GET", "/chatX.js"):
+        case ("GET", "/chat.js"):
             response = generateChatJS(adminName: ADMIN_USERNAME)
             contentType = "application/javascript"
-        case ("GET", "/styleX.css"):
+        case ("GET", "/style.css"):
             response = generateCSS()
             contentType = "text/css"
         case ("GET", "/manifest.json"):
@@ -761,267 +764,20 @@ public class WebServer: ObservableObject {
     private func processBinaryUpload(_ connection: NWConnection, bodyData: Data, headerString: String) {
         print("📦 Processing binary upload: \(bodyData.count) bytes")
         
-        // Extract boundary from Content-Type header
-        guard let boundary = extractBoundary(from: headerString) else {
-            print("❌ Could not extract boundary from headers")
-            sendErrorResponse(connection, error: "Missing boundary in Content-Type")
-            return
-        }
-        
-        print("🔍 Using boundary: \(boundary)")
-        
-        // Parse the multipart data
-        guard let parsedData = parseMultipartData(bodyData, boundary: boundary) else {
-            print("❌ Failed to parse multipart data")
-            sendErrorResponse(connection, error: "Failed to parse multipart data")
-            return
-        }
-        
-        print("✅ Parsed file: \(parsedData.originalFileName), size: \(parsedData.fileData.count) bytes")
-        print("📋 Caption: \(parsedData.caption ?? "none")")
-        print("🏠 Room ID: \(parsedData.roomId ?? "none")")
-        
-        // Save the file using ChatFileManager
-        do {
-            let attachment = try ChatFileManager.shared.saveUploadedFile(
-                data: parsedData.fileData,
-                originalFileName: parsedData.originalFileName,
-                mimeType: parsedData.mimeType
-            )
-            
-            // Save to persistence
-            PersistenceManager.shared.saveStandaloneAttachment(attachment)
-            print("✅ File saved: \(attachment.fileName)")
-            
-            // Create and broadcast the file message
-            let fileMessage = ChatMessage(
-                attachment: attachment,
-                sender: User(username: "Anonymous"), // This should come from the authenticated user  
-                roomId: UUID(uuidString: parsedData.roomId ?? "") ?? UUID(),
-                caption: parsedData.caption ?? ""
-            )
-            
-            // Save message to persistence
-            PersistenceManager.shared.saveMessage(fileMessage)
-            
-            // Broadcast to WebSocket clients
-            let messageJSON = try createMessageJSON(fileMessage)
-            broadcast(messageJSON)
-            
-            // Return success response
-            let response: [String: Any] = [
-                "success": true,
-                "attachment": [
-                    "id": attachment.id.uuidString,
-                    "fileName": attachment.fileName,
-                    "originalFileName": attachment.originalFileName,
-                    "mimeType": attachment.mimeType,
-                    "fileSize": attachment.fileSize,
-                    "isImage": attachment.isImage,
-                    "filePath": attachment.filePath,
-                    "thumbnailPath": attachment.thumbnailPath as Any
-                ]
-            ]
-            
-            let responseData = try JSONSerialization.data(withJSONObject: response)
-            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
-            
-        } catch {
-            print("❌ Failed to save file: \(error)")
-            sendErrorResponse(connection, error: "Failed to save file: \(error.localizedDescription)")
-        }
-    }
-    
-    private func extractBoundary(from headerString: String) -> String? {
-        let lines = headerString.components(separatedBy: "\r\n")
-        for line in lines {
-            if line.lowercased().hasPrefix("content-type:") && line.contains("boundary=") {
-                if let boundaryPart = line.components(separatedBy: "boundary=").last {
-                    return boundaryPart.trimmingCharacters(in: .whitespaces)
-                }
-            }
-        }
-        return nil
-    }
-    
-    private func parseMultipartData(_ data: Data, boundary: String) -> (fileData: Data, originalFileName: String, mimeType: String, caption: String?, roomId: String?)? {
-        print("🔍 Parsing multipart data with boundary: \(boundary)")
-        
-        // Multipart boundaries are prefixed with --
-        let fullBoundary = "--\(boundary)"
-        let boundaryData = fullBoundary.data(using: .utf8)!
-        
-        print("🔍 Looking for boundary: \(fullBoundary)")
-        
-        // Find all boundary positions
-        var boundaryPositions: [Int] = []
-        var searchStart = 0
-        
-        while searchStart < data.count {
-            let searchData = data.subdata(in: searchStart..<data.count)
-            if let range = searchData.range(of: boundaryData) {
-                let absolutePosition = searchStart + range.lowerBound
-                boundaryPositions.append(absolutePosition)
-                searchStart = absolutePosition + boundaryData.count
-            } else {
-                break
-            }
-        }
-        
-        print("🔍 Found \(boundaryPositions.count) boundary positions")
-        
-        var fileData: Data?
-        var fileName: String?
-        var mimeType: String?
-        var caption: String?
-        var roomId: String?
-        
-        // Process each part between boundaries
-        for i in 0..<(boundaryPositions.count - 1) {
-            let partStart = boundaryPositions[i] + boundaryData.count
-            let partEnd = boundaryPositions[i + 1]
-            
-            if partStart >= partEnd { continue }
-            
-            let partData = data.subdata(in: partStart..<partEnd)
-            
-            // Remove leading \r\n if present
-            var cleanPartData = partData
-            if partData.count >= 2 && partData[0] == 13 && partData[1] == 10 { // \r\n
-                cleanPartData = partData.subdata(in: 2..<partData.count)
-            }
-            
-            // Find header end
-            let headerEndMarker = "\r\n\r\n".data(using: .utf8)!
-            guard let headerEndRange = cleanPartData.range(of: headerEndMarker) else {
-                print("⚠️ No header end found in part \(i)")
-                continue
-            }
-            
-            let headerData = cleanPartData.subdata(in: 0..<headerEndRange.lowerBound)
-            let bodyData = cleanPartData.subdata(in: headerEndRange.upperBound..<cleanPartData.count)
-            
-            guard let headerString = String(data: headerData, encoding: .utf8) else {
-                print("⚠️ Could not decode headers in part \(i)")
-                continue
-            }
-            
-            print("📄 Part \(i) headers: \(headerString)")
-            
-            // Parse Content-Disposition header
-            let headerLines = headerString.components(separatedBy: "\r\n")
-            var formFieldName: String?
-            var isFileField = false
-            
-            for line in headerLines {
-                if line.lowercased().hasPrefix("content-disposition:") {
-                    // Extract name attribute
-                    if let nameRange = line.range(of: "name=\"") {
-                        let fromName = line[nameRange.upperBound...]
-                        if let endQuote = fromName.firstIndex(of: "\"") {
-                            formFieldName = String(fromName[..<endQuote])
-                        }
-                    }
-                    
-                    // Check if this is a file field
-                    if line.contains("filename=") {
-                        isFileField = true
-                        // Extract filename
-                        if let filenameRange = line.range(of: "filename=\"") {
-                            let fromFilename = line[filenameRange.upperBound...]
-                            if let endQuote = fromFilename.firstIndex(of: "\"") {
-                                fileName = String(fromFilename[..<endQuote])
-                            }
-                        }
-                    }
-                
-                
-                } else if line.lowercased().hasPrefix("content-type:") {
-                    // Extract content type for file fields
-                    if isFileField {
-                        let typeString = line.dropFirst(13).trimmingCharacters(in: .whitespaces)
-                        mimeType = typeString
-                    }
-                }
-            }
-            
-            print("📄 Part \(i): fieldName=\(formFieldName ?? "nil"), isFile=\(isFileField)")
-            
-            // Clean body data - remove trailing \r\n
-            var cleanBodyData = bodyData
-            if bodyData.count >= 2 {
-                let lastTwo = bodyData.suffix(2)
-                if lastTwo[lastTwo.startIndex] == 13 && lastTwo[lastTwo.index(after: lastTwo.startIndex)] == 10 {
-                    cleanBodyData = bodyData.dropLast(2)
-                }
-            }
-            
-            // Store the data based on field name
-            if let fieldName = formFieldName {
-                if isFileField && fieldName == "file" {
-                    fileData = Data(cleanBodyData)
-                    print("📄 Extracted file data: \(fileData?.count ?? 0) bytes")
-                } else if fieldName == "caption" {
-                    if let captionString = String(data: cleanBodyData, encoding: .utf8) {
-                        caption = captionString.trimmingCharacters(in: .whitespacesAndNewlines)
-                        print("📄 Extracted caption: '\(caption ?? "")'")
-                    }
-                } else if fieldName == "roomId" {
-                    if let roomIdString = String(data: cleanBodyData, encoding: .utf8) {
-                        roomId = roomIdString.trimmingCharacters(in: .whitespacesAndNewlines)
-                        print("📄 Extracted roomId: '\(roomId ?? "")'")
-                    }
-                }
-            }
-        }
-        
-        // Validate required fields
-        guard let fileData = fileData,
-              let fileName = fileName,
-              let mimeType = mimeType else {
-            print("❌ Missing required file data - fileName: \(fileName ?? "nil"), mimeType: \(mimeType ?? "nil"), fileDataSize: \(fileData?.count ?? 0)")
-            return nil
-        }
-        
-        print("✅ Successfully parsed multipart data:")
-        print("  - File: \(fileName) (\(fileData.count) bytes)")
-        print("  - MIME: \(mimeType)")
-        print("  - Caption: '\(caption ?? "")'")
-        print("  - Room ID: '\(roomId ?? "")'")
-        
-        return (fileData, fileName, mimeType, caption, roomId)
-    }
-    
-    private func createMessageJSON(_ message: ChatMessage) throws -> String {
-        var messageDict: [String: Any] = [
-            "type": "chatMessage",
-            "message": [
-                "sender": message.sender.username,
-                "content": message.content,
-                "timestamp": ISO8601DateFormatter().string(from: message.timestamp),
-                "messageType": message.messageType.rawValue,
-                "emoji": message.sender.emoji
-            ]
+        // For now, just return success to test if we can receive the data
+        let response: [String: Any] = [
+            "success": true,
+            "message": "Binary upload processed successfully",
+            "bytesReceived": bodyData.count,
+            "headerLength": headerString.count
         ]
         
-        // Add attachment if present
-        if let attachment = message.attachment {
-            messageDict["message"] = (messageDict["message"] as! [String: Any]).merging([
-                "attachment": [
-                    "id": attachment.id.uuidString,
-                    "fileName": attachment.fileName,
-                    "originalFileName": attachment.originalFileName,
-                    "mimeType": attachment.mimeType,
-                    "fileSize": attachment.fileSize,
-                    "isImage": attachment.isImage,
-                    "filePath": attachment.filePath,
-                    "thumbnailPath": attachment.thumbnailPath as Any
-                ]
-            ]) { _, new in new }
+        do {
+            let responseData = try JSONSerialization.data(withJSONObject: response)
+            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
+        } catch {
+            sendErrorResponse(connection, error: "Failed to create response")
         }
-        
-        let jsonData = try JSONSerialization.data(withJSONObject: messageDict)
-        return String(data: jsonData, encoding: .utf8) ?? "{}"
     }
     
     private func handleFileServing(_ connection: NWConnection, path: String) {
