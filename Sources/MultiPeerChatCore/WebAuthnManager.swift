@@ -691,13 +691,32 @@ public class WebAuthnManager {
     private func extractAndValidateSignCount(from authenticatorData: Data, storedCredential: WebAuthnCredential) throws -> UInt32 {
         // Authenticator data format: rpIdHash(32) + flags(1) + signCount(4) + ...
         guard authenticatorData.count >= 37 else {
+            print("[WebAuthn] ❌ Authenticator data too short: \(authenticatorData.count) bytes, need at least 37")
             throw WebAuthnError.invalidCredential
         }
         
+        print("[WebAuthn] 🔍 Authenticator data length: \(authenticatorData.count) bytes")
+        print("[WebAuthn] 🔍 Authenticator data (hex): \(authenticatorData.map { String(format: "%02x", $0) }.joined())")
+        
         // Extract sign count (4 bytes at offset 33, big endian)
         let signCountBytes = authenticatorData.subdata(in: 33..<37)
+        print("[WebAuthn] 🔍 Sign count bytes (hex): \(signCountBytes.map { String(format: "%02x", $0) }.joined())")
+        
         let newSignCount = signCountBytes.withUnsafeBytes { bytes in
             UInt32(bigEndian: bytes.bindMemory(to: UInt32.self).first!)
+        }
+        
+        print("[WebAuthn] 🔍 Extracted sign count: \(newSignCount)")
+        print("[WebAuthn] 🔍 Stored sign count: \(storedCredential.signCount)")
+        
+        // Check if this is a platform authenticator that doesn't use sign count
+        if newSignCount == 0 && storedCredential.signCount == 0 {
+            print("[WebAuthn] ⚠️ Platform authenticator detected - sign count always 0 (this is normal for Touch ID/Face ID)")
+            // For platform authenticators that don't increment, we can either:
+            // 1. Skip sign count validation entirely
+            // 2. Increment our own counter
+            // Let's increment our own counter for security
+            return storedCredential.signCount + 1
         }
         
         // Validate sign count (must be greater than stored value, unless stored is 0 for first use)
