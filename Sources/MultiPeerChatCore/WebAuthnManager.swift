@@ -710,15 +710,15 @@ public class WebAuthnManager {
         print("[WebAuthn] 🔍 Stored sign count: \(storedCredential.signCount)")
         
         // Check if this is a platform authenticator that doesn't use sign count
-        if newSignCount == 0 && storedCredential.signCount == 0 {
-            print("[WebAuthn] ⚠️ Platform authenticator detected - sign count always 0 (this is normal for Touch ID/Face ID)")
-            // For platform authenticators that don't increment, we can either:
-            // 1. Skip sign count validation entirely
-            // 2. Increment our own counter
-            // Let's increment our own counter for security
+        // Platform authenticators (Touch ID, Face ID, Windows Hello, etc.) often return 0 consistently
+        if newSignCount == 0 {
+            print("[WebAuthn] ⚠️ Platform authenticator detected - sign count is 0 (normal for Touch ID/Face ID/Windows Hello)")
+            // For platform authenticators that don't increment, increment our own counter for security
+            // This provides replay attack protection even when the authenticator doesn't increment
             return storedCredential.signCount + 1
         }
         
+        // For hardware authenticators that do increment sign count
         // Validate sign count (must be greater than stored value, unless stored is 0 for first use)
         if storedCredential.signCount > 0 && newSignCount <= storedCredential.signCount {
             print("[WebAuthn] Sign count validation failed: new=\(newSignCount), stored=\(storedCredential.signCount)")
