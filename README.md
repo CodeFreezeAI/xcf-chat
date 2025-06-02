@@ -30,9 +30,7 @@ swift build -c release
 
 2. **Start the server:**
 ```bash
-swift run ChatServer
-# Or specify a custom port:
-swift run ChatServer 3000
+swift run ChatServer 8080 -rp-id localhost
 ```
 
 3. **Open in browser:**
@@ -59,7 +57,7 @@ http://localhost:8080
 - **System notifications** for user join/leave events
 - **Message history** within each room session
 
-### 🔗 Invite System
+### 🔗 Invite System (Currently offline, coming soon)
 - **One-click invite generation** with shareable URLs
 - **Copy-to-clipboard** functionality
 - **Expiring links** (1 hour default)
@@ -75,7 +73,7 @@ The server provides a simple command-line interface:
 > quit            # Stop the server
 ```
 
-### Server Status Display:
+### Server Status Display (not fully implemented):
 ```
 📊 Server Status:
    👥 Connected Users: 5
@@ -141,7 +139,7 @@ The client-server communication uses JSON messages over WebSocket:
 ### Local Network
 ```bash
 # Start server
-swift run ChatServer 8080
+swift run ChatServer 8080 -rp-id localhost
 
 # Find your local IP
 ifconfig | grep "inet " | grep -v 127.0.0.1
@@ -154,7 +152,7 @@ ifconfig | grep "inet " | grep -v 127.0.0.1
 #### Option 1: VPS/Cloud Server
 ```bash
 # On your server
-swift run ChatServer 8080
+swift run ChatServer 8080 -rp-id localhost
 
 # Configure firewall
 sudo ufw allow 8080
@@ -164,7 +162,7 @@ sudo ufw allow 8080
 
 #### Option 2: Home Server with Port Forwarding
 1. Configure router to forward port 8080 to your machine
-2. Start server: `swift run ChatServer 8080`
+2. Start server: `swift run ChatServer 8080 -rp-id localhost`
 3. Share your public IP: `http://your-public-ip:8080`
 
 #### Option 3: Reverse Proxy (Recommended)
@@ -187,7 +185,7 @@ server {
 ## Usage Examples
 
 ### Basic Chat Session
-1. **Start server**: `swift run ChatServer`
+1. **Start server**: `swift run ChatServer 8080 -rp-id localhost`
 2. **Open browser**: Go to `http://localhost:8080`
 3. **Enter username**: Type your name and click "Join Chat"
 4. **Create room**: Click the "+" button and create "General"
@@ -209,12 +207,12 @@ server {
 
 ⚠️ **Important**: This is a demonstration project. For production use, consider:
 
-- **HTTPS/WSS**: Enable SSL/TLS encryption
-- **Authentication**: Add proper user authentication
-- **Rate Limiting**: Prevent message spam
-- **Input Validation**: Sanitize user inputs
-- **CORS**: Configure cross-origin policies
-- **Firewall**: Restrict access as needed
+- **HTTPS/WSS**: Enable SSL/TLS encryption (This can be done with Cloudflare and Nginx!)
+- **Authentication**: Add proper user authentication (Uses WebAuthn Psskeys)
+- **Rate Limiting**: Prevent message spam (Not implemented)
+- **Input Validation**: Sanitize user inputs (Not implemented)
+- **CORS**: Configure cross-origin policies (Implemented)
+- **Firewall**: Restrict access as needed (Not implemented)
 
 ## Performance
 
@@ -239,7 +237,7 @@ server {
 lsof -i :8080
 
 # Try different port
-swift run ChatServer 3000
+swift run ChatServer 8080 -rp-id localhost
 ```
 
 ### Can't Connect from Other Devices
