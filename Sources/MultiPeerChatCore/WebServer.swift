@@ -19,11 +19,13 @@ public class WebServer: ObservableObject {
     @Published public var connectedClients: Int = 0
     
     private let rpId: String
+    private let adminUsername: String
     private let webAuthnManager: WebAuthnManager
     private let port: UInt16?
     
-    public init(rpId: String, port: UInt16? = nil, storageBackend: WebAuthnStorageBackend = .json("")) {
+    public init(rpId: String, port: UInt16? = nil, adminUsername: String = "XCF Admin", storageBackend: WebAuthnStorageBackend = .json("")) {
         self.rpId = rpId
+        self.adminUsername = adminUsername
         self.port = port
         
         // Try using a publicly accessible icon for better compatibility
@@ -250,7 +252,7 @@ public class WebServer: ObservableObject {
             response = generateIndexHTML()
             contentType = "text/html"
         case ("GET", "/chatv1e.js"):
-            response = generateChatJS(adminName: ADMIN_USERNAME)
+            response = generateChatJS(adminName: adminUsername)
             contentType = "application/javascript"
         case ("GET", "/stylev1e.css"):
             response = generateCSS()

@@ -5,10 +5,32 @@ var globalRpId = "chat.xcf.ai"
 if let rpArgIndex = CommandLine.arguments.firstIndex(of: "--rp-id"), CommandLine.arguments.count > rpArgIndex + 1 {
     globalRpId = CommandLine.arguments[rpArgIndex + 1]
 }
-// Pass rpId to WebServer
+
+var adminUsername = "XCF Admin"
+if let adminArgIndex = CommandLine.arguments.firstIndex(of: "--admin"), CommandLine.arguments.count > adminArgIndex + 1 {
+    adminUsername = CommandLine.arguments[adminArgIndex + 1]
+}
+
+// Expand tilde in database path
+let dbPath = "~/webauthn/credentials.sqlite"
+let expandedDbPath = NSString(string: dbPath).expandingTildeInPath
+
+// Create database directory if it doesn't exist
+let dbDirectory = (expandedDbPath as NSString).deletingLastPathComponent
+do {
+    try FileManager.default.createDirectory(atPath: dbDirectory, withIntermediateDirectories: true, attributes: nil)
+    print("📁 WebAuthn database directory: \(dbDirectory)")
+    print("🗄️ WebAuthn database file: \(expandedDbPath)")
+} catch {
+    print("⚠️ Warning: Could not create database directory: \(error)")
+    print("📁 Attempted directory: \(dbDirectory)")
+}
+
+// Pass rpId and adminUsername to WebChatServer
 let server = WebChatServer(
     rpId: globalRpId,
-    storageBackend: WebAuthnStorageBackend.swiftData("/var/lib/webauthn/credentials.sqlite"))
+    adminUsername: adminUsername,
+    storageBackend: WebAuthnStorageBackend.swiftData(expandedDbPath))
 
 print("🌐 💬 \(globalRpId) Web Server")
 print("============================")
@@ -17,8 +39,9 @@ print("")
 // Require port from command line arguments
 guard CommandLine.arguments.count > 1, let port = UInt16(CommandLine.arguments[1]) else {
     print("❌ Error: Port number required")
-    print("Usage: ChatServer <port>")
+    print("Usage: ChatServer <port> [--rp-id <domain>] [--admin <username>]")
     print("Example: ChatServer 8081")
+    print("Example: ChatServer 8081 --rp-id chat.example.com --admin \"My Admin\"")
     exit(1)
 }
 

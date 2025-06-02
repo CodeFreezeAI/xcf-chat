@@ -2209,15 +2209,15 @@ func generateCSS() -> String {
 // MARK: - JavaScript Content
 func generateChatJS(adminName: String) -> String {
     return """
-    // Updated: 2024-12-19 - Mobile Layout Fixed, Duplicate Button Removed
-    // Add at the top of the JS section (before class ChatClient):
-    const ADMIN_USERNAME = '\(adminName)';
+    // Updated: 2024-12-19 - Mobile Layout Fixed, Admin Security Fixed
+    // Admin status is now determined server-side for security
 
     class ChatClient {
         constructor() {
             this.ws = null;
             this.username = '';
             this.userEmoji = '👤';
+            this.isAdmin = false; // Server will set this
             this.currentRoom = null;
             this.previousRoomId = null; // Track previous room for reconnection
             this.rooms = [];
@@ -2321,6 +2321,12 @@ func generateChatJS(adminName: String) -> String {
                     this.rooms = message.rooms || [];
                     this.updateRoomsList();
                     
+                    // Handle admin status update
+                    if (typeof message.isAdmin !== 'undefined') {
+                        this.isAdmin = message.isAdmin;
+                        this.updateAdminUI();
+                    }
+                    
                     // Handle room joining after receiving room list
                     if (this.isReconnecting && this.previousRoomId) {
                         // Try to rejoin the previous room
@@ -2370,6 +2376,13 @@ func generateChatJS(adminName: String) -> String {
                                                       this.currentRoom.id === message.room.id;
                     
                     this.currentRoom = message.room;
+                    
+                    // Handle admin status from server
+                    if (typeof message.isAdmin !== 'undefined') {
+                        this.isAdmin = message.isAdmin;
+                        this.updateAdminUI();
+                    }
+                    
                     this.updateRoomsList();
                     document.getElementById('current-room-name').textContent = message.room.name;
                     document.getElementById('leave-room-btn').disabled = false;
@@ -2403,44 +2416,12 @@ func generateChatJS(adminName: String) -> String {
                     
                     this.updateMessagesDisplay();
 
-                    // Show/hide remove and clear history buttons based on admin and room type
-                    const removeBtn = document.getElementById('remove-room-btn');
-                    const clearBtn = document.getElementById('clear-history-btn');
-                    console.log('DEBUG: Room name:', message.room.name, 'Username:', this.username, 'Admin username:', ADMIN_USERNAME);
-                    console.log('DEBUG: Is admin?', this.username === ADMIN_USERNAME);
-                    if (message.room.name !== 'Lobby') {
-                        if (this.username === ADMIN_USERNAME) {
-                            console.log('DEBUG: Showing Remove button for admin in non-Lobby room');
-                            if (removeBtn) {
-                                removeBtn.style.display = 'inline-block';
-                                removeBtn.textContent = 'Remove';
-                                console.log('DEBUG: Remove button display set to inline-block');
-                            } else {
-                                console.log('DEBUG: Remove button element not found!');
-                            }
-                        } else {
-                            console.log('DEBUG: Hiding Remove button for non-admin user');
-                            if (removeBtn) removeBtn.style.display = 'none';
-                        }
-                    } else {
-                        console.log('DEBUG: Hiding Remove button for Lobby room');
-                        if (removeBtn) removeBtn.style.display = 'none';
-                    }
-                    if (clearBtn) clearBtn.style.display = (this.username === ADMIN_USERNAME) ? 'inline-block' : 'none';
+                    // Show/hide remove and clear history buttons based on admin status
+                    this.updateRoomActionButtons();
 
                     // Show system message if Lobby
                     if (message.room.name === 'Lobby' && !wasReconnectingToSameRoom) {
                         this.showTemporarySystemMessage('You are now in the Lobby.', 10000);
-                    }
-                    
-                    // Handle admin status
-                    if (message.type === 'roomJoined' && typeof message.isAdmin !== 'undefined') {
-                        document.body.classList.remove('admin', 'user');
-                        if (message.isAdmin) {
-                            document.body.classList.add('admin');
-                        } else {
-                            document.body.classList.add('user');
-                        }
                     }
                     break;
                     
@@ -2498,6 +2479,35 @@ func generateChatJS(adminName: String) -> String {
                     }
                     this.updateRoomsList();
                     break;
+            }
+        }
+        
+        updateAdminUI() {
+            // Update CSS classes for admin/user styling
+            document.body.classList.remove('admin', 'user');
+            document.body.classList.add(this.isAdmin ? 'admin' : 'user');
+        }
+        
+        updateRoomActionButtons() {
+            const removeBtn = document.getElementById('remove-room-btn');
+            const clearBtn = document.getElementById('clear-history-btn');
+            
+            // Show/hide buttons based on admin status and room type
+            if (this.currentRoom && this.currentRoom.name !== 'Lobby') {
+                if (this.isAdmin) {
+                    if (removeBtn) {
+                        removeBtn.style.display = 'inline-block';
+                        removeBtn.textContent = 'Remove';
+                    }
+                } else {
+                    if (removeBtn) removeBtn.style.display = 'none';
+                }
+            } else {
+                if (removeBtn) removeBtn.style.display = 'none';
+            }
+            
+            if (clearBtn) {
+                clearBtn.style.display = this.isAdmin ? 'inline-block' : 'none';
             }
         }
         
@@ -2582,30 +2592,8 @@ func generateChatJS(adminName: String) -> String {
             document.getElementById('invite-btn').disabled = false;
             document.getElementById('file-btn').disabled = false;
             
-            // Show/hide remove and clear history buttons based on admin
-            const removeBtn = document.getElementById('remove-room-btn');
-            const clearBtn = document.getElementById('clear-history-btn');
-            console.log('DEBUG: Room name:', room.name, 'Username:', this.username, 'Admin username:', ADMIN_USERNAME);
-            console.log('DEBUG: Is admin?', this.username === ADMIN_USERNAME);
-            if (room.name !== 'Lobby') {
-                if (this.username === ADMIN_USERNAME) {
-                    console.log('DEBUG: Showing Remove button for admin in non-Lobby room');
-                    if (removeBtn) {
-                        removeBtn.style.display = 'inline-block';
-                        removeBtn.textContent = 'Remove';
-                        console.log('DEBUG: Remove button display set to inline-block');
-                    } else {
-                        console.log('DEBUG: Remove button element not found!');
-                    }
-                } else {
-                    console.log('DEBUG: Hiding Remove button for non-admin user');
-                    if (removeBtn) removeBtn.style.display = 'none';
-                }
-            } else {
-                console.log('DEBUG: Hiding Remove button for Lobby room');
-                if (removeBtn) removeBtn.style.display = 'none';
-            }
-            if (clearBtn) clearBtn.style.display = (this.username === ADMIN_USERNAME) ? 'inline-block' : 'none';
+            // Update room action buttons based on admin status
+            this.updateRoomActionButtons();
             
             // Load saved messages for this room or clear if none exist
             if (this.messagesByRoom[roomId]) {
@@ -2658,8 +2646,8 @@ func generateChatJS(adminName: String) -> String {
         }
         
         clearChatHistory() {
-            if (this.username !== ADMIN_USERNAME) {
-                alert('Only ' + ADMIN_USERNAME + ' can clear history.');
+            if (!this.isAdmin) {
+                alert('Only administrators can clear chat history.');
                 return;
             }
             if (!this.currentRoom) return;
@@ -2669,6 +2657,17 @@ func generateChatJS(adminName: String) -> String {
                     type: 'clearChatHistory',
                     roomId: this.currentRoom.id
                 });
+            }
+        }
+        
+        removeRoom() {
+            if (!this.isAdmin) {
+                alert('Only administrators can remove rooms.');
+                return;
+            }
+            if (!this.currentRoom || this.currentRoom.name === 'Lobby') return;
+            if (confirm(`Are you sure you want to remove the room '${this.currentRoom.name}'? This cannot be undone.`)) {
+                this.sendToServer({ type: 'removeRoom', roomId: this.currentRoom.id });
             }
         }
         
@@ -2931,12 +2930,12 @@ func generateChatJS(adminName: String) -> String {
                     type: 'system',
                     content: content,
                     timestamp: new Date().toISOString(),
-                    isExpiring: this.username !== ADMIN_USERNAME // Only expire for non-admin users
+                    isExpiring: !this.isAdmin // Only expire for non-admin users
                 };
                 this.addMessage(message);
                 
                 // Auto-remove system messages after 10 seconds for non-admin users
-                if (this.username !== ADMIN_USERNAME) {
+                if (!this.isAdmin) {
                     setTimeout(() => {
                         this.removeSystemMessage(message);
                     }, 10000);
@@ -3125,7 +3124,7 @@ func generateChatJS(adminName: String) -> String {
             container.scrollTop = container.scrollHeight;
 
             // Only auto-remove for non-admin users
-            if (this.username !== ADMIN_USERNAME) {
+            if (!this.isAdmin) {
                 setTimeout(() => {
                     msg.style.transition = 'opacity 1s';
                     msg.style.opacity = 0;
@@ -3135,17 +3134,6 @@ func generateChatJS(adminName: String) -> String {
                         }
                     }, 1000);
                 }, durationMs);
-            }
-        }
-
-        removeRoom() {
-            if (this.username !== ADMIN_USERNAME) {
-                alert('Only ' + ADMIN_USERNAME + ' can remove rooms.');
-                return;
-            }
-            if (!this.currentRoom || this.currentRoom.name === 'Lobby') return;
-            if (confirm(`Are you sure you want to remove the room '${this.currentRoom.name}'? This cannot be undone.`)) {
-                this.sendToServer({ type: 'removeRoom', roomId: this.currentRoom.id });
             }
         }
     }

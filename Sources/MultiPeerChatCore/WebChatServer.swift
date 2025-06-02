@@ -2,8 +2,6 @@ import Foundation
 import Network
 import Combine
 
-// ADMIN_USERNAME is now defined in Models.swift
-
 public class WebChatServer: ObservableObject, WebServerDelegate {
     @Published public var isRunning = false
     @Published public var connectedUsers = 0
@@ -22,14 +20,16 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     private let rpId: String
     private let webAuthnProtocol: WebAuthnProtocol
     private let storageBackend: WebAuthnStorageBackend
+    private let adminUsername: String
     private var port: UInt16?
     
     
-    public init(rpId: String, webAuthnProtocol: WebAuthnProtocol = .fido2CBOR, storageBackend: WebAuthnStorageBackend = .json("")) {
+    public init(rpId: String, adminUsername: String = "XCF Admin", webAuthnProtocol: WebAuthnProtocol = .fido2CBOR, storageBackend: WebAuthnStorageBackend = .json("")) {
         self.rpId = rpId
+        self.adminUsername = adminUsername
         self.webAuthnProtocol = webAuthnProtocol
         self.storageBackend = storageBackend
-        self.webServer = WebServer(rpId: rpId, storageBackend: storageBackend)
+        self.webServer = WebServer(rpId: rpId, adminUsername: adminUsername, storageBackend: storageBackend)
         webServer.delegate = self
         
         // Observe webServer's running state
@@ -98,7 +98,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         // Store the port and recreate WebServer with port for proper icon URLs
         self.port = port
         webServer.stop() // Stop the old one
-        webServer = WebServer(rpId: rpId, port: port, storageBackend: storageBackend)
+        webServer = WebServer(rpId: rpId, port: port, adminUsername: adminUsername, storageBackend: storageBackend)
         webServer.delegate = self
         
         webServer.start(on: port)
@@ -306,7 +306,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         }
         
         // Notify client of room join for UI update
-        let isAdmin = (username == ADMIN_USERNAME)
+        let isAdmin = (username == adminUsername)
         sendToClient(client, message: [
             "type": "roomJoined",
             "room": roomToDict(room),
@@ -442,7 +442,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     }
     
     private func handleClearChatHistory(_ json: [String: Any], client: WebSocketClient) {
-        guard client.username == ADMIN_USERNAME else {
+        guard client.username == adminUsername else {
             sendToClient(client, message: ["type": "error", "message": "Only an admin can clear history."])
             return
         }
@@ -464,7 +464,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     }
     
     private func handleRemoveRoom(_ json: [String: Any], client: WebSocketClient) {
-        guard client.username == ADMIN_USERNAME else {
+        guard client.username == adminUsername else {
             sendToClient(client, message: ["type": "error", "message": "Only an admin can remove rooms."])
             return
         }

@@ -1,7 +1,5 @@
 import Foundation
 
-public let ADMIN_USERNAME = "XCF Admin"
-
 // MARK: - User Model
 public struct User: Codable, Hashable, Identifiable {
     public let id: UUID
