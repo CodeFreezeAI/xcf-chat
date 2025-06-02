@@ -115,7 +115,8 @@ public class WebServer: ObservableObject {
                 let headerData = data.subdata(in: 0..<headerEndRange.upperBound)
                 if let headerString = String(data: headerData, encoding: .utf8) {
                     print("🔍 HEADER CHECK - Length: \(headerString.count)")
-                    if headerString.contains("POST /upload") || headerString.lowercased().contains("multipart/form-data") {
+                    // Only check for uploads on POST requests with multipart data
+                    if headerString.contains("POST /upload") || (headerString.contains("POST ") && headerString.lowercased().contains("multipart/form-data")) {
                         print("📤 Binary upload detected - using special binary handling")
                         self.handleFileUploadBinary(connection, initialData: data, headerString: headerString)
                         return
@@ -230,10 +231,10 @@ public class WebServer: ObservableObject {
         case ("GET", "/"):
             response = generateIndexHTML()
             contentType = "text/html"
-        case ("GET", "/chat.js"):
+        case ("GET", "/chatV1.js"):
             response = generateChatJS(adminName: ADMIN_USERNAME)
             contentType = "application/javascript"
-        case ("GET", "/style.css"):
+        case ("GET", "/styleV1.css"):
             response = generateCSS()
             contentType = "text/css"
         case ("GET", "/manifest.json"):
@@ -396,7 +397,13 @@ public class WebServer: ObservableObject {
                 "username": foundUsername ?? username
             ]
             let responseData = try JSONSerialization.data(withJSONObject: response)
-            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
+            if let jsonString = String(data: responseData, encoding: .utf8) {
+                print("📤 Sending response:", jsonString)
+                sendJSONResponse(connection, json: jsonString)
+            } else {
+                print("❌ Failed to create JSON response")
+                sendErrorResponse(connection, error: "Failed to create response")
+            }
         } catch {
             sendErrorResponse(connection, error: "Authentication verification failed")
         }
@@ -657,12 +664,17 @@ public class WebServer: ObservableObject {
                             ]
                         ]
                         
-                        if let jsonData = try? JSONSerialization.data(withJSONObject: response),
-                           let jsonString = String(data: jsonData, encoding: .utf8) {
-                            print("📤 Sending response:", jsonString)
-                            self.sendJSONResponse(connection, json: jsonString)
-                        } else {
-                            print("❌ Failed to create JSON response")
+                        do {
+                            let jsonData = try JSONSerialization.data(withJSONObject: response)
+                            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                                print("📤 Sending response:", jsonString)
+                                self.sendJSONResponse(connection, json: jsonString)
+                            } else {
+                                print("❌ Failed to convert JSON to string")
+                                self.sendErrorResponse(connection, error: "Failed to create response")
+                            }
+                        } catch {
+                            print("❌ Failed to serialize JSON response")
                             self.sendErrorResponse(connection, error: "Failed to create response")
                         }
                     } catch {
@@ -764,19 +776,201 @@ public class WebServer: ObservableObject {
     private func processBinaryUpload(_ connection: NWConnection, bodyData: Data, headerString: String) {
         print("📦 Processing binary upload: \(bodyData.count) bytes")
         
-        // For now, just return success to test if we can receive the data
-        let response: [String: Any] = [
-            "success": true,
-            "message": "Binary upload processed successfully",
-            "bytesReceived": bodyData.count,
-            "headerLength": headerString.count
-        ]
+        // Get boundary from Content-Type header
+        let boundary: String? = {
+            let lines = headerString.components(separatedBy: "\r\n")
+            for line in lines {
+                if line.lowercased().hasPrefix("content-type:") && line.contains("boundary=") {
+                    if let b = line.components(separatedBy: "boundary=").last {
+                        let extractedBoundary = b.trimmingCharacters(in: .whitespaces)
+                        return extractedBoundary
+                    }
+                }
+            }
+            return nil
+        }()
+        
+        guard let boundary = boundary else {
+            print("❌ Missing boundary in multipart data")
+            sendErrorResponse(connection, error: "Missing boundary")
+            return
+        }
+        
+        print("🔍 EXTRACTED BOUNDARY: '\(boundary)'")
+        
+        // Simple file extraction - look for filename and file data
+        let allData = bodyData
+        let boundaryData = boundary.data(using: .utf8)!
+        
+        // Find the first occurrence of the boundary
+        guard let firstBoundaryRange = allData.range(of: boundaryData) else {
+            print("❌ Could not find boundary in data")
+            sendErrorResponse(connection, error: "Invalid multipart format")
+            return
+        }
+        
+        // Look for the form-data part after the first boundary
+        let afterFirstBoundary = allData[firstBoundaryRange.upperBound...]
+        
+        // Find headers end
+        let headerEndMarker = "\r\n\r\n".data(using: .utf8)!
+        guard let headerEndRange = afterFirstBoundary.range(of: headerEndMarker) else {
+            print("❌ Could not find end of headers")
+            sendErrorResponse(connection, error: "Invalid multipart headers")
+            return
+        }
+        
+        // Extract headers
+        let headerData = Data(afterFirstBoundary[..<headerEndRange.lowerBound])
+        guard let headerString = String(data: headerData, encoding: .utf8) else {
+            print("❌ Could not parse headers as UTF-8")
+            sendErrorResponse(connection, error: "Invalid header encoding")
+            return
+        }
+        
+        print("📄 Headers: \(headerString)")
+        
+        // Parse filename and content type
+        var fileName: String?
+        var mimeType: String?
+        
+        if headerString.contains("Content-Disposition: form-data") {
+            // Extract filename
+            if let filenameMatch = headerString.range(of: "filename=\"") {
+                let fromFilename = headerString[filenameMatch.upperBound...]
+                if let endQuote = fromFilename.firstIndex(of: "\"") {
+                    fileName = String(fromFilename[..<endQuote])
+                    print("📄 Extracted filename: '\(fileName!)'")
+                }
+            }
+            
+            // Extract Content-Type
+            if let contentTypeMatch = headerString.range(of: "Content-Type: ", options: .caseInsensitive) {
+                let fromContentType = headerString[contentTypeMatch.upperBound...]
+                let mimeTypeString = String(fromContentType)
+                
+                if let endLine = mimeTypeString.firstIndex(of: "\r") {
+                    mimeType = String(mimeTypeString[..<endLine])
+                } else if let endLine = mimeTypeString.firstIndex(of: "\n") {
+                    mimeType = String(mimeTypeString[..<endLine])
+                } else {
+                    mimeType = mimeTypeString.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                
+                if !mimeType!.isEmpty {
+                    print("📄 Extracted MIME type: '\(mimeType!)'")
+                }
+            }
+        }
+        
+        // Extract file data
+        let fileDataStart = firstBoundaryRange.upperBound + headerData.count + headerEndMarker.count
+        let remainingData = allData[fileDataStart...]
+        
+        // Find ending boundary
+        let endBoundaryPattern = "\r\n\(boundary)".data(using: .utf8)!
+        var fileData: Data
+        if let endBoundaryRange = remainingData.range(of: endBoundaryPattern) {
+            fileData = Data(remainingData[..<endBoundaryRange.lowerBound])
+            print("📄 Extracted file data size: \(fileData.count) bytes (with end boundary)")
+        } else {
+            fileData = Data(remainingData)
+            // Try to remove trailing boundary manually
+            if fileData.count > boundary.count + 10 {
+                let endPortion = Data(fileData.suffix(boundary.count + 10))
+                if let endString = String(data: endPortion, encoding: .utf8) {
+                    if let lastBoundaryIndex = endString.lastIndex(of: "-") {
+                        let boundary_start = endString[..<lastBoundaryIndex].lastIndex(of: "\n") ?? endString.startIndex
+                        let trimLength = endString.distance(from: boundary_start, to: endString.endIndex)
+                        fileData = Data(fileData.dropLast(trimLength))
+                    }
+                }
+            }
+            print("📄 Extracted file data size: \(fileData.count) bytes (manual trim)")
+        }
+        
+        // Infer MIME type if missing
+        if mimeType == nil || mimeType!.isEmpty {
+            if let name = fileName {
+                let ext = (name as NSString).pathExtension.lowercased()
+                switch ext {
+                case "png": mimeType = "image/png"
+                case "jpg", "jpeg": mimeType = "image/jpeg"
+                case "gif": mimeType = "image/gif"
+                case "pdf": mimeType = "application/pdf"
+                case "txt": mimeType = "text/plain"
+                case "zip": mimeType = "application/zip"
+                default: mimeType = "application/octet-stream"
+                }
+                print("📄 Inferred MIME type: '\(mimeType!)'")
+            }
+        }
+        
+        guard let originalName = fileName,
+              let mime = mimeType,
+              !fileData.isEmpty else {
+            print("❌ Missing required file data - filename: \(fileName ?? "nil"), mimeType: \(mimeType ?? "nil"), dataSize: \(fileData.count)")
+            sendErrorResponse(connection, error: "Missing required file data")
+            return
+        }
+        
+        // Generate unique filename and save
+        let fileExtension = (originalName as NSString).pathExtension
+        let uniqueFileName = "\(UUID().uuidString).\(fileExtension)"
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let uploadsPath = documentsPath.appendingPathComponent("uploads")
+        let filePath = uploadsPath.appendingPathComponent(uniqueFileName)
+        
+        print("💾 Saving file to:", filePath.path)
         
         do {
-            let responseData = try JSONSerialization.data(withJSONObject: response)
-            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
+            try FileManager.default.createDirectory(at: uploadsPath, withIntermediateDirectories: true)
+            try fileData.write(to: filePath)
+            print("✅ File saved successfully")
+            
+            // Create and save the attachment
+            let attachment = FileAttachment(
+                fileName: uniqueFileName,
+                originalFileName: originalName,
+                mimeType: mime,
+                fileSize: Int64(fileData.count),
+                filePath: "uploads/\(uniqueFileName)",
+                thumbnailPath: nil
+            )
+            
+            // Save the attachment
+            PersistenceManager.shared.saveStandaloneAttachment(attachment)
+            print("✅ Attachment saved to persistence")
+            
+            // Return success response
+            let response: [String: Any] = [
+                "success": true,
+                "attachment": [
+                    "id": attachment.id.uuidString,
+                    "fileName": attachment.fileName,
+                    "originalFileName": attachment.originalFileName,
+                    "mimeType": attachment.mimeType,
+                    "fileSize": attachment.fileSize,
+                    "isImage": mime.starts(with: "image/")
+                ]
+            ]
+            
+            do {
+                let jsonData = try JSONSerialization.data(withJSONObject: response)
+                if let jsonString = String(data: jsonData, encoding: .utf8) {
+                    print("📤 Sending response:", jsonString)
+                    self.sendJSONResponse(connection, json: jsonString)
+                } else {
+                    print("❌ Failed to convert JSON to string")
+                    self.sendErrorResponse(connection, error: "Failed to create response")
+                }
+            } catch {
+                print("❌ Failed to serialize JSON response")
+                self.sendErrorResponse(connection, error: "Failed to create response")
+            }
         } catch {
-            sendErrorResponse(connection, error: "Failed to create response")
+            print("❌ Failed to save file:", error)
+            self.sendErrorResponse(connection, error: "Failed to save file: \(error.localizedDescription)")
         }
     }
     
