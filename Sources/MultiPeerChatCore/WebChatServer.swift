@@ -137,8 +137,6 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
             handleLeaveRoom(json, client: client)
         case "sendMessage":
             handleSendMessage(json, client: client)
-        case "sendFileMessage":
-            handleSendFileMessage(json, client: client)
         case "createInvite":
             handleCreateInvite(json, client: client)
         case "clearChatHistory":
@@ -146,7 +144,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         case "removeRoom":
             handleRemoveRoom(json, client: client)
         default:
-            break
+            print("Unknown message type: \(type)")
         }
     }
     
@@ -347,66 +345,6 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
             ]
         ] as [String : Any]
         
-        broadcastToRoom(roomId, message: message)
-    }
-    
-    private func handleSendFileMessage(_ json: [String: Any], client: WebSocketClient) {
-        guard let roomId = json["roomId"] as? String,
-              let username = client.username,
-              let room = rooms[roomId],
-              let attachmentData = json["attachment"] as? [String: Any],
-              let attachmentId = attachmentData["id"] as? String,
-              let attachmentUUID = UUID(uuidString: attachmentId) else { 
-            print("❌ Failed to parse file message: \(json)")
-            return 
-        }
-        
-        // Find the attachment from all stored attachments
-        let allAttachments = persistenceManager.getAllAttachments()
-        print("🔍 Looking for attachment \(attachmentUUID) in \(allAttachments.count) stored attachments")
-        
-        guard let attachment = allAttachments.first(where: { $0.id == attachmentUUID }) else { 
-            print("❌ Attachment not found: \(attachmentUUID)")
-            print("📋 Available attachments: \(allAttachments.map { $0.id })")
-            return 
-        }
-        
-        print("✅ Found attachment: \(attachment.originalFileName)")
-        
-        let caption = json["caption"] as? String ?? ""
-        let user = User(username: username)
-        let chatMessage = ChatMessage(attachment: attachment, sender: user, roomId: room.id, caption: caption)
-        
-        // Save message to persistence
-        persistenceManager.saveMessage(chatMessage)
-        
-        // Add to in-memory storage
-        if roomMessages[roomId] == nil {
-            roomMessages[roomId] = []
-        }
-        roomMessages[roomId]?.append(chatMessage)
-        
-        let message = [
-            "type": "chatMessage",
-            "message": [
-                "sender": username,
-                "content": chatMessage.content,
-                "timestamp": ISO8601DateFormatter().string(from: chatMessage.timestamp),
-                "messageType": chatMessage.messageType.rawValue,
-                "attachment": [
-                    "id": attachment.id.uuidString,
-                    "fileName": attachment.fileName,
-                    "originalFileName": attachment.originalFileName,
-                    "mimeType": attachment.mimeType,
-                    "fileSize": attachment.fileSize,
-                    "isImage": attachment.isImage,
-                    "filePath": attachment.filePath,
-                    "thumbnailPath": attachment.thumbnailPath as Any
-                ]
-            ]
-        ] as [String : Any]
-        
-        print("📤 Broadcasting file message to room \(roomId)")
         broadcastToRoom(roomId, message: message)
     }
     
