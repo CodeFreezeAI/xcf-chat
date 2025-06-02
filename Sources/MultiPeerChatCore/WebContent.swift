@@ -10,8 +10,8 @@ func generateIndexHTML() -> String {
         <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
         
         <!-- Primary Meta Tags -->
-        <title><span id="rp-id"></span> - Secure Real-time Chat</title>
-        <meta name="title" content="XCF Chat - Secure Real-time Chat Platform">
+        <title>💬 chat.xcf.ai</title>
+        <meta name="title" content="XCF Chat - Secure Real-time Chat">
         <meta name="description" content="Anonymous • Passwordless • Emoji Avatars • WebAuthn FIDO2 Passkey Security">
         <meta name="keywords" content="chat, real-time, secure, WebAuthn, emoji, file sharing, instant messaging, group chat, rooms">
         <meta name="author" content="XCF Chat">
@@ -90,7 +90,7 @@ func generateIndexHTML() -> String {
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
         
-        <link rel="stylesheet" href="/styleV1.css">
+        <link rel="stylesheet" href="/styleV1A.css">
     </head>
     <body>
         <div class="container">
@@ -319,7 +319,7 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
-        <script src="/chatV1.js"></script>
+        <script src="/chatV1A.js"></script>
         <script>
         // Hide upload button and file input for now
         /*
@@ -890,9 +890,9 @@ func generateCSS() -> String {
     }
 
     .rooms-list-container {
-        max-height: 300px;
+        max-height: 100%;
         overflow-y: auto;
-        padding-top: 0;
+        padding-top: 2px;
         transition: max-height 0.3s ease, opacity 0.3s ease;
     }
 

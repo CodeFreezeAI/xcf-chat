@@ -231,10 +231,10 @@ public class WebServer: ObservableObject {
         case ("GET", "/"):
             response = generateIndexHTML()
             contentType = "text/html"
-        case ("GET", "/chatV1.js"):
+        case ("GET", "/chatV1A.js"):
             response = generateChatJS(adminName: ADMIN_USERNAME)
             contentType = "application/javascript"
-        case ("GET", "/styleV1.css"):
+        case ("GET", "/styleV1A.css"):
             response = generateCSS()
             contentType = "text/css"
         case ("GET", "/manifest.json"):

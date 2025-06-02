@@ -20,10 +20,12 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     private var cancellables = Set<AnyCancellable>()
     private let persistenceManager = PersistenceManager.shared
     private let rpId: String
+    private let webAuthnProtocol: WebAuthnProtocol
     
     
-    public init(rpId: String) {
+    public init(rpId: String, webAuthnProtocol: WebAuthnProtocol = .fido2CBOR) {
         self.rpId = rpId
+        self.webAuthnProtocol = webAuthnProtocol
         self.webServer = WebServer(rpId: rpId)
         webServer.delegate = self
         
@@ -374,7 +376,8 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         print("✅ Found attachment: \(attachment.originalFileName)")
         
         let caption = json["caption"] as? String ?? ""
-        let user = User(username: username)
+        let emoji = userEmojis[username] ?? "👤"
+        let user = User(username: username, emoji: emoji)
         let chatMessage = ChatMessage(attachment: attachment, sender: user, roomId: room.id, caption: caption)
         
         // Save message to persistence
@@ -393,6 +396,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
                 "content": chatMessage.content,
                 "timestamp": ISO8601DateFormatter().string(from: chatMessage.timestamp),
                 "messageType": chatMessage.messageType.rawValue,
+                "emoji": emoji,
                 "attachment": [
                     "id": attachment.id.uuidString,
                     "fileName": attachment.fileName,
