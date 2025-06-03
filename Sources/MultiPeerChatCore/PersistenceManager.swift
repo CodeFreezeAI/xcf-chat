@@ -209,10 +209,10 @@ public class PersistenceManager {
     
     public func loadAdminUsers() -> [AdminUser] {
         guard let data = userDefaults.data(forKey: Keys.adminUsers),
-              let adminUsers = try? JSONDecoder().decode([AdminUser].self, from: data) else {
+              let users = try? JSONDecoder().decode([AdminUser].self, from: data) else {
             return []
         }
-        return adminUsers
+        return users
     }
     
     private func saveAdminUsers(_ adminUsers: [AdminUser]) {
@@ -227,11 +227,13 @@ public class PersistenceManager {
     }
     
     public func getAdminUser(by username: String) -> AdminUser? {
-        return loadAdminUsers().first { $0.username == username }
+        let users = loadAdminUsers()
+        return users.first { $0.username == username }
     }
     
     public func getAdminUser(byCredentialId credentialId: String) -> AdminUser? {
-        return loadAdminUsers().first { $0.credentialId == credentialId }
+        let users = loadAdminUsers()
+        return users.first { $0.credentialId == credentialId }
     }
     
     public func getNextUserNumber() -> Int {

@@ -34,6 +34,7 @@ public struct AdminUser: Codable, Identifiable {
     public let lastLoginIP: String?
     public let isEnabled: Bool
     public let userNumber: Int
+    public let emoji: String
     
     public init(
         username: String,
@@ -41,7 +42,8 @@ public struct AdminUser: Codable, Identifiable {
         publicKey: String,
         signCount: UInt32 = 0,
         lastLoginIP: String? = nil,
-        userNumber: Int
+        userNumber: Int,
+        emoji: String = "👤"
     ) {
         self.id = UUID()
         self.username = username
@@ -53,6 +55,7 @@ public struct AdminUser: Codable, Identifiable {
         self.lastLoginIP = lastLoginIP
         self.isEnabled = true
         self.userNumber = userNumber
+        self.emoji = emoji
     }
     
     public func updatedWithLogin(ip: String?, signCount: UInt32) -> AdminUser {
@@ -66,7 +69,8 @@ public struct AdminUser: Codable, Identifiable {
             lastLoginAt: Date(),
             lastLoginIP: ip,
             isEnabled: self.isEnabled,
-            userNumber: self.userNumber
+            userNumber: self.userNumber,
+            emoji: self.emoji
         )
     }
     
@@ -81,7 +85,24 @@ public struct AdminUser: Codable, Identifiable {
             lastLoginAt: self.lastLoginAt,
             lastLoginIP: self.lastLoginIP,
             isEnabled: enabled,
-            userNumber: self.userNumber
+            userNumber: self.userNumber,
+            emoji: self.emoji
+        )
+    }
+    
+    public func withEmoji(_ newEmoji: String) -> AdminUser {
+        return AdminUser(
+            id: self.id,
+            username: self.username,
+            credentialId: self.credentialId,
+            publicKey: self.publicKey,
+            signCount: self.signCount,
+            createdAt: self.createdAt,
+            lastLoginAt: self.lastLoginAt,
+            lastLoginIP: self.lastLoginIP,
+            isEnabled: self.isEnabled,
+            userNumber: self.userNumber,
+            emoji: newEmoji
         )
     }
     
@@ -95,7 +116,8 @@ public struct AdminUser: Codable, Identifiable {
         lastLoginAt: Date?,
         lastLoginIP: String?,
         isEnabled: Bool,
-        userNumber: Int
+        userNumber: Int,
+        emoji: String
     ) {
         self.id = id
         self.username = username
@@ -107,6 +129,7 @@ public struct AdminUser: Codable, Identifiable {
         self.lastLoginIP = lastLoginIP
         self.isEnabled = isEnabled
         self.userNumber = userNumber
+        self.emoji = emoji
     }
 }
 

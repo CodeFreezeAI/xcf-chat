@@ -27,7 +27,7 @@ public class WebServer: ObservableObject {
     
     private let rpId: String
     private let adminUsername: String
-    private let webAuthnManager: WebAuthnManager
+    public let webAuthnManager: WebAuthnManager // Changed from private to public
     private let port: UInt16?
     
     // Simple session storage for admin authentication
@@ -345,6 +345,15 @@ public class WebServer: ObservableObject {
         case ("POST", "/admin/api/users/disable-by-ip"):
             if isAdminRequest(request) || hasValidAdminSession(request) {
                 handleAdminAPIDisableByIP(connection, request: request)
+                return
+            } else {
+                response = "404 Not Found"
+                contentType = "text/plain"
+                statusCode = "404 Not Found"
+            }
+        case ("POST", let path) where path.matches(#"/admin/api/users/[^/]+/emoji"#):
+            if isAdminRequest(request) || hasValidAdminSession(request) {
+                handleAdminAPIUpdateEmoji(connection, request: request, path: path)
                 return
             } else {
                 response = "404 Not Found"
@@ -1233,6 +1242,22 @@ public class WebServer: ObservableObject {
         })
     }
     
+    private func sendResponse(_ connection: NWConnection, statusCode: String, contentType: String, body: String) {
+        let httpResponse = """
+        HTTP/1.1 \(statusCode)\r
+        Content-Type: \(contentType)\r
+        Content-Length: \(body.utf8.count)\r
+        Connection: close\r
+        Access-Control-Allow-Origin: *\r
+        \r
+        \(body)
+        """
+        
+        connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+    
     private func sendErrorResponse(_ connection: NWConnection, error: String, statusCode: String = "400 Bad Request") {
         let errorJSON = """
         {
@@ -2028,7 +2053,8 @@ public class WebServer: ObservableObject {
                 "lastLoginAt": user.lastLoginAt.map { ISO8601DateFormatter().string(from: $0) } as Any,
                 "lastLoginIP": user.lastLoginIP as Any,
                 "isEnabled": user.isEnabled,
-                "userNumber": user.userNumber
+                "userNumber": user.userNumber,
+                "emoji": user.emoji
             ] as [String: Any]
         }
         
@@ -2111,6 +2137,38 @@ public class WebServer: ObservableObject {
         sendJSONResponse(connection, json: "{\"success\":true}")
     }
     
+    private func handleAdminAPIUpdateEmoji(_ connection: NWConnection, request: String, path: String) {
+        guard let bodyRange = request.range(of: "\r\n\r\n"),
+              let bodyData = String(request[bodyRange.upperBound...]).data(using: .utf8),
+              let requestData = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
+              let newEmoji = requestData["emoji"] as? String else {
+            sendResponse(connection, statusCode: "400 Bad Request", contentType: "application/json", body: "{\"error\":\"Invalid request data\"}")
+            return
+        }
+        
+        // Extract user ID from path
+        let pathComponents = path.components(separatedBy: "/")
+        guard pathComponents.count >= 5,
+              let userIdString = pathComponents[safe: 3],
+              let userId = UUID(uuidString: userIdString) else {
+            sendResponse(connection, statusCode: "400 Bad Request", contentType: "application/json", body: "{\"error\":\"Invalid user ID\"}")
+            return
+        }
+        
+        // Find user by ID and update emoji
+        let users = PersistenceManager.shared.loadAdminUsers()
+        guard let user = users.first(where: { $0.id == userId }) else {
+            sendResponse(connection, statusCode: "404 Not Found", contentType: "application/json", body: "{\"error\":\"User not found\"}")
+            return
+        }
+        
+        let updatedUser = user.withEmoji(newEmoji)
+        PersistenceManager.shared.saveAdminUser(updatedUser)
+        
+        let response = "{\"success\":true,\"message\":\"Emoji updated successfully\"}"
+        sendResponse(connection, statusCode: "200 OK", contentType: "application/json", body: response)
+    }
+    
     // MARK: - Admin Content Generation
     
     private func generateAdminIndexHTML() -> String {
@@ -2147,6 +2205,12 @@ public class WebServer: ObservableObject {
         
         print("[WebServer] 🔒 No valid admin sessions found")
         return false
+    }
+}
+
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
 

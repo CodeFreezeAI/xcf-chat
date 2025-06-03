@@ -679,6 +679,9 @@ public class WebAuthnManager {
             throw WebAuthnError.duplicateUsername
         }
         
+        // Extract emoji from credential data, default to 👤 if not provided
+        let emoji = credential["emoji"] as? String ?? "👤"
+        
         guard let idRaw = credential["id"] as? String else {
             print("[WebAuthn] MISSING id")
             throw WebAuthnError.invalidCredential
@@ -693,12 +696,12 @@ public class WebAuthnManager {
         // Try FIDO2 format first, then fall back to U2F
         do {
             print("[WebAuthn] 🔍 Attempting FIDO2 registration verification...")
-            try verifyFIDO2Registration(username: username, id: id, response: response, clientIP: clientIP)
+            try verifyFIDO2Registration(username: username, id: id, response: response, clientIP: clientIP, emoji: emoji)
             print("[WebAuthn] ✅ FIDO2 registration successful")
         } catch {
             print("[WebAuthn] ⚠️ FIDO2 verification failed: \(error), trying U2F...")
             do {
-                try verifyU2FRegistration(username: username, id: id, response: response, clientIP: clientIP)
+                try verifyU2FRegistration(username: username, id: id, response: response, clientIP: clientIP, emoji: emoji)
                 print("[WebAuthn] ✅ U2F registration successful")
             } catch {
                 print("[WebAuthn] ❌ Both FIDO2 and U2F verification failed")
@@ -707,7 +710,7 @@ public class WebAuthnManager {
         }
     }
     
-    private func verifyFIDO2Registration(username: String, id: String, response: [String: Any], clientIP: String?) throws {
+    private func verifyFIDO2Registration(username: String, id: String, response: [String: Any], clientIP: String?, emoji: String) throws {
         guard let attestationObjectString = response["attestationObject"] as? String else {
             print("[WebAuthn] MISSING attestationObject")
             throw WebAuthnError.invalidCredential
@@ -740,7 +743,7 @@ public class WebAuthnManager {
         credentialIdToUsername[id] = username
         saveCredentials()
         
-        // Create admin user record for tracking
+        // Create admin user record for tracking with emoji
         let userNumber = PersistenceManager.shared.getNextUserNumber()
         let adminUser = AdminUser(
             username: username,
@@ -748,13 +751,14 @@ public class WebAuthnManager {
             publicKey: publicKey,
             signCount: 0,
             lastLoginIP: clientIP,
-            userNumber: userNumber
+            userNumber: userNumber,
+            emoji: emoji
         )
         PersistenceManager.shared.saveAdminUser(adminUser)
-        print("[WebAuthn] Created admin user record for \(username) (#\(userNumber))")
+        print("[WebAuthn] Created admin user record for \(username) (#\(userNumber)) with emoji \(emoji)")
     }
     
-    private func verifyU2FRegistration(username: String, id: String, response: [String: Any], clientIP: String?) throws {
+    private func verifyU2FRegistration(username: String, id: String, response: [String: Any], clientIP: String?, emoji: String) throws {
         // U2F V1A registration format
         guard let registrationData = response["registrationData"] as? String,
               let _ = response["clientData"] as? String else {
@@ -800,7 +804,7 @@ public class WebAuthnManager {
         credentialIdToUsername[id] = username
         saveCredentials()
         
-        // Create admin user record for tracking
+        // Create admin user record for tracking with emoji
         let userNumber = PersistenceManager.shared.getNextUserNumber()
         let adminUser = AdminUser(
             username: username,
@@ -808,10 +812,11 @@ public class WebAuthnManager {
             publicKey: publicKey,
             signCount: 0,
             lastLoginIP: clientIP,
-            userNumber: userNumber
+            userNumber: userNumber,
+            emoji: emoji
         )
         PersistenceManager.shared.saveAdminUser(adminUser)
-        print("[WebAuthn] Created admin user record for \(username) (#\(userNumber))")
+        print("[WebAuthn] Created admin user record for \(username) (#\(userNumber)) with emoji \(emoji)")
         
         print("[WebAuthn] Successfully registered U2F credential for \(username)")
     }
@@ -1300,6 +1305,28 @@ public class WebAuthnManager {
             return false // User doesn't exist
         }
         return adminUser.isEnabled
+    }
+    
+    // Update user emoji
+    public func updateUserEmoji(username: String, emoji: String) -> Bool {
+        guard let adminUser = PersistenceManager.shared.getAdminUser(by: username) else {
+            print("[WebAuthn] ❌ User \(username) not found for emoji update")
+            return false
+        }
+        
+        let updatedUser = adminUser.withEmoji(emoji)
+        PersistenceManager.shared.saveAdminUser(updatedUser)
+        print("[WebAuthn] ✅ Updated emoji for \(username) to \(emoji)")
+        return true
+    }
+    
+    // Get user emoji
+    public func getUserEmoji(username: String) -> String? {
+        guard let adminUser = PersistenceManager.shared.getAdminUser(by: username) else {
+            print("[WebAuthn] ❌ User \(username) not found for emoji retrieval")
+            return nil
+        }
+        return adminUser.emoji
     }
 }
 

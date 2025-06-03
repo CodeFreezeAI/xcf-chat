@@ -70,6 +70,7 @@ public enum WebAdminContent {
                                 <tr>
                                     <th>#</th>
                                     <th>Username</th>
+                                    <th>Emoji</th>
                                     <th>Status</th>
                                     <th>Created</th>
                                     <th>Last Login</th>
@@ -79,7 +80,7 @@ public enum WebAdminContent {
                                 </tr>
                             </thead>
                             <tbody id="users-tbody">
-                                <tr><td colspan="8" class="loading">Loading users...</td></tr>
+                                <tr><td colspan="9" class="loading">Loading users...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -105,6 +106,13 @@ public enum WebAdminContent {
                                 <div class="detail-item">
                                     <label>Username</label>
                                     <span id="detail-username"></span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Emoji</label>
+                                    <div class="emoji-edit-container">
+                                        <span id="detail-emoji" class="emoji-display"></span>
+                                        <button id="edit-emoji-btn" class="edit-emoji-btn" onclick="openEmojiEditor()">Edit</button>
+                                    </div>
                                 </div>
                                 <div class="detail-item">
                                     <label>Status</label>
@@ -134,6 +142,81 @@ public enum WebAdminContent {
                                     <label>Public Key</label>
                                     <textarea id="detail-public-key" class="public-key-text" readonly></textarea>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emoji Editor Modal -->
+                <div id="emoji-editor-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Edit User Emoji</h3>
+                            <button class="close-btn" onclick="closeEmojiEditor()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="emoji-picker-grid">
+                                <span class="emoji-option" onclick="selectEmoji('👤')">👤</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐶')">🐶</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐱')">🐱</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐭')">🐭</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐹')">🐹</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐰')">🐰</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦊')">🦊</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐻')">🐻</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐼')">🐼</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐨')">🐨</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐯')">🐯</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦁')">🦁</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐸')">🐸</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐵')">🐵</span>
+                                <span class="emoji-option" onclick="selectEmoji('🙈')">🙈</span>
+                                <span class="emoji-option" onclick="selectEmoji('🙉')">🙉</span>
+                                <span class="emoji-option" onclick="selectEmoji('🙊')">🙊</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐒')">🐒</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦍')">🦍</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦧')">🦧</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐕')">🐕</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐩')">🐩</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐺')">🐺</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦝')">🦝</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐈')">🐈</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐅')">🐅</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐆')">🐆</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦓')">🦓</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦄')">🦄</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐴')">🐴</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐎')">🐎</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦌')">🦌</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐮')">🐮</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐂')">🐂</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐃')">🐃</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐄')">🐄</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐷')">🐷</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐖')">🐖</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐗')">🐗</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐽')">🐽</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐏')">🐏</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐑')">🐑</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐐')">🐐</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐪')">🐪</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐫')">🐫</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦒')">🦒</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐘')">🐘</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦏')">🦏</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦛')">🦛</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐊')">🐊</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐢')">🐢</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦎')">🦎</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐍')">🐍</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐲')">🐲</span>
+                                <span class="emoji-option" onclick="selectEmoji('🐉')">🐉</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦕')">🦕</span>
+                                <span class="emoji-option" onclick="selectEmoji('🦖')">🦖</span>
+                            </div>
+                            <div class="emoji-editor-actions">
+                                <button id="save-emoji-btn" onclick="saveEmojiChange()" disabled>Save</button>
+                                <button onclick="closeEmojiEditor()">Cancel</button>
                             </div>
                         </div>
                     </div>
@@ -1020,6 +1103,121 @@ public enum WebAdminContent {
         ::-webkit-scrollbar-thumb:hover {
             background: var(--text-secondary);
         }
+        
+        /* Emoji Edit Styles */
+        .emoji-edit-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .emoji-display {
+            font-size: 20px;
+            min-width: 30px;
+            text-align: center;
+        }
+        
+        .edit-emoji-btn {
+            padding: 4px 8px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .edit-emoji-btn:hover {
+            background: var(--accent-color-hover);
+        }
+        
+        .emoji-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            margin-bottom: 16px;
+        }
+        
+        .emoji-picker-grid .emoji-option {
+            font-size: 20px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+        
+        .emoji-picker-grid .emoji-option:hover {
+            background: var(--border-color);
+            transform: scale(1.1);
+        }
+        
+        .emoji-picker-grid .emoji-option.selected {
+            background: var(--accent-color);
+            border-color: var(--accent-color-hover);
+        }
+        
+        .emoji-editor-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        
+        .emoji-editor-actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s ease;
+        }
+        
+        .emoji-editor-actions button:first-child {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        .emoji-editor-actions button:first-child:hover:not(:disabled) {
+            background: var(--accent-color-hover);
+        }
+        
+        .emoji-editor-actions button:first-child:disabled {
+            background: var(--disabled-bg);
+            cursor: not-allowed;
+        }
+        
+        .emoji-editor-actions button:last-child {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .emoji-editor-actions button:last-child:hover {
+            background: var(--text-secondary);
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .emoji-picker-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+            
+            .emoji-display {
+                font-size: 16px;
+            }
+            
+            .emoji-picker-grid .emoji-option {
+                font-size: 16px;
+                padding: 6px;
+            }
+        }
         """
     }
 
@@ -1075,7 +1273,7 @@ public enum WebAdminContent {
                 const userCount = document.getElementById('user-count');
                 
                 if (this.filteredUsers.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="loading">No users found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" class="loading">No users found</td></tr>';
                     userCount.textContent = '0';
                     return;
                 }
@@ -1084,6 +1282,7 @@ public enum WebAdminContent {
                     <tr>
                         <td>#${user.userNumber}</td>
                         <td>${this.escapeHtml(user.username)}</td>
+                        <td>${this.escapeHtml(user.emoji)}</td>
                         <td>
                             <span class="status-badge status-${user.isEnabled ? 'enabled' : 'disabled'}">
                                 ${user.isEnabled ? 'Enabled' : 'Disabled'}
@@ -1220,6 +1419,7 @@ public enum WebAdminContent {
                 document.getElementById('detail-id').textContent = user.id;
                 document.getElementById('detail-user-number').textContent = user.userNumber;
                 document.getElementById('detail-username').textContent = user.username;
+                document.getElementById('detail-emoji').textContent = user.emoji || '👤';
                 document.getElementById('detail-status').textContent = user.isEnabled ? 'Enabled' : 'Disabled';
                 document.getElementById('detail-created').textContent = this.formatDate(user.createdAt);
                 document.getElementById('detail-last-login').textContent = user.lastLoginAt ? this.formatDate(user.lastLoginAt) : 'Never';
@@ -1227,6 +1427,9 @@ public enum WebAdminContent {
                 document.getElementById('detail-sign-count').textContent = user.signCount;
                 document.getElementById('detail-credential-id').textContent = user.credentialId;
                 document.getElementById('detail-public-key').textContent = user.publicKey;
+                
+                // Store current user for emoji editing
+                window.currentEditUser = user;
                 
                 // Show modal
                 document.getElementById('user-details-modal').classList.remove('hidden');
@@ -1289,6 +1492,92 @@ public enum WebAdminContent {
             .catch(error => {
                 console.error('Error disabling users:', error);
                 alert('Failed to disable users');
+            });
+        }
+
+        // Emoji editing functions
+        function openEmojiEditor() {
+            if (!window.currentEditUser) return;
+            
+            // Show emoji editor modal
+            document.getElementById('emoji-editor-modal').classList.remove('hidden');
+            
+            // Clear previous selections
+            document.querySelectorAll('.emoji-picker-grid .emoji-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Select current emoji
+            const currentEmoji = window.currentEditUser.emoji || '👤';
+            const currentOption = document.querySelector(`.emoji-picker-grid .emoji-option[onclick="selectEmoji('${currentEmoji}')"]`);
+            if (currentOption) {
+                currentOption.classList.add('selected');
+                document.getElementById('save-emoji-btn').disabled = true; // No change yet
+            }
+            
+            window.selectedEmoji = currentEmoji;
+        }
+        
+        function closeEmojiEditor() {
+            document.getElementById('emoji-editor-modal').classList.add('hidden');
+            window.selectedEmoji = null;
+        }
+        
+        function selectEmoji(emoji) {
+            // Update selection
+            document.querySelectorAll('.emoji-picker-grid .emoji-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            const selectedOption = document.querySelector(`.emoji-picker-grid .emoji-option[onclick="selectEmoji('${emoji}')"]`);
+            if (selectedOption) {
+                selectedOption.classList.add('selected');
+            }
+            
+            window.selectedEmoji = emoji;
+            
+            // Enable save button if emoji changed
+            const hasChanged = emoji !== (window.currentEditUser?.emoji || '👤');
+            document.getElementById('save-emoji-btn').disabled = !hasChanged;
+        }
+        
+        function saveEmojiChange() {
+            if (!window.currentEditUser || !window.selectedEmoji) return;
+            
+            const userId = window.currentEditUser.id;
+            const newEmoji = window.selectedEmoji;
+            
+            fetch(`/admin/api/users/${userId}/emoji`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ emoji: newEmoji })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update emoji');
+                }
+                return response.json();
+            })
+            .then(() => {
+                // Update local data
+                window.currentEditUser.emoji = newEmoji;
+                
+                // Update UI
+                document.getElementById('detail-emoji').textContent = newEmoji;
+                
+                // Refresh the users table
+                refreshUsers();
+                
+                // Close modal
+                closeEmojiEditor();
+                
+                alert('Emoji updated successfully');
+            })
+            .catch(error => {
+                console.error('Error updating emoji:', error);
+                alert('Failed to update emoji');
             });
         }
 

@@ -160,6 +160,8 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
             handlePing(json, client: client)
         case "pong":
             handlePong(json, client: client)
+        case "updateEmoji":
+            handleUpdateEmoji(json, client: client)
         default:
             break
         }
@@ -198,13 +200,26 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         let isReconnecting = (json["isReconnecting"] as? Bool) ?? false
         
         client.username = username
-        userEmojis[username] = emoji
+        
+        // Get stored emoji from database, or use provided emoji if no stored one
+        let storedEmoji = webServer.webAuthnManager.getUserEmoji(username: username) ?? emoji
+        userEmojis[username] = storedEmoji
+        
+        // If the provided emoji is different from stored, update the database
+        if emoji != "👤" && emoji != storedEmoji {
+            let _ = webServer.webAuthnManager.updateUserEmoji(username: username, emoji: emoji)
+            userEmojis[username] = emoji
+        }
+        
         users[username] = client
         
-        // Send current rooms list
+        // Send current rooms list with admin status
+        let isAdmin = (username == adminUsername)
         sendToClient(client, message: [
             "type": "roomList",
-            "rooms": rooms.values.map { roomToDict($0) }
+            "rooms": rooms.values.map { roomToDict($0) },
+            "isAdmin": isAdmin,
+            "userEmoji": userEmojis[username] ?? "👤"
         ])
         
         // Only auto-join Lobby for new connections, not reconnections
@@ -338,7 +353,18 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
               let content = json["content"] as? String,
               let username = client.username,
               let room = rooms[roomId] else { return }
-        let emoji = (json["emoji"] as? String) ?? userEmojis[username] ?? "👤"
+        
+        // Use stored emoji, fallback to provided emoji, then fallback to default
+        let storedEmoji = userEmojis[username] ?? webServer.webAuthnManager.getUserEmoji(username: username)
+        let providedEmoji = (json["emoji"] as? String)
+        let emoji = storedEmoji ?? providedEmoji ?? "👤"
+        
+        // Update stored emoji if a different one was provided
+        if let providedEmoji = providedEmoji, providedEmoji != emoji {
+            let _ = webServer.webAuthnManager.updateUserEmoji(username: username, emoji: providedEmoji)
+            userEmojis[username] = providedEmoji
+        }
+        
         let user = User(username: username, emoji: emoji)
         let chatMessage = ChatMessage(content: content, sender: user, roomId: room.id)
         
@@ -501,6 +527,32 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         // Client responded to our ping - connection is healthy
         // We could store last pong time here if we wanted to implement server-side health checks too
         // For now, just acknowledge that the client is responding
+    }
+    
+    private func handleUpdateEmoji(_ json: [String: Any], client: WebSocketClient) {
+        guard let username = client.username,
+              let newEmoji = json["emoji"] as? String else { return }
+        
+        // Update stored emoji
+        let success = webServer.webAuthnManager.updateUserEmoji(username: username, emoji: newEmoji)
+        if success {
+            userEmojis[username] = newEmoji
+            
+            // Send confirmation to client
+            sendToClient(client, message: [
+                "type": "emojiUpdated",
+                "emoji": newEmoji,
+                "success": true
+            ])
+            
+            print("[WebChatServer] ✅ Updated emoji for \(username) to \(newEmoji)")
+        } else {
+            sendToClient(client, message: [
+                "type": "emojiUpdated",
+                "success": false,
+                "error": "Failed to update emoji"
+            ])
+        }
     }
     
     // MARK: - Helper Methods

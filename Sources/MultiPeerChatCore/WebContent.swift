@@ -209,7 +209,7 @@ func generateIndexHTML() -> String {
                             </div>
                         </div>
                         <div class="login-input-container" id="login-input-container">
-                            <input type="text" id="username-input" placeholder="Enter your username" maxlength="20">
+                            <input type="text" id="nickname-input" placeholder="Enter your username" maxlength="20" autocomplete="username" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
                             <div class="auth-options" id="login-buttons-anchor">
                                 <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
                                 <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
@@ -224,8 +224,9 @@ func generateIndexHTML() -> String {
                     <div class="sidebar">
                         <div class="sidebar-top">
                             <div class="user-info">
-                                <div class="user-avatar">👤</div>
+                                <div class="user-avatar" onclick="showUserEmojiPicker()">👤</div>
                                 <span id="current-username"></span>
+                                <button class="edit-emoji-btn" onclick="showUserEmojiPicker()" title="Change emoji">✏️</button>
                             </div>
                             
                             <div class="rooms-section-header" onclick="toggleRoomsList()">
@@ -323,6 +324,115 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
+        <!-- User Emoji Picker Modal -->
+        <div id="user-emoji-picker-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Change Your Emoji 🎭</h3>
+                <div class="emoji-picker">
+                    <span id="selected-user-emoji" class="selected-emoji">👤</span>
+                    <div class="emoji-scroll-container">
+                        <div class="emoji-grid">
+                            <span class="emoji-option" onclick="changeUserEmoji('👤')">👤</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐶')">🐶</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐱')">🐱</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐭')">🐭</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐹')">🐹</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐰')">🐰</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦊')">🦊</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐻')">🐻</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐼')">🐼</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐨')">🐨</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐯')">🐯</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦁')">🦁</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐸')">🐸</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐵')">🐵</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🙈')">🙈</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🙉')">🙉</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🙊')">🙊</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐒')">🐒</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦍')">🦍</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦧')">🦧</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐕')">🐕</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐩')">🐩</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐺')">🐺</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦝')">🦝</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐈')">🐈</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐅')">🐅</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐆')">🐆</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦓')">🦓</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦄')">🦄</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐴')">🐴</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐎')">🐎</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦌')">🦌</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐮')">🐮</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐂')">🐂</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐃')">🐃</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐄')">🐄</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐷')">🐷</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐖')">🐖</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐗')">🐗</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐽')">🐽</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐏')">🐏</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐑')">🐑</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐐')">🐐</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐪')">🐪</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐫')">🐫</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦒')">🦒</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐘')">🐘</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦏')">🦏</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦛')">🦛</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐊')">🐊</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐢')">🐢</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦎')">🦎</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐍')">🐍</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐲')">🐲</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐉')">🐉</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦕')">🦕</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦖')">🦖</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐳')">🐳</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐋')">🐋</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐬')">🐬</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦈')">🦈</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐟')">🐟</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐠')">🐠</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐡')">🐡</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦀')">🦀</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦞')">🦞</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦐')">🦐</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐙')">🐙</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦑')">🦑</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦆')">🦆</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐓')">🐓</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐔')">🐔</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐣')">🐣</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐤')">🐤</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐥')">🐥</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦅')">🦅</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦉')">🦉</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦜')">🦜</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🕊️')">🕊️</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦢')">🦢</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦩')">🦩</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐧')">🐧</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦇')">🦇</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐝')">🐝</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐛')">🐛</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦋')">🦋</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐌')">🐌</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐞')">🐞</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🐜')">🐜</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦗')">🦗</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🕷️')">🕷️</span>
+                            <span class="emoji-option" onclick="changeUserEmoji('🦂')">🦂</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button onclick="hideUserEmojiPicker()">Close</button>
+                </div>
+            </div>
+        </div>
+
         <script src="/chatv006.js"></script>
         <script>
         // Hide upload button and file input for now
@@ -337,98 +447,116 @@ func generateIndexHTML() -> String {
 
         // WebAuthn Implementation
         async function registerWebAuthn() {
-            const username = document.getElementById('username-input').value;
-            const registerBtn = document.getElementById('webauthn-register-btn');
-            const loginBtn = document.getElementById('webauthn-login-btn');
+            // Prevent multiple concurrent operations
+            if (window.webauthnInProgress) {
+                console.log('WebAuthn operation already in progress, ignoring duplicate click');
+                return;
+            }
+            window.webauthnInProgress = true;
             
-            if (!username) {
-                showLoginStatus('❌ Enter username first', 'error');
-                return;
-            }
-
-            // Check username availability first
+            const username = document.getElementById('nickname-input').value;
+            
             try {
-                showLoginStatus('Checking username...', 'info');
-                
-                const checkResponse = await fetch('/webauthn/username/check', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
-                });
-                const checkResult = await checkResponse.json();
-                if (!checkResult.available) {
-                    showLoginStatus('❌ Username taken', 'error');
+                if (!username) {
+                    showLoginStatus('❌ Enter username first', 'error');
                     return;
                 }
-            } catch (err) {
-                showLoginStatus('❌ Username check failed', 'error');
-                return;
-            }
 
-            try {
-                showLoginStatus('Preparing registration...', 'info');
-                
-                // Get registration options from server
-                const response = await fetch('/webauthn/register/begin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
-                });
-                
-                if (!response.ok) throw new Error('Registration failed');
-                
-                const options = await response.json();
-                
-                if (!options.publicKey || !options.publicKey.challenge) {
-                    showLoginStatus('❌ Server error', 'error');
+                // Check username availability first
+                try {
+                    showLoginStatus('Checking username...', 'info');
+                    
+                    const checkResponse = await fetch('/webauthn/username/check', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username })
+                    });
+                    const checkResult = await checkResponse.json();
+                    if (!checkResult.available) {
+                        showLoginStatus('❌ Username taken', 'error');
+                        return;
+                    }
+                } catch (err) {
+                    showLoginStatus('❌ Username check failed', 'error');
                     return;
                 }
-                
-                showLoginStatus('Create your passkey', 'info');
-                
-                // Convert base64 strings to ArrayBuffer
-                options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
-                options.publicKey.user.id = base64ToArrayBuffer(options.publicKey.user.id);
-                
-                // Create credentials
-                const credential = await navigator.credentials.create(options);
-                
-                showLoginStatus('Verifying...', 'info');
-                
-                // Convert ArrayBuffer to base64
-                const attestationObject = arrayBufferToBase64(credential.response.attestationObject);
-                const clientDataJSON = arrayBufferToBase64(credential.response.clientDataJSON);
-                
-                // Send registration data to server
-                const verificationResponse = await fetch('/webauthn/register/complete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: arrayBufferToBase64(credential.rawId),
-                        rawId: arrayBufferToBase64(credential.rawId),
-                        response: {
-                            attestationObject,
-                            clientDataJSON
-                        },
-                        type: credential.type,
-                        username
-                    })
-                });
-                
-                if (!verificationResponse.ok) throw new Error('Registration verification failed');
-                
-                showLoginStatus('✅ Registration Success', 'success');
-                
-            } catch (error) {
-                console.error('WebAuthn registration error:', error);
-                showLoginStatus('❌ Registration failed', 'error');
+
+                try {
+                    showLoginStatus('Preparing registration...', 'info');
+                    
+                    // Get registration options from server
+                    const response = await fetch('/webauthn/register/begin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username })
+                    });
+                    
+                    if (!response.ok) throw new Error('Registration failed');
+                    
+                    const options = await response.json();
+                    
+                    if (!options.publicKey || !options.publicKey.challenge) {
+                        showLoginStatus('❌ Server error', 'error');
+                        return;
+                    }
+                    
+                    showLoginStatus('Create your passkey', 'info');
+                    
+                    // Convert base64 strings to ArrayBuffer
+                    options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
+                    options.publicKey.user.id = base64ToArrayBuffer(options.publicKey.user.id);
+                    
+                    // Create credentials
+                    const credential = await navigator.credentials.create(options);
+                    
+                    showLoginStatus('Verifying...', 'info');
+                    
+                    // Convert ArrayBuffer to base64
+                    const attestationObject = arrayBufferToBase64(credential.response.attestationObject);
+                    const clientDataJSON = arrayBufferToBase64(credential.response.clientDataJSON);
+                    
+                    // Send registration data to server
+                    const verificationResponse = await fetch('/webauthn/register/complete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: arrayBufferToBase64(credential.rawId),
+                            rawId: arrayBufferToBase64(credential.rawId),
+                            response: {
+                                attestationObject,
+                                clientDataJSON
+                            },
+                            type: credential.type,
+                            username,
+                            emoji: window.currentEmoji || '👤'
+                        })
+                    });
+                    
+                    if (!verificationResponse.ok) throw new Error('Registration verification failed');
+                    
+                    showLoginStatus('✅ Registration Success', 'success');
+                    
+                } catch (error) {
+                    console.error('WebAuthn registration error:', error);
+                    showLoginStatus('❌ Registration failed', 'error');
+                } finally {
+                    // Reset state without disabling buttons
+                    window.webauthnInProgress = false;
+                }
+            } finally {
+                window.webauthnInProgress = false;
             }
         }
 
         async function loginWithWebAuthn() {
-            const usernameInput = document.getElementById('username-input');
-            const registerBtn = document.getElementById('webauthn-register-btn');
-            const loginBtn = document.getElementById('webauthn-login-btn');
+            // Prevent multiple concurrent operations
+            if (window.webauthnInProgress) {
+                console.log('WebAuthn operation already in progress, ignoring duplicate click');
+                return;
+            }
+            window.webauthnInProgress = true;
+            
+            const usernameInput = document.getElementById('nickname-input');
             
             let username = usernameInput.value.trim();
             if (username === '') {
@@ -522,6 +650,9 @@ func generateIndexHTML() -> String {
                 } else {
                     showLoginStatus('❌ Authentication failed', 'error');
                 }
+            } finally {
+                // Reset state without disabling buttons
+                window.webauthnInProgress = false;
             }
         }
 
@@ -549,10 +680,14 @@ func generateIndexHTML() -> String {
             console.log(`[LoginStatus] ${type.toUpperCase()}: ${message}`);
             const statusEl = document.getElementById('login-status');
             
-            // Clear any existing timeout immediately
+            // Force clear ALL existing timeouts to prevent accumulation
             if (window.statusTimeout) {
                 clearTimeout(window.statusTimeout);
                 window.statusTimeout = null;
+            }
+            if (window.statusFadeTimeout) {
+                clearTimeout(window.statusFadeTimeout);
+                window.statusFadeTimeout = null;
             }
             
             // Immediately set clean state without calling clearLoginStatus
@@ -561,32 +696,40 @@ func generateIndexHTML() -> String {
             statusEl.className = `status-message ${type}`;
             statusEl.style.display = 'block';
             
-            // Auto-hide after 10 seconds with fade
+            // Auto-hide after 3 seconds with fade - use separate timeout variables
             window.statusTimeout = setTimeout(() => {
                 statusEl.classList.add('fading');
-                setTimeout(() => {
+                window.statusFadeTimeout = setTimeout(() => {
                     statusEl.style.display = 'none';
                     statusEl.classList.remove('fading');
-                }, 300); // Match CSS transition duration
-            }, 10000);
+                    window.statusTimeout = null;
+                    window.statusFadeTimeout = null;
+                }, 100); // Reduced from 300ms to 100ms (3x faster)
+            }, 3000); // Reduced from 10000ms to 3000ms
             
-            // Scroll status message into view on mobile
+            // Scroll status message into view on mobile - remove delay for responsiveness
             if (window.innerWidth <= 768) {
-                setTimeout(() => {
-                    statusEl.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'nearest',
-                        inline: 'nearest'
-                    });
-                }, 100);
+                statusEl.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest',
+                    inline: 'nearest'
+                });
             }
         }
 
         function clearLoginStatus() {
             const statusEl = document.getElementById('login-status');
+            
+            // Clear ALL status-related timeouts
             if (window.statusTimeout) {
                 clearTimeout(window.statusTimeout);
+                window.statusTimeout = null;
             }
+            if (window.statusFadeTimeout) {
+                clearTimeout(window.statusFadeTimeout);
+                window.statusFadeTimeout = null;
+            }
+            
             statusEl.classList.remove('fading');
             statusEl.className = 'status-message';
             statusEl.textContent = '';
@@ -607,9 +750,97 @@ func generateIndexHTML() -> String {
                 el.textContent = window.location.hostname;
             });
             
+            // Reset all global state to prevent accumulation
+            window.statusTimeout = null;
+            window.statusFadeTimeout = null;
+            window.webauthnInProgress = false;
+            
             // Clear any status message on page load
             clearLoginStatus();
+            
+            // Load saved emoji from localStorage
+            const savedEmoji = localStorage.getItem('userEmoji');
+            if (savedEmoji) {
+                // Set the emoji in the picker
+                const selectedEmojiElement = document.getElementById('selected-emoji');
+                if (selectedEmojiElement) {
+                    selectedEmojiElement.textContent = savedEmoji;
+                }
+                
+                // Update emoji picker selection
+                document.querySelectorAll('.emoji-option').forEach(option => {
+                    option.classList.remove('selected');
+                    if (option.textContent === savedEmoji) {
+                        option.classList.add('selected');
+                    }
+                });
+                
+                window.currentEmoji = savedEmoji;
+            } else {
+                window.currentEmoji = '👤'; // Default emoji
+            }
         });
+
+        // Emoji picker functions
+        function selectEmoji(emoji) {
+            // Remove selection from all emoji options
+            document.querySelectorAll('.emoji-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Add selection to clicked emoji
+            event.target.classList.add('selected');
+            
+            // Update selected emoji display
+            const selectedEmojiDisplay = document.getElementById('selected-emoji');
+            if (selectedEmojiDisplay) {
+                selectedEmojiDisplay.textContent = emoji;
+            }
+            
+            // Update user avatar immediately
+            const userAvatar = document.querySelector('.user-avatar');
+            if (userAvatar) {
+                userAvatar.textContent = emoji;
+            }
+            
+            // Store the selected emoji
+            window.currentEmoji = emoji;
+            localStorage.setItem('userEmoji', emoji);
+            
+            console.log('🎭 Selected emoji:', emoji);
+        }
+        
+        function toggleEmojiPicker() {
+            const emojiPicker = document.getElementById('emoji-picker');
+            if (emojiPicker) {
+                emojiPicker.classList.toggle('hidden');
+            }
+        }
+        
+        function joinChat() {
+            const usernameInput = document.getElementById('nickname-input');
+            const username = usernameInput.value.trim();
+            
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
+            
+            // Create and initialize chat client
+            window.chat = new ChatClient();
+            chat.username = username;
+            chat.userEmoji = window.currentEmoji || '👤';
+            
+            document.getElementById('current-username').textContent = username;
+            
+            // Switch to chat screen
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('chat-screen').classList.remove('hidden');
+            
+            // Connect to server
+            chat.isReconnecting = false;
+            chat.connect();
+        }
         </script>
     </body>
     </html>
@@ -816,10 +1047,9 @@ func generateCSS() -> String {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
         height: 100%;
         gap: 0.75rem;
-        padding: 2rem;
+        padding: 30px 2rem 2rem 2rem;
     }
 
     .login-form h2 {
@@ -891,15 +1121,22 @@ func generateCSS() -> String {
         cursor: pointer;
         font-size: 16px;
         font-weight: 500;
-        transition: all 0.3s ease;
+        transition: all 0.15s ease;
         width: 100%;
         text-align: center;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     }
 
     .auth-options button:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .auth-options button:active {
+        transform: translateY(1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
     }
 
     #webauthn-register-btn {
@@ -916,6 +1153,25 @@ func generateCSS() -> String {
 
     #webauthn-login-btn:hover {
         background-color: #F57C00;
+    }
+
+    /* Prevent auth buttons from being grayed out when disabled */
+    .auth-options button:disabled {
+        opacity: 1 !important;
+        cursor: pointer !important;
+        background-color: inherit !important;
+        color: white !important;
+        transform: none !important;
+    }
+
+    #webauthn-register-btn:disabled {
+        background-color: #2196F3 !important;
+        color: white !important;
+    }
+
+    #webauthn-login-btn:disabled {
+        background-color: #FF9800 !important;
+        color: white !important;
     }
 
     /* LOGIN INPUT CONTAINER */
@@ -956,9 +1212,36 @@ func generateCSS() -> String {
         border: 2px solid var(--accent-color);
         box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
         outline: none;
-        /* Ensure stable focus state */
+        /* Prevent the default scroll behavior to avoid conflicts */
         transform: translateZ(0);
         -webkit-transform: translateZ(0);
+    }
+
+    /* Hide browser password manager icons and overlays */
+    #nickname-input::-webkit-credentials-auto-fill-button,
+    #nickname-input::-webkit-password-auto-fill-button,
+    #nickname-input::-webkit-strong-password-auto-fill-button {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        position: absolute !important;
+        right: -9999px !important;
+    }
+
+    /* Prevent autofill styling and background changes */
+    #nickname-input:-webkit-autofill,
+    #nickname-input:-webkit-autofill:hover,
+    #nickname-input:-webkit-autofill:focus,
+    #nickname-input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px var(--input-bg) inset !important;
+        box-shadow: 0 0 0 30px var(--input-bg) inset !important;
+        -webkit-text-fill-color: var(--input-text) !important;
+    }
+
+    /* Hide any additional browser UI elements */
+    #nickname-input::-ms-reveal,
+    #nickname-input::-ms-clear {
+        display: none !important;
     }
 
     /* DESKTOP CHAT SCREEN */
@@ -1248,12 +1531,14 @@ func generateCSS() -> String {
     .message-input-container input {
         flex: 1;
         padding: 0.75rem 1rem;
-        border: 1px solid var(--border-color);
+        border: 2px solid var(--border-color);
         border-radius: 25px;
-        font-size: 1rem;
+        font-size: 16px; /* Prevent zoom on iOS */
         background-color: var(--input-bg);
         color: var(--input-text);
+        min-height: 44px;
         outline: none;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
     }
 
     .message-input-container input:focus {
@@ -1695,7 +1980,7 @@ func generateCSS() -> String {
         color: var(--system-message-text);
         font-style: italic;
         font-size: 0.9rem;
-        transition: opacity 1s ease-out, transform 0.5s ease-out;
+        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
     }
 
     .message.system.expiring {
@@ -1955,15 +2240,22 @@ func generateCSS() -> String {
         cursor: pointer;
         font-size: 16px;
         font-weight: 500;
-        transition: all 0.3s ease;
+        transition: all 0.15s ease;
         width: 100%;
         text-align: center;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     }
 
     .auth-options button:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .auth-options button:active {
+        transform: translateY(1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
     }
 
     #webauthn-register-btn {
@@ -1999,7 +2291,7 @@ func generateCSS() -> String {
         overflow: hidden;
         text-overflow: ellipsis;
         opacity: 1;
-        transition: opacity 0.3s ease-in-out;
+        transition: opacity 0.1s ease-in-out;
     }
 
     .status-message.fading {
@@ -2509,6 +2801,217 @@ func generateCSS() -> String {
         scrollbar-width: thin;
         scrollbar-color: var(--border-color) var(--bg-primary);
     }
+
+    /* User Info Styles */
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+    }
+
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--accent-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    
+    .user-avatar:hover {
+        transform: scale(1.1);
+    }
+    
+    .edit-emoji-btn {
+        padding: 4px 6px;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 10px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        opacity: 0.7;
+    }
+    
+    .edit-emoji-btn:hover {
+        background: var(--accent-color);
+        color: white;
+        opacity: 1;
+        transform: scale(1.05);
+    }
+
+    #current-username {
+        font-weight: bold;
+        color: var(--text-primary);
+        flex: 1;
+    }
+    
+    /* Compact emoji picker for in-chat editing */
+    .emoji-picker-grid.compact {
+        grid-template-columns: repeat(8, 1fr);
+        max-height: 200px;
+        gap: 6px;
+    }
+    
+    .emoji-picker-grid.compact .emoji-option {
+        font-size: 18px;
+        padding: 6px;
+    }
+    
+    @media (max-width: 768px) {
+        .emoji-picker-grid.compact {
+            grid-template-columns: repeat(6, 1fr);
+        }
+        
+        .emoji-picker-grid.compact .emoji-option {
+            font-size: 16px;
+            padding: 4px;
+        }
+        
+        .user-info {
+            gap: 6px;
+            padding: 6px 8px;
+        }
+        
+        .edit-emoji-btn {
+            font-size: 8px;
+            padding: 2px 4px;
+        }
+    }
+
+    /* Modal emoji picker - use same styles as login screen */
+    .modal .emoji-picker {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 400px;
+        margin: 0 auto 1rem auto;
+    }
+
+    .modal .selected-emoji {
+        font-size: 4rem;
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        padding: 15px;
+        box-sizing: content-box;
+    }
+
+    .modal .selected-emoji:hover {
+        transform: scale(1.05);
+    }
+
+    .modal .emoji-scroll-container {
+        width: 100%;
+        max-width: 400px;
+        height: 240px;
+        background: rgba(42, 42, 42, 0.8);
+        border-radius: 12px;
+        padding: 10px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.3) transparent;
+        box-sizing: border-box;
+        margin: 0 auto;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .modal .emoji-scroll-container::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .modal .emoji-scroll-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .modal .emoji-scroll-container::-webkit-scrollbar-thumb {
+        background-color: rgba(255,255,255,0.3);
+        border-radius: 3px;
+    }
+
+    .modal .emoji-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 8px;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+        height: auto;
+    }
+
+    .modal .emoji-option {
+        font-size: 1.8rem;
+        width: 100%;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    .modal .emoji-option:hover {
+        transform: scale(1.1);
+        background-color: rgba(255,255,255,0.1);
+    }
+
+    .modal .emoji-option.selected {
+        background-color: rgba(66, 153, 225, 0.8);
+        transform: scale(1.05);
+    }
+    
+    @media (max-width: 768px) {
+        .modal .emoji-picker {
+            width: 90%;
+            max-width: 300px;
+        }
+        
+        .modal .selected-emoji {
+            font-size: 3rem;
+            width: 60px;
+            height: 60px;
+            margin-bottom: 0.8rem;
+        }
+        
+        .modal .emoji-scroll-container {
+            height: 180px;
+            max-width: 300px;
+        }
+        
+        .modal .emoji-grid {
+            grid-template-columns: repeat(5, 1fr);
+        }
+        
+        .modal .emoji-option {
+            font-size: 1.5rem;
+            height: 35px;
+        }
+    }
     """
 }
 
@@ -2553,37 +3056,40 @@ func generateChatJS(adminName: String) -> String {
         }
         
         connect() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}`;
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                console.log('⚠️ Already connected, closing existing connection');
+                this.ws.close();
+            }
             
-            // Clear any existing timers
-            this.clearConnectionTimers();
+            this.isConnected = false;
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            console.log('🔌 Connecting to WebSocket:', wsUrl);
             
             this.ws = new WebSocket(wsUrl);
             
             this.ws.onopen = () => {
-                console.log('Connected to server');
+                console.log('✅ WebSocket connected');
                 this.isConnected = true;
+                this.connectionAttempts = 0;
+                
+                // Reset pong timer for fresh health check
                 this.lastPongReceived = Date.now();
+                
+                // Update connection status immediately
                 this.updateConnectionStatus();
                 
-                // Start connection health monitoring
-                this.startConnectionHealthCheck();
-                
-                // Send join message with reconnection flag
+                // Send join message with emoji
                 this.sendToServer({
                     type: 'join',
                     username: this.username,
-                    emoji: this.userEmoji,
+                    emoji: this.userEmoji || window.currentEmoji || '👤',
                     isReconnecting: this.isReconnecting
                 });
                 
-                // DON'T auto-join Lobby on reconnection if user was in a different room
-                // Only auto-join Lobby for initial connection without a previous room
-                if (!this.isReconnecting || !this.previousRoomId) {
-                    // This will be handled when we receive the roomList from server
-                    // We'll join the appropriate room after getting the room list
-                }
+                // Start periodic ping to keep connection alive
+                this.startConnectionHealthCheck();
             };
             
             this.ws.onmessage = (event) => {
@@ -2644,7 +3150,7 @@ func generateChatJS(adminName: String) -> String {
                 }
             }, this.PING_INTERVAL);
             
-            // Check connection health every 30 seconds
+            // Check connection health every 5 seconds
             this.connectionHealthTimer = setInterval(() => {
                 const now = Date.now();
                 const timeSinceLastPong = now - this.lastPongReceived;
@@ -2654,7 +3160,7 @@ func generateChatJS(adminName: String) -> String {
                     console.log('Connection appears to be dead (no pong received), forcing reconnection...');
                     this.forceReconnection();
                 }
-            }, this.CONNECTION_TIMEOUT);
+            }, 5000); // Check every 5 seconds instead of every 30 seconds
         }
         
         clearConnectionTimers() {
@@ -2721,6 +3227,14 @@ func generateChatJS(adminName: String) -> String {
                         this.updateAdminUI();
                     }
                     
+                    // Handle user emoji from server
+                    if (message.userEmoji) {
+                        this.userEmoji = message.userEmoji;
+                        this.updateEmojiDisplay(message.userEmoji);
+                        // Save to localStorage
+                        localStorage.setItem('userEmoji', message.userEmoji);
+                    }
+                    
                     // Handle room joining after receiving room list
                     if (this.isReconnecting && this.previousRoomId) {
                         // Try to rejoin the previous room
@@ -2776,6 +3290,9 @@ func generateChatJS(adminName: String) -> String {
                         this.isAdmin = message.isAdmin;
                         this.updateAdminUI();
                     }
+                    
+                    // Clean up any stuck system messages when joining rooms
+                    this.cleanupSystemMessages();
                     
                     this.updateRoomsList();
                     document.getElementById('current-room-name').textContent = message.room.name;
@@ -2873,6 +3390,16 @@ func generateChatJS(adminName: String) -> String {
                     }
                     this.updateRoomsList();
                     break;
+                case 'emojiUpdated':
+                    if (message.success) {
+                        this.userEmoji = message.emoji;
+                        this.updateEmojiDisplay(message.emoji);
+                        localStorage.setItem('userEmoji', message.emoji);
+                        console.log('✅ Emoji updated to:', message.emoji);
+                    } else {
+                        console.error('❌ Failed to update emoji:', message.error);
+                    }
+                    break;
             }
         }
         
@@ -2906,7 +3433,7 @@ func generateChatJS(adminName: String) -> String {
         }
         
         joinChat() {
-            const usernameInput = document.getElementById('username-input');
+            const usernameInput = document.getElementById('nickname-input');
             const username = usernameInput.value.trim();
             
             if (!username) {
@@ -3423,16 +3950,14 @@ func generateChatJS(adminName: String) -> String {
                     type: 'system',
                     content: content,
                     timestamp: new Date().toISOString(),
-                    isExpiring: !this.isAdmin // Only expire for non-admin users
+                    isExpiring: true // All system messages expire now
                 };
                 this.addMessage(message);
                 
-                // Auto-remove system messages after 10 seconds for non-admin users
-                if (!this.isAdmin) {
-                    setTimeout(() => {
-                        this.removeSystemMessage(message);
-                    }, 10000);
-                }
+                // ALWAYS auto-remove system messages after 10 seconds - no exceptions
+                setTimeout(() => {
+                    this.removeSystemMessage(message);
+                }, 10000);
             }
         }
         
@@ -3455,7 +3980,7 @@ func generateChatJS(adminName: String) -> String {
                     if (targetElement.parentNode) {
                         targetElement.remove();
                     }
-                }, 1000); // Match CSS transition duration
+                }, 300); // Faster animation - reduced from 1000ms
             }
             
             // Remove from messages array
@@ -3476,7 +4001,7 @@ func generateChatJS(adminName: String) -> String {
                 // Update display after a short delay to allow animation
                 setTimeout(() => {
                     this.updateMessagesDisplay();
-                }, 1100);
+                }, 400); // Reduced from 1100ms
             }
         }
         
@@ -3658,18 +4183,75 @@ func generateChatJS(adminName: String) -> String {
             container.appendChild(msg);
             container.scrollTop = container.scrollHeight;
 
-            // Only auto-remove for non-admin users
-            if (!this.isAdmin) {
+            // ALWAYS auto-remove system messages - no admin exception
+            setTimeout(() => {
+                msg.style.transition = 'opacity 0.3s';
+                msg.style.opacity = 0;
                 setTimeout(() => {
-                    msg.style.transition = 'opacity 1s';
-                    msg.style.opacity = 0;
-                    setTimeout(() => {
-                        if (msg.parentNode) {
-                            msg.remove();
-                        }
-                    }, 1000);
-                }, durationMs);
+                    if (msg.parentNode) {
+                        msg.remove();
+                    }
+                }, 300); // Faster removal
+            }, Math.min(durationMs, 10000)); // Max 10 seconds
+        }
+
+        // Cleanup function to remove ALL stuck system messages immediately
+        cleanupSystemMessages() {
+            console.log('Cleaning up stuck system messages...');
+            
+            // Remove from DOM immediately
+            const systemMessages = document.querySelectorAll('.message.system');
+            systemMessages.forEach(msg => {
+                msg.style.transition = 'opacity 0.1s';
+                msg.style.opacity = 0;
+                setTimeout(() => {
+                    if (msg.parentNode) {
+                        msg.remove();
+                    }
+                }, 100);
+            });
+            
+            // Remove from messages array
+            this.messages = this.messages.filter(msg => msg.type !== 'system');
+            
+            // Update room-specific storage
+            if (this.currentRoom) {
+                this.messagesByRoom[this.currentRoom.id] = [...this.messages];
             }
+            
+            // Update display
+            setTimeout(() => {
+                this.updateMessagesDisplay();
+            }, 200);
+        }
+
+        updateEmojiDisplay(emoji) {
+            // Update user avatar in sidebar
+            const userAvatar = document.querySelector('.user-avatar');
+            if (userAvatar) {
+                userAvatar.textContent = emoji;
+            }
+            
+            // Update selected emoji in login form if visible
+            const selectedEmoji = document.getElementById('selected-emoji');
+            if (selectedEmoji) {
+                selectedEmoji.textContent = emoji;
+            }
+            
+            // Update emoji picker selection
+            document.querySelectorAll('.emoji-option').forEach(option => {
+                option.classList.remove('selected');
+                if (option.textContent === emoji) {
+                    option.classList.add('selected');
+                }
+            });
+        }
+
+        updateUserEmoji(newEmoji) {
+            this.sendToServer({
+                type: 'updateEmoji',
+                emoji: newEmoji
+            });
         }
     }
     
@@ -3789,7 +4371,7 @@ func generateChatJS(adminName: String) -> String {
         
         // Modify joinChat to include emoji
         window.joinChat = function() {
-            const usernameInput = document.getElementById('username-input');
+            const usernameInput = document.getElementById('nickname-input');
             const username = usernameInput.value.trim();
             
             if (!username) {
@@ -3811,11 +4393,12 @@ func generateChatJS(adminName: String) -> String {
         }
         
         // Focus username input
-        document.getElementById('username-input').focus();
+        document.getElementById('nickname-input').focus();
         
-        // Mobile keyboard handling for login form
-        const usernameInput = document.getElementById('username-input');
-        if (usernameInput) {
+        // Mobile keyboard handling for login form - prevent duplicate listeners
+        const usernameInput = document.getElementById('nickname-input');
+        if (usernameInput && !usernameInput.hasEventListeners) {
+            usernameInput.hasEventListeners = true; // Mark to prevent duplicates
             let isScrolling = false;
             
             usernameInput.addEventListener('focus', (e) => {
@@ -3823,15 +4406,12 @@ func generateChatJS(adminName: String) -> String {
                 if (window.innerWidth <= 768 && !isScrolling) {
                     isScrolling = true;
                     
-                    // Prevent the default scroll behavior to avoid conflicts
-                    e.preventDefault();
-                    
                     // Immediate re-focus to ensure input stays active
                     setTimeout(() => {
                         usernameInput.focus();
                     }, 10);
                     
-                    // Single, well-timed scroll after keyboard has started appearing
+                    // Faster scroll timing for better responsiveness
                     setTimeout(() => {
                         const loginContainer = document.getElementById('login-input-container');
                         if (loginContainer) {
@@ -3845,19 +4425,19 @@ func generateChatJS(adminName: String) -> String {
                         // Reset scrolling flag after animation
                         setTimeout(() => {
                             isScrolling = false;
-                        }, 1000);
-                    }, 300); // Wait for keyboard animation to start
+                        }, 500); // Reduced from 1000ms
+                    }, 150); // Reduced from 300ms
                 }
             });
             
-            // Prevent multiple focus events from causing bouncing
+            // Prevent multiple focus events from causing bouncing - make more responsive
             usernameInput.addEventListener('touchstart', (e) => {
                 if (window.innerWidth <= 768) {
-                    // Ensure smooth transition on touch
+                    // Ensure smooth transition on touch - faster transition
                     e.target.style.transition = 'none';
                     setTimeout(() => {
                         e.target.style.transition = '';
-                    }, 100);
+                    }, 50); // Reduced from 100ms
                 }
             });
         }
@@ -3877,7 +4457,7 @@ func generateChatJS(adminName: String) -> String {
                         clickedElement.tagName === 'H2' ||
                         (clickedElement.closest && !clickedElement.closest('input, button, .emoji-picker, .auth-options, .login-input-container'))) {
                         
-                        const usernameInput = document.getElementById('username-input');
+                        const usernameInput = document.getElementById('nickname-input');
                         if (usernameInput && document.activeElement === usernameInput) {
                             usernameInput.blur();
                         }
@@ -3900,23 +4480,109 @@ func generateChatJS(adminName: String) -> String {
             }
         });
 
+        // Add keyboard shortcut to manually clean up system messages (Ctrl/Cmd + K)
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                if (chatClient) {
+                    console.log('Manual system message cleanup triggered');
+                    chatClient.cleanupSystemMessages();
+                }
+            }
+        });
+
         // Note: Create room button already exists in HTML - no need to create duplicate
     });
 
     // After the ChatClient class definition, add:
     window.removeRoom = function() { chatClient.removeRoom(); };
 
+    // Global function to clean up system messages
+    window.cleanupMessages = function() {
+        if (chatClient) {
+            console.log('Manual cleanup triggered from global function');
+            chatClient.cleanupSystemMessages();
+        } else {
+            console.log('Chat client not available yet');
+        }
+    };
+
     function logout() {
         // Return to login screen, clear session
         document.getElementById('chat-screen').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
         // Optionally clear username, emoji, etc.
-        document.getElementById('username-input').value = '';
+        document.getElementById('nickname-input').value = '';
         document.getElementById('selected-emoji').textContent = '👤';
         // Disconnect WebSocket if needed
         if (window.chatClient && window.chatClient.ws) {
             window.chatClient.ws.close();
         }
+    }
+    
+    // User emoji picker functions
+    function showUserEmojiPicker() {
+        const modal = document.getElementById('user-emoji-picker-modal');
+        if (modal) {
+            // Get current user emoji
+            const currentEmoji = chatClient?.userEmoji || window.currentEmoji || '👤';
+            
+            // Update the large emoji display
+            const selectedEmojiDisplay = document.getElementById('selected-user-emoji');
+            if (selectedEmojiDisplay) {
+                selectedEmojiDisplay.textContent = currentEmoji;
+            }
+            
+            // Clear previous selections and select current emoji
+            modal.querySelectorAll('.emoji-option').forEach(option => {
+                option.classList.remove('selected');
+                if (option.textContent === currentEmoji) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            modal.classList.remove('hidden');
+        }
+    }
+    
+    function hideUserEmojiPicker() {
+        const modal = document.getElementById('user-emoji-picker-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+    
+    function changeUserEmoji(emoji) {
+        // Update the large emoji display immediately
+        const selectedEmojiDisplay = document.getElementById('selected-user-emoji');
+        if (selectedEmojiDisplay) {
+            selectedEmojiDisplay.textContent = emoji;
+        }
+        
+        // Update visual selection in the grid
+        document.querySelectorAll('#user-emoji-picker-modal .emoji-option').forEach(option => {
+            option.classList.remove('selected');
+            if (option.textContent === emoji) {
+                option.classList.add('selected');
+            }
+        });
+        
+        // Update locally immediately
+        if (chatClient) {
+            chatClient.userEmoji = emoji;
+            chatClient.updateEmojiDisplay(emoji);
+            
+            // Send update to server
+            chatClient.updateUserEmoji(emoji);
+        }
+        
+        window.currentEmoji = emoji;
+        localStorage.setItem('userEmoji', emoji);
+        
+        console.log('🎭 Changed emoji to:', emoji);
+        
+        // Don't hide the picker immediately - let user see the change
+        // They can click Close when done
     }
     """
 }
