@@ -92,7 +92,7 @@ func generateIndexHTML() -> String {
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
         
-        <link rel="stylesheet" href="/stylev005.css">
+        <link rel="stylesheet" href="/stylev006.css">
     </head>
     <body>
         <div class="container">
@@ -213,8 +213,8 @@ func generateIndexHTML() -> String {
                             <div class="auth-options" id="login-buttons-anchor">
                                 <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
                                 <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
+                                <div id="login-status" class="status-message"></div>
                             </div>
-                            <div id="login-status" class="status-message"></div>
                         </div>
                     </div>
                 </div>
@@ -323,7 +323,7 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
-        <script src="/chatv005.js"></script>
+        <script src="/chatv006.js"></script>
         <script>
         // Hide upload button and file input for now
         /*
@@ -346,11 +346,8 @@ func generateIndexHTML() -> String {
                 return;
             }
 
-            clearLoginStatus();
-
             // Check username availability first
             try {
-                setButtonState(registerBtn, loginBtn, true, '🔄 Checking username...', 'Login with Passkey');
                 showLoginStatus('Checking username...', 'info');
                 
                 const checkResponse = await fetch('/webauthn/username/check', {
@@ -361,17 +358,14 @@ func generateIndexHTML() -> String {
                 const checkResult = await checkResponse.json();
                 if (!checkResult.available) {
                     showLoginStatus('❌ Username taken', 'error');
-                    setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
                     return;
                 }
             } catch (err) {
                 showLoginStatus('❌ Username check failed', 'error');
-                setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
                 return;
             }
 
             try {
-                setButtonState(registerBtn, loginBtn, true, '🔄 Preparing registration...', 'Login with Passkey');
                 showLoginStatus('Preparing registration...', 'info');
                 
                 // Get registration options from server
@@ -387,11 +381,9 @@ func generateIndexHTML() -> String {
                 
                 if (!options.publicKey || !options.publicKey.challenge) {
                     showLoginStatus('❌ Server error', 'error');
-                    setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
                     return;
                 }
                 
-                setButtonState(registerBtn, loginBtn, true, '🔐 Create your passkey...', 'Login with Passkey');
                 showLoginStatus('Create your passkey', 'info');
                 
                 // Convert base64 strings to ArrayBuffer
@@ -401,7 +393,6 @@ func generateIndexHTML() -> String {
                 // Create credentials
                 const credential = await navigator.credentials.create(options);
                 
-                setButtonState(registerBtn, loginBtn, true, '✅ Verifying registration...', 'Login with Passkey');
                 showLoginStatus('Verifying...', 'info');
                 
                 // Convert ArrayBuffer to base64
@@ -427,12 +418,10 @@ func generateIndexHTML() -> String {
                 if (!verificationResponse.ok) throw new Error('Registration verification failed');
                 
                 showLoginStatus('✅ Registration Success', 'success');
-                setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
                 
             } catch (error) {
                 console.error('WebAuthn registration error:', error);
                 showLoginStatus('❌ Registration failed', 'error');
-                setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
             }
         }
 
@@ -446,10 +435,7 @@ func generateIndexHTML() -> String {
                 username = null;
             }
             
-            clearLoginStatus();
-            
             try {
-                setButtonState(registerBtn, loginBtn, true, 'Register with Passkey', '🔄 Preparing login...');
                 showLoginStatus('Preparing login...', 'info');
                 
                 const optionsResponse = await fetch('/webauthn/authenticate/begin', {
@@ -465,13 +451,11 @@ func generateIndexHTML() -> String {
                 const options = await optionsResponse.json();
                 
                 if (!options.publicKey || !options.publicKey.challenge) {
-                    showLoginStatus('WebAuthn authentication error: Invalid options from server.', 'error');
-                    setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
+                    showLoginStatus('❌ Server error', 'error');
                     return;
                 }
                 
-                setButtonState(registerBtn, loginBtn, true, 'Register with Passkey', '🔐 Authenticate with passkey...');
-                showLoginStatus('Use your passkey', 'info');
+                showLoginStatus('Authenticate', 'info');
                 
                 // Convert challenge to ArrayBuffer
                 options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
@@ -486,10 +470,9 @@ func generateIndexHTML() -> String {
                 const assertion = await navigator.credentials.get({ publicKey: options.publicKey });
                 
                 if (!assertion) {
-                    throw new Error('Authentication cancelled or failed');
+                    throw new Error('User cancelled');
                 }
                 
-                setButtonState(registerBtn, loginBtn, true, 'Register with Passkey', '✅ Verifying authentication...');
                 showLoginStatus('Verifying...', 'info');
                 
                 const credential = {
@@ -525,13 +508,20 @@ func generateIndexHTML() -> String {
                     }, 1000);
                 } else {
                     showLoginStatus('❌ Login failed', 'error');
-                    setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
                 }
                 
             } catch (error) {
                 console.error('WebAuthn authentication error:', error);
-                showLoginStatus('❌ Authentication failed', 'error');
-                setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
+                
+                // Handle specific error cases
+                if (error.message === 'User cancelled' || 
+                    error.name === 'NotAllowedError' ||
+                    error.message.includes('cancelled') ||
+                    error.message.includes('abort')) {
+                    showLoginStatus('❌ User cancelled', 'error');
+                } else {
+                    showLoginStatus('❌ Authentication failed', 'error');
+                }
             }
         }
 
@@ -558,8 +548,27 @@ func generateIndexHTML() -> String {
         function showLoginStatus(message, type = 'info') {
             console.log(`[LoginStatus] ${type.toUpperCase()}: ${message}`);
             const statusEl = document.getElementById('login-status');
+            
+            // Clear any existing timeout immediately
+            if (window.statusTimeout) {
+                clearTimeout(window.statusTimeout);
+                window.statusTimeout = null;
+            }
+            
+            // Immediately set clean state without calling clearLoginStatus
+            statusEl.classList.remove('fading');
             statusEl.textContent = message;
             statusEl.className = `status-message ${type}`;
+            statusEl.style.display = 'block';
+            
+            // Auto-hide after 10 seconds with fade
+            window.statusTimeout = setTimeout(() => {
+                statusEl.classList.add('fading');
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                    statusEl.classList.remove('fading');
+                }, 300); // Match CSS transition duration
+            }, 10000);
             
             // Scroll status message into view on mobile
             if (window.innerWidth <= 768) {
@@ -575,8 +584,13 @@ func generateIndexHTML() -> String {
 
         function clearLoginStatus() {
             const statusEl = document.getElementById('login-status');
+            if (window.statusTimeout) {
+                clearTimeout(window.statusTimeout);
+            }
+            statusEl.classList.remove('fading');
             statusEl.className = 'status-message';
             statusEl.textContent = '';
+            statusEl.style.display = 'none';
         }
 
         function setButtonState(registerBtn, loginBtn, disabled, registerText, loginText) {
@@ -592,6 +606,9 @@ func generateIndexHTML() -> String {
             document.querySelectorAll('#rp-id').forEach(function(el) {
                 el.textContent = window.location.hostname;
             });
+            
+            // Clear any status message on page load
+            clearLoginStatus();
         });
         </script>
     </body>
@@ -1976,12 +1993,17 @@ func generateCSS() -> String {
         text-align: center;
         display: none;
         width: 100%;
-        max-width: 300px;
         box-sizing: border-box;
         line-height: 1.2;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        opacity: 1;
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    .status-message.fading {
+        opacity: 0;
     }
 
     .status-message.success {
