@@ -10,6 +10,7 @@ public class PersistenceManager {
         static let rooms = "MultiPeerChat_Rooms"
         static let messages = "MultiPeerChat_Messages"
         static let chatLinks = "MultiPeerChat_ChatLinks"
+        static let adminUsers = "MultiPeerChat_AdminUsers"
     }
     
     private init() {}
@@ -132,6 +133,7 @@ public class PersistenceManager {
         userDefaults.removeObject(forKey: Keys.rooms)
         userDefaults.removeObject(forKey: Keys.messages)
         userDefaults.removeObject(forKey: Keys.chatLinks)
+        userDefaults.removeObject(forKey: Keys.adminUsers)
     }
     
     // MARK: - File Attachment Management
@@ -189,5 +191,63 @@ public class PersistenceManager {
         
         // Delete the actual file
         ChatFileManager.shared.deleteFile(attachment)
+    }
+    
+    // MARK: - Admin User Management
+    
+    public func saveAdminUser(_ adminUser: AdminUser) {
+        var adminUsers = loadAdminUsers()
+        
+        // Remove existing user with same ID or username if it exists
+        adminUsers.removeAll { $0.id == adminUser.id || $0.username == adminUser.username }
+        
+        // Add the new/updated user
+        adminUsers.append(adminUser)
+        
+        saveAdminUsers(adminUsers)
+    }
+    
+    public func loadAdminUsers() -> [AdminUser] {
+        guard let data = userDefaults.data(forKey: Keys.adminUsers),
+              let adminUsers = try? JSONDecoder().decode([AdminUser].self, from: data) else {
+            return []
+        }
+        return adminUsers
+    }
+    
+    private func saveAdminUsers(_ adminUsers: [AdminUser]) {
+        guard let data = try? JSONEncoder().encode(adminUsers) else { return }
+        userDefaults.set(data, forKey: Keys.adminUsers)
+    }
+    
+    public func deleteAdminUser(_ userId: UUID) {
+        var adminUsers = loadAdminUsers()
+        adminUsers.removeAll { $0.id == userId }
+        saveAdminUsers(adminUsers)
+    }
+    
+    public func getAdminUser(by username: String) -> AdminUser? {
+        return loadAdminUsers().first { $0.username == username }
+    }
+    
+    public func getAdminUser(byCredentialId credentialId: String) -> AdminUser? {
+        return loadAdminUsers().first { $0.credentialId == credentialId }
+    }
+    
+    public func getNextUserNumber() -> Int {
+        let adminUsers = loadAdminUsers()
+        let maxUserNumber = adminUsers.map { $0.userNumber }.max() ?? 0
+        return maxUserNumber + 1
+    }
+    
+    public func disableAdminUsersByIP(_ ipAddress: String) {
+        let adminUsers = loadAdminUsers()
+        let updatedUsers = adminUsers.map { user in
+            if user.lastLoginIP == ipAddress {
+                return user.withEnabledStatus(false)
+            }
+            return user
+        }
+        saveAdminUsers(updatedUsers)
     }
 } 

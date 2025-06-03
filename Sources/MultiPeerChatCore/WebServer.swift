@@ -2,6 +2,13 @@ import Foundation
 import Network
 import CommonCrypto
 
+// MARK: - String Extension for Regex Matching
+extension String {
+    func matches(_ pattern: String) -> Bool {
+        return range(of: pattern, options: .regularExpression) != nil
+    }
+}
+
 public protocol WebServerDelegate: AnyObject {
     func webServer(_ server: WebServer, didReceiveMessage message: String, from client: WebSocketClient)
     func webServer(_ server: WebServer, clientDidConnect client: WebSocketClient)
@@ -22,6 +29,21 @@ public class WebServer: ObservableObject {
     private let adminUsername: String
     private let webAuthnManager: WebAuthnManager
     private let port: UInt16?
+    
+    // Simple session storage for admin authentication
+    private var adminSessions: [String: AdminSession] = [:]
+    private let sessionTimeout: TimeInterval = 3600 // 1 hour
+    
+    private struct AdminSession {
+        let sessionId: String
+        let username: String
+        let loginTime: Date
+        let clientIP: String
+        
+        var isExpired: Bool {
+            Date().timeIntervalSince(loginTime) > 3600 // 1 hour timeout
+        }
+    }
     
     public init(rpId: String, port: UInt16? = nil, adminUsername: String = "XCF Admin", storageBackend: WebAuthnStorageBackend = .json("")) {
         self.rpId = rpId
@@ -251,12 +273,84 @@ public class WebServer: ObservableObject {
         case ("GET", "/"):
             response = generateIndexHTML()
             contentType = "text/html"
-        case ("GET", "/chatv1e.js"):
+        case ("GET", "/chatv1k.js"):
             response = generateChatJS(adminName: adminUsername)
             contentType = "application/javascript"
-        case ("GET", "/stylev1e.css"):
+        case ("GET", "/stylev1k.css"):
             response = generateCSS()
             contentType = "text/css"
+        // Admin Routes - REQUIRES AUTHENTICATION
+        case ("GET", "/admin/index.html"), ("GET", "/admin/"), ("GET", "/admin"):
+            // ALWAYS show login page first - no exceptions
+            response = generateAdminLoginHTML()
+            contentType = "text/html"
+        case ("GET", "/admin/panel.html"):
+            // Only show admin panel if authenticated
+            if isAdminRequest(request) {
+                response = generateAdminIndexHTML()
+                contentType = "text/html"
+            } else {
+                response = "404 Not Found"
+                contentType = "text/plain"
+                statusCode = "404 Not Found"
+            }
+        case ("GET", "/admin/login.html"):
+            response = generateAdminLoginHTML()
+            contentType = "text/html"
+        case ("GET", "/admin/admin.css"):
+            response = generateAdminCSS()
+            contentType = "text/css"
+        case ("GET", "/admin/admin.js"):
+            if isAdminRequest(request) {
+                response = generateAdminJS()
+                contentType = "application/javascript"
+            } else {
+                response = "401 Unauthorized"
+                contentType = "text/plain"
+                statusCode = "401 Unauthorized"
+            }
+        case ("GET", "/admin/admin-login.js"):
+            response = generateAdminLoginJS()
+            contentType = "application/javascript"
+        case ("POST", "/admin/api/login"):
+            handleAdminLogin(connection, request: request)
+            return
+        case ("GET", "/admin/api/users"):
+            if isAdminRequest(request) || hasValidAdminSession(request) {
+                handleAdminAPIUsers(connection, request: request)
+                return
+            } else {
+                response = "401 Unauthorized"
+                contentType = "text/plain"
+                statusCode = "401 Unauthorized"
+            }
+        case ("POST", let path) where path.matches(#"/admin/api/users/[^/]+/toggle"#):
+            if isAdminRequest(request) || hasValidAdminSession(request) {
+                handleAdminAPIToggleUser(connection, request: request, path: path)
+                return
+            } else {
+                response = "404 Not Found"
+                contentType = "text/plain"
+                statusCode = "404 Not Found"
+            }
+        case ("DELETE", let path) where path.matches(#"/admin/api/users/[^/]+"#):
+            if isAdminRequest(request) || hasValidAdminSession(request) {
+                handleAdminAPIDeleteUser(connection, request: request, path: path)
+                return
+            } else {
+                response = "404 Not Found"
+                contentType = "text/plain"
+                statusCode = "404 Not Found"
+            }
+        case ("POST", "/admin/api/users/disable-by-ip"):
+            if isAdminRequest(request) || hasValidAdminSession(request) {
+                handleAdminAPIDisableByIP(connection, request: request)
+                return
+            } else {
+                response = "404 Not Found"
+                contentType = "text/plain"
+                statusCode = "404 Not Found"
+            }
         case ("GET", "/manifest.json"):
             response = generateWebManifest()
             contentType = "application/json"
@@ -396,6 +490,10 @@ public class WebServer: ObservableObject {
     }
     
     private func handleWebAuthnRegisterComplete(_ connection: NWConnection, request: String) {
+        // Extract client IP address
+        let clientIP = extractClientIP(request, connection: connection)
+        print("[WebServer] 📍 Registration IP: \(clientIP ?? "unknown")")
+        
         // Extract request body
         guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
             sendErrorResponse(connection, error: "Invalid request format")
@@ -411,7 +509,7 @@ public class WebServer: ObservableObject {
         }
         
         do {
-            try webAuthnManager.verifyRegistration(username: username, credential: json)
+            try webAuthnManager.verifyRegistration(username: username, credential: json, clientIP: clientIP)
             sendJSONResponse(connection, json: "{\"success\":true}")
         } catch {
             sendErrorResponse(connection, error: "Registration verification failed")
@@ -446,6 +544,10 @@ public class WebServer: ObservableObject {
     private func handleWebAuthnAuthenticateComplete(_ connection: NWConnection, request: String) {
         print("[WebServer] 🔍 Received authentication completion request")
         
+        // Extract client IP address
+        let clientIP = extractClientIP(request, connection: connection)
+        print("[WebServer] 📍 Client IP: \(clientIP ?? "unknown")")
+        
         // Extract request body
         guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
             print("[WebServer] ❌ Invalid request format - no body separator")
@@ -469,7 +571,7 @@ public class WebServer: ObservableObject {
         
         do {
             print("[WebServer] ✅ Calling WebAuthnManager.verifyAuthentication...")
-            let foundUsername = try webAuthnManager.verifyAuthentication(username: username, credential: json)
+            let foundUsername = try webAuthnManager.verifyAuthentication(username: username, credential: json, clientIP: clientIP)
             print("[WebServer] ✅ Authentication successful! Found username: \(foundUsername ?? "nil")")
             
             let response: [String: Any] = [
@@ -1818,6 +1920,234 @@ public class WebServer: ObservableObject {
         
         return svgIcon.data(using: .utf8) ?? Data()
     }
+    
+    // MARK: - Admin Authentication and API Methods
+    
+    private func isAdminRequest(_ request: String) -> Bool {
+        // Extract session ID from request headers or cookies
+        let sessionId = extractSessionId(from: request)
+        
+        guard let sessionId = sessionId,
+              let session = adminSessions[sessionId],
+              !session.isExpired else {
+            print("[WebServer] 🔒 No valid admin session found")
+            return false
+        }
+        
+        // Verify the user is still enabled (check against regular chat users, not admin users)
+        guard webAuthnManager.isUserEnabled(username: session.username) else {
+            // Remove invalid session
+            adminSessions.removeValue(forKey: sessionId)
+            print("[WebServer] 🔒 User \(session.username) not found or disabled in chat system")
+            return false
+        }
+        
+        // CRITICAL: Verify the authenticated user matches the configured admin username
+        guard session.username == adminUsername else {
+            print("[WebServer] 🔒 Session user '\(session.username)' does not match configured admin '\(adminUsername)'")
+            adminSessions.removeValue(forKey: sessionId) // Remove invalid session
+            return false
+        }
+        
+        
+        print("[WebServer] ✅ Valid admin session for \(session.username)")
+        return true
+    }
+    
+    private func extractSessionId(from request: String) -> String? {
+        // Check for session ID in Cookie header first (most common)
+        let lines = request.components(separatedBy: "\r\n")
+        for line in lines {
+            if line.lowercased().hasPrefix("cookie:") {
+                let cookies = line.dropFirst(7).components(separatedBy: ";")
+                for cookie in cookies {
+                    let parts = cookie.trimmingCharacters(in: .whitespaces).components(separatedBy: "=")
+                    if parts.count == 2 && parts[0] == "adminSessionId" {
+                        return parts[1]
+                    }
+                }
+            }
+        }
+        
+        // Check for session ID in Authorization header
+        for line in lines {
+            if line.lowercased().hasPrefix("authorization: bearer ") {
+                return String(line.dropFirst(22).trimmingCharacters(in: .whitespaces))
+            }
+        }
+        
+        return nil
+    }
+    
+    private func extractClientIP(_ request: String, connection: NWConnection) -> String? {
+        // First try to get IP from connection endpoint
+        if let endpoint = connection.currentPath?.remoteEndpoint {
+            switch endpoint {
+            case .hostPort(let host, _):
+                return String(describing: host)
+            default:
+                break
+            }
+        }
+        
+        // Fallback to headers for proxy scenarios
+        let lines = request.components(separatedBy: "\r\n")
+        
+        // Check for X-Forwarded-For header (for proxies)
+        for line in lines {
+            if line.lowercased().hasPrefix("x-forwarded-for:") {
+                let value = line.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true).last?.trimmingCharacters(in: .whitespaces)
+                return value?.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces)
+            }
+        }
+        
+        // Check for X-Real-IP header
+        for line in lines {
+            if line.lowercased().hasPrefix("x-real-ip:") {
+                let value = line.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true).last?.trimmingCharacters(in: .whitespaces)
+                return value
+            }
+        }
+        
+        // If we can't extract from connection or headers, return localhost
+        return "127.0.0.1"
+    }
+    
+    private func handleAdminAPIUsers(_ connection: NWConnection, request: String) {
+        let adminUsers = PersistenceManager.shared.loadAdminUsers()
+        
+        // Convert to JSON-serializable format
+        let usersData = adminUsers.map { user in
+            return [
+                "id": user.id.uuidString,
+                "username": user.username,
+                "credentialId": user.credentialId,
+                "publicKey": user.publicKey,
+                "signCount": user.signCount,
+                "createdAt": ISO8601DateFormatter().string(from: user.createdAt),
+                "lastLoginAt": user.lastLoginAt.map { ISO8601DateFormatter().string(from: $0) } as Any,
+                "lastLoginIP": user.lastLoginIP as Any,
+                "isEnabled": user.isEnabled,
+                "userNumber": user.userNumber
+            ] as [String: Any]
+        }
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: usersData)
+            let jsonString = String(data: jsonData, encoding: .utf8) ?? "[]"
+            sendJSONResponse(connection, json: jsonString)
+        } catch {
+            sendErrorResponse(connection, error: "Failed to serialize users data")
+        }
+    }
+    
+    private func handleAdminAPIToggleUser(_ connection: NWConnection, request: String, path: String) {
+        // Extract user ID from path /admin/api/users/{id}/toggle
+        let pathComponents = path.components(separatedBy: "/")
+        guard pathComponents.count >= 5,
+              let userId = UUID(uuidString: pathComponents[4]) else {
+            sendErrorResponse(connection, error: "Invalid user ID")
+            return
+        }
+        
+        // Extract request body
+        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
+            sendErrorResponse(connection, error: "Invalid request format")
+            return
+        }
+        
+        let bodyString = String(request[bodyStart...])
+        guard let bodyData = bodyString.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
+              let enabled = json["enabled"] as? Bool else {
+            sendErrorResponse(connection, error: "Invalid request body")
+            return
+        }
+        
+        // Update user status
+        let adminUsers = PersistenceManager.shared.loadAdminUsers()
+        guard let userIndex = adminUsers.firstIndex(where: { $0.id == userId }) else {
+            sendErrorResponse(connection, error: "User not found")
+            return
+        }
+        
+        let updatedUser = adminUsers[userIndex].withEnabledStatus(enabled)
+        PersistenceManager.shared.saveAdminUser(updatedUser)
+        
+        sendJSONResponse(connection, json: "{\"success\":true}")
+    }
+    
+    private func handleAdminAPIDeleteUser(_ connection: NWConnection, request: String, path: String) {
+        // Extract user ID from path /admin/api/users/{id}
+        let pathComponents = path.components(separatedBy: "/")
+        guard pathComponents.count >= 4,
+              let userId = UUID(uuidString: pathComponents[4]) else {
+            sendErrorResponse(connection, error: "Invalid user ID")
+            return
+        }
+        
+        // Delete user
+        PersistenceManager.shared.deleteAdminUser(userId)
+        sendJSONResponse(connection, json: "{\"success\":true}")
+    }
+    
+    private func handleAdminAPIDisableByIP(_ connection: NWConnection, request: String) {
+        // Extract request body
+        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
+            sendErrorResponse(connection, error: "Invalid request format")
+            return
+        }
+        
+        let bodyString = String(request[bodyStart...])
+        guard let bodyData = bodyString.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
+              let ipAddress = json["ipAddress"] as? String else {
+            sendErrorResponse(connection, error: "Invalid request body")
+            return
+        }
+        
+        // Disable all users with the specified IP
+        PersistenceManager.shared.disableAdminUsersByIP(ipAddress)
+        sendJSONResponse(connection, json: "{\"success\":true}")
+    }
+    
+    // MARK: - Admin Content Generation
+    
+    private func generateAdminIndexHTML() -> String {
+        return WebAdminContent.generateAdminIndexHTML()
+    }
+    
+    private func generateAdminCSS() -> String {
+        return WebAdminContent.generateAdminCSS()
+    }
+    
+    private func generateAdminJS() -> String {
+        return WebAdminContent.generateAdminJS()
+    }
+    
+    // More permissive admin session check
+    private func hasValidAdminSession(_ request: String) -> Bool {
+        // If we have any valid admin sessions, allow access
+        let validSessions = adminSessions.values.filter { !$0.isExpired }
+        
+        if !validSessions.isEmpty {
+            print("[WebServer] ✅ Found valid admin sessions - allowing admin API access")
+            return true
+        }
+        
+        // Also check for session cookie
+        let sessionId = extractSessionId(from: request)
+        if let sessionId = sessionId,
+           let session = adminSessions[sessionId],
+           !session.isExpired,
+           session.username == adminUsername {
+            print("[WebServer] ✅ Valid session cookie found for admin API")
+            return true
+        }
+        
+        print("[WebServer] 🔒 No valid admin sessions found")
+        return false
+    }
 }
 
 public class WebSocketClient {
@@ -1946,5 +2276,116 @@ extension Data {
             _ = CC_SHA1($0.baseAddress, CC_LONG(self.count), &digest)
         }
         return Data(digest)
+    }
+}
+// MARK: - Additional Admin Functions (added for authentication)
+extension WebServer {
+    private func generateAdminLoginHTML() -> String {
+        return WebAdminContent.generateAdminLoginHTML()
+    }
+    
+    private func generateAdminLoginJS() -> String {
+        return WebAdminContent.generateAdminLoginJS()
+    }
+    
+    private func handleAdminLogin(_ connection: NWConnection, request: String) {
+        print("[WebServer] 🔑 Admin login attempt")
+        
+        // Extract client IP
+        let clientIP = extractClientIP(request, connection: connection)
+        
+        // Extract request body
+        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
+            sendErrorResponse(connection, error: "Invalid request format")
+            return
+        }
+        
+        let bodyString = String(request[bodyStart...])
+        guard let bodyData = bodyString.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
+              let username = json["username"] as? String else {
+            sendErrorResponse(connection, error: "Invalid request body")
+            return
+        }
+        
+        // CRITICAL: Only allow the configured admin username to access admin functions
+        guard username == adminUsername else {
+            print("[WebServer] ❌ Username \(username) does not match configured admin \(adminUsername)")
+            sendErrorResponse(connection, error: "Access denied - invalid admin username", statusCode: "404 Not Found")
+            return
+        }
+        
+        print("[WebServer] 🔑 Admin login for username: \(username)")
+        
+        do {
+            // Verify authentication using existing WebAuthn system
+            let authenticatedUsername = try webAuthnManager.verifyAuthentication(
+                username: username, 
+                credential: json, 
+                clientIP: clientIP
+            )
+            
+            let finalUsername = authenticatedUsername ?? username
+            
+            // Double-check the authenticated username still matches the configured admin
+            guard finalUsername == adminUsername else {
+                print("[WebServer] ❌ Authenticated username \(finalUsername) does not match configured admin \(adminUsername)")
+                sendErrorResponse(connection, error: "Access denied - authentication mismatch", statusCode: "404 Not Found")
+                return
+            }
+            
+            // Verify user is an admin and enabled
+            let adminUsers = PersistenceManager.shared.loadAdminUsers()
+            guard let adminUser = adminUsers.first(where: { $0.username == finalUsername }),
+                  adminUser.isEnabled else {
+                print("[WebServer] ❌ User \(finalUsername) is not an admin or is disabled")
+                sendErrorResponse(connection, error: "Access denied", statusCode: "403 Forbidden")
+                return
+            }
+            
+            // Create admin session
+            let sessionId = UUID().uuidString
+            let session = AdminSession(
+                sessionId: sessionId,
+                username: finalUsername,
+                loginTime: Date(),
+                clientIP: clientIP ?? "unknown"
+            )
+            
+            // Store session
+            adminSessions[sessionId] = session
+            
+            print("[WebServer] ✅ Admin login successful for \(finalUsername)")
+            
+            // Return success with session ID
+            let response: [String: Any] = [
+                "success": true,
+                "sessionId": sessionId,
+                "username": finalUsername
+            ]
+            
+            let responseData = try JSONSerialization.data(withJSONObject: response)
+            let responseString = String(data: responseData, encoding: .utf8) ?? "{\"success\":true}"
+            
+            // Send response with Set-Cookie header for session
+            let httpResponse = """
+            HTTP/1.1 200 OK\r
+            Content-Type: application/json\r
+            Content-Length: \(responseString.utf8.count)\r
+            Set-Cookie: adminSessionId=\(sessionId); HttpOnly; SameSite=Strict; Path=/admin\r
+            Connection: close\r
+            Access-Control-Allow-Origin: *\r
+            \r
+            \(responseString)
+            """
+            
+            connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed { _ in
+                connection.cancel()
+            })
+            
+        } catch {
+            print("[WebServer] ❌ Admin authentication failed: \(error)")
+            sendErrorResponse(connection, error: "Authentication failed", statusCode: "401 Unauthorized")
+        }
     }
 }

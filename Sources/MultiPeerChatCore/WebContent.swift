@@ -92,7 +92,7 @@ func generateIndexHTML() -> String {
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
         
-        <link rel="stylesheet" href="/stylev1e.css">
+        <link rel="stylesheet" href="/stylev1k.css">
     </head>
     <body>
         <div class="container">
@@ -321,7 +321,7 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
-        <script src="/chatv1e.js"></script>
+        <script src="/chatv1k.js"></script>
         <script>
         // Hide upload button and file input for now
         /*

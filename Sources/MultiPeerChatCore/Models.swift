@@ -22,6 +22,94 @@ public struct User: Codable, Hashable, Identifiable {
     }
 }
 
+// MARK: - Admin User Model for Admin Management
+public struct AdminUser: Codable, Identifiable {
+    public let id: UUID
+    public let username: String
+    public let credentialId: String
+    public let publicKey: String
+    public let signCount: UInt32
+    public let createdAt: Date
+    public let lastLoginAt: Date?
+    public let lastLoginIP: String?
+    public let isEnabled: Bool
+    public let userNumber: Int
+    
+    public init(
+        username: String,
+        credentialId: String,
+        publicKey: String,
+        signCount: UInt32 = 0,
+        lastLoginIP: String? = nil,
+        userNumber: Int
+    ) {
+        self.id = UUID()
+        self.username = username
+        self.credentialId = credentialId
+        self.publicKey = publicKey
+        self.signCount = signCount
+        self.createdAt = Date()
+        self.lastLoginAt = nil
+        self.lastLoginIP = lastLoginIP
+        self.isEnabled = true
+        self.userNumber = userNumber
+    }
+    
+    public func updatedWithLogin(ip: String?, signCount: UInt32) -> AdminUser {
+        return AdminUser(
+            id: self.id,
+            username: self.username,
+            credentialId: self.credentialId,
+            publicKey: self.publicKey,
+            signCount: signCount,
+            createdAt: self.createdAt,
+            lastLoginAt: Date(),
+            lastLoginIP: ip,
+            isEnabled: self.isEnabled,
+            userNumber: self.userNumber
+        )
+    }
+    
+    public func withEnabledStatus(_ enabled: Bool) -> AdminUser {
+        return AdminUser(
+            id: self.id,
+            username: self.username,
+            credentialId: self.credentialId,
+            publicKey: self.publicKey,
+            signCount: self.signCount,
+            createdAt: self.createdAt,
+            lastLoginAt: self.lastLoginAt,
+            lastLoginIP: self.lastLoginIP,
+            isEnabled: enabled,
+            userNumber: self.userNumber
+        )
+    }
+    
+    private init(
+        id: UUID,
+        username: String,
+        credentialId: String,
+        publicKey: String,
+        signCount: UInt32,
+        createdAt: Date,
+        lastLoginAt: Date?,
+        lastLoginIP: String?,
+        isEnabled: Bool,
+        userNumber: Int
+    ) {
+        self.id = id
+        self.username = username
+        self.credentialId = credentialId
+        self.publicKey = publicKey
+        self.signCount = signCount
+        self.createdAt = createdAt
+        self.lastLoginAt = lastLoginAt
+        self.lastLoginIP = lastLoginIP
+        self.isEnabled = isEnabled
+        self.userNumber = userNumber
+    }
+}
+
 // MARK: - Room Model
 public struct Room: Codable, Hashable, Identifiable {
     public let id: UUID

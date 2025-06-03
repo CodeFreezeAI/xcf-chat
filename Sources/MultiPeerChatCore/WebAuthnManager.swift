@@ -669,14 +669,16 @@ public class WebAuthnManager {
         return base64
     }
     
-    public func verifyRegistration(username: String, credential: [String: Any]) throws {
+    public func verifyRegistration(username: String, credential: [String: Any], clientIP: String? = nil) throws {
+        print("[WebAuthn] 🔍 verifyRegistration called for username: \(username)")
+        print("[WebAuthn] 📍 Client IP: \(clientIP ?? "unknown")")
+        
+        // Check if username already exists
         if credentials[username] != nil {
-            print("[WebAuthn] Registration failed: duplicate username \(username)")
+            print("[WebAuthn] ❌ Username '\(username)' already exists")
             throw WebAuthnError.duplicateUsername
         }
-        print("[WebAuthn] verifyRegistration called for username: \(username)")
-        print("[WebAuthn] credential received: \(credential)")
-
+        
         guard let idRaw = credential["id"] as? String else {
             print("[WebAuthn] MISSING id")
             throw WebAuthnError.invalidCredential
@@ -688,15 +690,24 @@ public class WebAuthnManager {
             throw WebAuthnError.invalidCredential
         }
         
-        switch webAuthnProtocol {
-        case .fido2CBOR:
-            try verifyFIDO2Registration(username: username, id: id, response: response)
-        case .u2fV1A:
-            try verifyU2FRegistration(username: username, id: id, response: response)
+        // Try FIDO2 format first, then fall back to U2F
+        do {
+            print("[WebAuthn] 🔍 Attempting FIDO2 registration verification...")
+            try verifyFIDO2Registration(username: username, id: id, response: response, clientIP: clientIP)
+            print("[WebAuthn] ✅ FIDO2 registration successful")
+        } catch {
+            print("[WebAuthn] ⚠️ FIDO2 verification failed: \(error), trying U2F...")
+            do {
+                try verifyU2FRegistration(username: username, id: id, response: response, clientIP: clientIP)
+                print("[WebAuthn] ✅ U2F registration successful")
+            } catch {
+                print("[WebAuthn] ❌ Both FIDO2 and U2F verification failed")
+                throw error
+            }
         }
     }
     
-    private func verifyFIDO2Registration(username: String, id: String, response: [String: Any]) throws {
+    private func verifyFIDO2Registration(username: String, id: String, response: [String: Any], clientIP: String?) throws {
         guard let attestationObjectString = response["attestationObject"] as? String else {
             print("[WebAuthn] MISSING attestationObject")
             throw WebAuthnError.invalidCredential
@@ -728,9 +739,22 @@ public class WebAuthnManager {
         credentials[username] = newCredential
         credentialIdToUsername[id] = username
         saveCredentials()
+        
+        // Create admin user record for tracking
+        let userNumber = PersistenceManager.shared.getNextUserNumber()
+        let adminUser = AdminUser(
+            username: username,
+            credentialId: id,
+            publicKey: publicKey,
+            signCount: 0,
+            lastLoginIP: clientIP,
+            userNumber: userNumber
+        )
+        PersistenceManager.shared.saveAdminUser(adminUser)
+        print("[WebAuthn] Created admin user record for \(username) (#\(userNumber))")
     }
     
-    private func verifyU2FRegistration(username: String, id: String, response: [String: Any]) throws {
+    private func verifyU2FRegistration(username: String, id: String, response: [String: Any], clientIP: String?) throws {
         // U2F V1A registration format
         guard let registrationData = response["registrationData"] as? String,
               let _ = response["clientData"] as? String else {
@@ -776,11 +800,25 @@ public class WebAuthnManager {
         credentialIdToUsername[id] = username
         saveCredentials()
         
+        // Create admin user record for tracking
+        let userNumber = PersistenceManager.shared.getNextUserNumber()
+        let adminUser = AdminUser(
+            username: username,
+            credentialId: id,
+            publicKey: publicKey,
+            signCount: 0,
+            lastLoginIP: clientIP,
+            userNumber: userNumber
+        )
+        PersistenceManager.shared.saveAdminUser(adminUser)
+        print("[WebAuthn] Created admin user record for \(username) (#\(userNumber))")
+        
         print("[WebAuthn] Successfully registered U2F credential for \(username)")
     }
     
-    public func verifyAuthentication(username: String?, credential: [String: Any]) throws -> String? {
+    public func verifyAuthentication(username: String?, credential: [String: Any], clientIP: String? = nil) throws -> String? {
         print("[WebAuthn] verifyAuthentication called for username: \(username ?? "nil")")
+        print("[WebAuthn] 📍 Client IP: \(clientIP ?? "unknown")")
         print("[WebAuthn] credential received: \(credential)")
         
         guard let idRaw = credential["id"] as? String else {
@@ -796,6 +834,13 @@ public class WebAuthnManager {
             throw WebAuthnError.credentialNotFound
         }
         
+        // Check if user is disabled
+        if !isUserEnabled(username: finalUsername) {
+            print("[WebAuthn] ❌ Authentication rejected - user '\(finalUsername)' is disabled")
+            throw WebAuthnError.accessDenied
+        }
+        print("[WebAuthn] ✅ User '\(finalUsername)' is enabled - proceeding with authentication")
+        
         guard let storedCredential = credentials[finalUsername] else {
             print("[WebAuthn] credentialNotFound for username: \(finalUsername)")
             throw WebAuthnError.credentialNotFound
@@ -809,16 +854,16 @@ public class WebAuthnManager {
         // Use the protocol from the stored credential
         switch storedCredential.protocolVersion {
         case "fido2CBOR":
-            try verifyFIDO2Authentication(response: response, storedCredential: storedCredential, id: id)
+            try verifyFIDO2Authentication(response: response, storedCredential: storedCredential, id: id, clientIP: clientIP)
         case "u2fV1A":
-            try verifyU2FAuthentication(response: response, storedCredential: storedCredential, id: id)
+            try verifyU2FAuthentication(response: response, storedCredential: storedCredential, id: id, clientIP: clientIP)
         default:
             // Fallback to current protocol setting
             switch webAuthnProtocol {
             case .fido2CBOR:
-                try verifyFIDO2Authentication(response: response, storedCredential: storedCredential, id: id)
+                try verifyFIDO2Authentication(response: response, storedCredential: storedCredential, id: id, clientIP: clientIP)
             case .u2fV1A:
-                try verifyU2FAuthentication(response: response, storedCredential: storedCredential, id: id)
+                try verifyU2FAuthentication(response: response, storedCredential: storedCredential, id: id, clientIP: clientIP)
             }
         }
         
@@ -826,7 +871,7 @@ public class WebAuthnManager {
         return (username?.isEmpty ?? true) ? finalUsername : nil
     }
     
-    private func verifyFIDO2Authentication(response: [String: Any], storedCredential: WebAuthnCredential, id: String) throws {
+    private func verifyFIDO2Authentication(response: [String: Any], storedCredential: WebAuthnCredential, id: String, clientIP: String?) throws {
         guard let clientDataJSONString = response["clientDataJSON"] as? String else {
             print("[WebAuthn] MISSING clientDataJSON")
             throw WebAuthnError.invalidCredential
@@ -895,7 +940,7 @@ public class WebAuthnManager {
         // Update the stored credential with new sign count
         do {
             print("[WebAuthn] ✅ Updating credential sign count...")
-            try updateCredentialSignCount(credential: storedCredential, newSignCount: newSignCount)
+            try updateCredentialSignCount(credential: storedCredential, newSignCount: newSignCount, clientIP: clientIP)
             print("[WebAuthn] ✅ Sign count update completed successfully")
         } catch {
             print("[WebAuthn] ❌ Failed to update sign count: \(error)")
@@ -944,11 +989,12 @@ public class WebAuthnManager {
         return newSignCount
     }
     
-    private func updateCredentialSignCount(credential: WebAuthnCredential, newSignCount: UInt32) throws {
-        print("[WebAuthn] 📊 Starting sign count update for user: \(credential.username)")
+    private func updateCredentialSignCount(credential: WebAuthnCredential, newSignCount: UInt32, clientIP: String? = nil) throws {
+        print("[WebAuthn] 📊 updateCredentialSignCount called for \(credential.username)")
         print("[WebAuthn] 📊 Old sign count: \(credential.signCount), New sign count: \(newSignCount)")
+        print("[WebAuthn] 📍 Client IP: \(clientIP ?? "unknown")")
         
-        // Update the credential in memory
+        // Update the credential with new sign count
         let updatedCredential = WebAuthnCredential(
             id: credential.id,
             publicKey: credential.publicKey,
@@ -958,64 +1004,20 @@ public class WebAuthnManager {
             protocolVersion: credential.protocolVersion
         )
         
-        print("[WebAuthn] 📊 Created updated credential with sign count: \(updatedCredential.signCount)")
-        
-        // Update both credential stores
         credentials[credential.username] = updatedCredential
-        print("[WebAuthn] 📊 Updated credentials dictionary for user: \(credential.username)")
         
-        // Verify the update in memory
-        if let verifyCredential = credentials[credential.username] {
-            print("[WebAuthn] 📊 Memory verification: stored sign count is now \(verifyCredential.signCount)")
-        } else {
-            print("[WebAuthn] ⚠️ Warning: Could not find credential in memory after update")
+        // Update admin user record with new sign count and login information
+        if let existingAdminUser = PersistenceManager.shared.getAdminUser(by: credential.username) {
+            let updatedAdminUser = existingAdminUser.updatedWithLogin(ip: clientIP, signCount: newSignCount)
+            PersistenceManager.shared.saveAdminUser(updatedAdminUser)
+            print("[WebAuthn] Updated admin user record for \(credential.username) with sign count \(newSignCount) and IP \(clientIP ?? "unknown")")
         }
         
-        // Save to persistence - use targeted update for Swift Data
-        switch storageBackend {
-        case .json:
-            print("[WebAuthn] 📊 Calling saveCredentials() for JSON...")
-            saveCredentials()
-        case .swiftData:
-            try updateSignCountInSwiftData(username: credential.username, newSignCount: newSignCount)
-        }
-        
-        print("[WebAuthn] ✅ Updated sign count for \(credential.username): \(credential.signCount) -> \(newSignCount)")
+        saveCredentials()
+        print("[WebAuthn] ✅ Sign count update completed successfully")
     }
     
-    private func updateSignCountInSwiftData(username: String, newSignCount: UInt32) throws {
-        guard let container = modelContainer else {
-            print("[WebAuthn] ❌ No model container available for sign count update")
-            throw WebAuthnError.verificationFailed
-        }
-        
-        do {
-            let context = ModelContext(container)
-            
-            // Find the specific credential to update
-            let predicate = #Predicate<WebAuthnCredentialModel> { model in
-                model.username == username
-            }
-            let request = FetchDescriptor<WebAuthnCredentialModel>(predicate: predicate)
-            let models = try context.fetch(request)
-            
-            guard let model = models.first else {
-                print("[WebAuthn] ❌ Could not find credential model for \(username)")
-                throw WebAuthnError.credentialNotFound
-            }
-            
-            // Update only the sign count
-            model.signCount = newSignCount
-            
-            try context.save()
-            print("[WebAuthn] ✅ Swift Data sign count updated for \(username): \(newSignCount)")
-        } catch {
-            print("[WebAuthn] ❌ Failed to update sign count in Swift Data: \(error)")
-            throw error
-        }
-    }
-    
-    private func verifyU2FAuthentication(response: [String: Any], storedCredential: WebAuthnCredential, id: String) throws {
+    private func verifyU2FAuthentication(response: [String: Any], storedCredential: WebAuthnCredential, id: String, clientIP: String?) throws {
         guard let signatureData = response["signatureData"] as? String,
               let clientData = response["clientData"] as? String else {
             print("[WebAuthn] MISSING U2F authentication data")
@@ -1077,7 +1079,7 @@ public class WebAuthnManager {
         }
         
         // Update the stored credential with new sign count
-        try updateCredentialSignCount(credential: storedCredential, newSignCount: newSignCount)
+        try updateCredentialSignCount(credential: storedCredential, newSignCount: newSignCount, clientIP: clientIP)
     }
     
     private func verifyU2FSignature(signedData: Data, signature: Data, publicKey: String) throws {
@@ -1145,7 +1147,7 @@ public class WebAuthnManager {
         // Verify origin matches expected RP ID with flexible port handling
         let isValidOrigin = isOriginValid(origin: origin, rpId: rpId)
         guard isValidOrigin else {
-            print("[WebAuthn] Origin mismatch: \(origin) not valid for RP ID: \(rpId)")
+            print("[WebAuthn] 🚨 Origin mismatch: \(origin) not valid for RP ID: \(rpId)")
             throw WebAuthnError.invalidCredential
         }
     }
@@ -1153,17 +1155,27 @@ public class WebAuthnManager {
     private func isOriginValid(origin: String, rpId: String) -> Bool {
         // Parse the origin URL
         guard let originURL = URL(string: origin) else {
+            print("[WebAuthn] 🚨 Invalid origin URL: \(origin)")
             return false
         }
         
         // Extract scheme and host from origin
         guard let scheme = originURL.scheme,
               let host = originURL.host else {
+            print("[WebAuthn] 🚨 Could not extract scheme/host from origin: \(origin)")
             return false
         }
         
-        // Check if the host matches the RP ID (case insensitive)
-        let hostMatches = host.lowercased() == rpId.lowercased()
+        // Special handling for localhost with ports
+        let hostMatches: Bool
+        if rpId.lowercased() == "localhost" && host.lowercased() == "localhost" {
+            // For localhost, ignore the port - any localhost port is valid
+            hostMatches = true
+            print("[WebAuthn] ✅ Localhost origin validation: accepting any localhost port")
+        } else {
+            // For other domains, require exact match
+            hostMatches = host.lowercased() == rpId.lowercased()
+        }
         
         // Allow both HTTP and HTTPS schemes
         let schemeMatches = scheme == "http" || scheme == "https"
@@ -1171,12 +1183,15 @@ public class WebAuthnManager {
         let isValid = hostMatches && schemeMatches
         
         if !isValid {
-            print("[WebAuthn] Origin validation failed:")
+            print("[WebAuthn] 🚨 Origin validation failed:")
             print("[WebAuthn]   Origin: \(origin)")
             print("[WebAuthn]   Parsed host: \(host)")
+            print("[WebAuthn]   Parsed scheme: \(scheme)")
             print("[WebAuthn]   RP ID: \(rpId)")
             print("[WebAuthn]   Host matches: \(hostMatches)")
             print("[WebAuthn]   Scheme matches: \(schemeMatches)")
+        } else {
+            print("[WebAuthn] ✅ Origin validation passed: \(origin) is valid for RP ID: \(rpId)")
         }
         
         return isValid
@@ -1270,6 +1285,22 @@ public class WebAuthnManager {
     public func isUsernameRegistered(_ username: String) -> Bool {
         return credentials[username] != nil
     }
+    
+    // Check if user exists and is enabled
+    public func isUserEnabled(username: String) -> Bool {
+        guard let adminUser = PersistenceManager.shared.getAdminUser(by: username) else {
+            return false // User doesn't exist
+        }
+        return adminUser.isEnabled
+    }
+    
+    // Check if user exists and is enabled by credential ID
+    public func isUserEnabledByCredential(_ credentialId: String) -> Bool {
+        guard let adminUser = PersistenceManager.shared.getAdminUser(byCredentialId: credentialId) else {
+            return false // User doesn't exist
+        }
+        return adminUser.isEnabled
+    }
 }
 
 public enum WebAuthnError: Error, Equatable {
@@ -1278,4 +1309,5 @@ public enum WebAuthnError: Error, Equatable {
     case verificationFailed
     case duplicateUsername
     case signCountInvalid
+    case accessDenied
 } 
