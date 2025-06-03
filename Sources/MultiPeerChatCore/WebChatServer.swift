@@ -156,6 +156,10 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
             handleClearChatHistory(json, client: client)
         case "removeRoom":
             handleRemoveRoom(json, client: client)
+        case "ping":
+            handlePing(json, client: client)
+        case "pong":
+            handlePong(json, client: client)
         default:
             break
         }
@@ -486,6 +490,17 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
             "roomId": roomId
         ])
         print("[RemoveRoom] Broadcast sent.")
+    }
+    
+    private func handlePing(_ json: [String: Any], client: WebSocketClient) {
+        // Respond to client ping with pong
+        sendToClient(client, message: ["type": "pong"])
+    }
+    
+    private func handlePong(_ json: [String: Any], client: WebSocketClient) {
+        // Client responded to our ping - connection is healthy
+        // We could store last pong time here if we wanted to implement server-side health checks too
+        // For now, just acknowledge that the client is responding
     }
     
     // MARK: - Helper Methods

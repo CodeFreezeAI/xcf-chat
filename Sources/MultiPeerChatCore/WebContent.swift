@@ -92,7 +92,7 @@ func generateIndexHTML() -> String {
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
         
-        <link rel="stylesheet" href="/stylev1k.css">
+        <link rel="stylesheet" href="/stylev004.css">
     </head>
     <body>
         <div class="container">
@@ -209,10 +209,12 @@ func generateIndexHTML() -> String {
                                 </div>
                             </div>
                         </div>
-                        <input type="text" id="username-input" placeholder="Enter your username" maxlength="20">
-                        <div class="auth-options">
-                            <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
-                            <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
+                        <div class="login-input-container" id="login-input-container">
+                            <input type="text" id="username-input" placeholder="Enter your username" maxlength="20">
+                            <div class="auth-options" id="login-buttons-anchor">
+                                <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
+                                <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -321,7 +323,7 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
-        <script src="/chatv1k.js"></script>
+        <script src="/chatv004.js"></script>
         <script>
         // Hide upload button and file input for now
         /*
@@ -789,6 +791,49 @@ func generateCSS() -> String {
         background: var(--accent-color-hover);
     }
 
+    /* LOGIN INPUT CONTAINER */
+    .login-input-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        width: 90%;
+        max-width: 300px;
+        flex-shrink: 0;
+        /* Prevent bouncing on mobile */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+    }
+
+    .login-input-container input {
+        width: 100%;
+        padding: 1rem 1.5rem;
+        font-size: 1.1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 50px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        background-color: var(--input-bg);
+        color: var(--input-text);
+        outline: none;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        box-sizing: border-box;
+        /* Prevent input jumping on mobile */
+        -webkit-user-select: text;
+        user-select: text;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    .login-input-container input:focus {
+        border: 2px solid var(--accent-color);
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        outline: none;
+        /* Ensure stable focus state */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+    }
+
     /* DESKTOP CHAT SCREEN */
     #chat-screen {
         display: flex;
@@ -1188,6 +1233,12 @@ func generateCSS() -> String {
             box-sizing: border-box;
             /* Ensure content is accessible when keyboard appears */
             padding-bottom: calc(2rem + env(keyboard-inset-height, 0px));
+            /* Make the background area more tappable on mobile */
+            min-height: 100%;
+            touch-action: manipulation;
+            /* Prevent bouncing during keyboard transitions */
+            scroll-behavior: smooth;
+            -webkit-scroll-behavior: smooth;
         }
 
         /* Create a form content container to constrain all elements to same width */
@@ -1204,7 +1255,19 @@ func generateCSS() -> String {
             text-align: center;
         }
 
-        .login-form input {
+        /* Mobile login input container */
+        .login-input-container {
+            width: 90% !important;
+            max-width: 300px !important;
+            gap: 12px;
+            /* Improve mobile stability */
+            position: relative;
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .login-input-container input {
             font-size: 16px; /* Prevent zoom on iOS */
             flex-shrink: 0;
             padding: 1rem 1.5rem;
@@ -1217,9 +1280,10 @@ func generateCSS() -> String {
             outline: none;
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
             box-sizing: border-box;
+            width: 100% !important;
         }
 
-        .login-form input:focus {
+        .login-input-container input:focus {
             border: 2px solid var(--accent-color);
             box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
             outline: none;
@@ -1976,6 +2040,58 @@ func generateCSS() -> String {
         to { opacity: 1; transform: translateY(0); }
     }
 
+    /* CONNECTION ERROR STYLES */
+    .message.connection-error {
+        background: #ff6b6b;
+        color: white;
+        border: 2px solid #ff5252;
+        font-weight: 500;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    /* DISCONNECTED STATE STYLES */
+    .messages-container.disconnected {
+        opacity: 0.6;
+        pointer-events: none;
+        position: relative;
+    }
+
+    .messages-container.disconnected::before {
+        content: '⚠️ Disconnected';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        font-weight: 500;
+        z-index: 100;
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+    }
+
+    /* DISABLED INPUT STYLES */
+    input:disabled,
+    button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background-color: var(--disabled-bg) !important;
+        color: var(--text-secondary) !important;
+    }
+
+    .message-input-container input:disabled {
+        background-color: var(--disabled-bg) !important;
+        color: var(--text-secondary) !important;
+        border-color: var(--disabled-bg) !important;
+    }
+
+    .message-input-container button:disabled {
+        background-color: var(--disabled-bg) !important;
+        color: var(--text-secondary) !important;
+    }
+
     /* INVITE SECTION */
     .invite-section {
         margin-top: 1rem;
@@ -2226,6 +2342,11 @@ func generateChatJS(adminName: String) -> String {
             this.isConnected = false;
             this.isReconnecting = false; // Flag to distinguish reconnection from initial connection
             this.selectedFiles = [];
+            this.connectionHealthTimer = null; // Timer for connection health checks
+            this.lastPongReceived = Date.now(); // Track last pong response
+            this.pingInterval = null; // Ping interval timer
+            this.CONNECTION_TIMEOUT = 30000; // 30 seconds
+            this.PING_INTERVAL = 15000; // Send ping every 15 seconds
             
             this.initializeEventListeners();
         }
@@ -2245,12 +2366,19 @@ func generateChatJS(adminName: String) -> String {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}`;
             
+            // Clear any existing timers
+            this.clearConnectionTimers();
+            
             this.ws = new WebSocket(wsUrl);
             
             this.ws.onopen = () => {
                 console.log('Connected to server');
                 this.isConnected = true;
+                this.lastPongReceived = Date.now();
                 this.updateConnectionStatus();
+                
+                // Start connection health monitoring
+                this.startConnectionHealthCheck();
                 
                 // Send join message with reconnection flag
                 this.sendToServer({
@@ -2270,6 +2398,16 @@ func generateChatJS(adminName: String) -> String {
             
             this.ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
+                
+                // Handle ping/pong for connection health
+                if (message.type === 'ping') {
+                    this.sendToServer({ type: 'pong' });
+                    return;
+                } else if (message.type === 'pong') {
+                    this.lastPongReceived = Date.now();
+                    return;
+                }
+                
                 this.handleServerMessage(message);
             };
             
@@ -2277,6 +2415,7 @@ func generateChatJS(adminName: String) -> String {
                 console.log('Disconnected from server');
                 this.isConnected = false;
                 this.isReconnecting = true; // Set flag for reconnection
+                this.clearConnectionTimers(); // Clear health check timers
                 this.updateConnectionStatus();
                 
                 // Save current room and messages before disconnection
@@ -2305,6 +2444,71 @@ func generateChatJS(adminName: String) -> String {
             this.ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
             };
+        }
+        
+        startConnectionHealthCheck() {
+            // Send ping every 15 seconds
+            this.pingInterval = setInterval(() => {
+                if (this.isConnected && this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.sendToServer({ type: 'ping' });
+                }
+            }, this.PING_INTERVAL);
+            
+            // Check connection health every 30 seconds
+            this.connectionHealthTimer = setInterval(() => {
+                const now = Date.now();
+                const timeSinceLastPong = now - this.lastPongReceived;
+                
+                // If we haven't received a pong in 30 seconds, consider connection dead
+                if (timeSinceLastPong > this.CONNECTION_TIMEOUT) {
+                    console.log('Connection appears to be dead (no pong received), forcing reconnection...');
+                    this.forceReconnection();
+                }
+            }, this.CONNECTION_TIMEOUT);
+        }
+        
+        clearConnectionTimers() {
+            if (this.pingInterval) {
+                clearInterval(this.pingInterval);
+                this.pingInterval = null;
+            }
+            if (this.connectionHealthTimer) {
+                clearInterval(this.connectionHealthTimer);
+                this.connectionHealthTimer = null;
+            }
+        }
+        
+        forceReconnection() {
+            console.log('Forcing WebSocket reconnection due to health check failure');
+            this.clearConnectionTimers();
+            
+            if (this.ws) {
+                this.ws.onclose = null; // Prevent double reconnection
+                this.ws.close();
+            }
+            
+            this.isConnected = false;
+            this.isReconnecting = true;
+            this.updateConnectionStatus();
+            
+            // Save current state
+            if (this.currentRoom) {
+                this.previousRoomId = this.currentRoom.id;
+                this.messagesByRoom[this.currentRoom.id] = [...this.messages];
+                
+                // Disable UI
+                document.getElementById('leave-room-btn').disabled = true;
+                document.getElementById('clear-history-btn').disabled = true;
+                document.getElementById('message-input').disabled = true;
+                document.getElementById('send-btn').disabled = true;
+                document.getElementById('invite-btn').disabled = true;
+                document.getElementById('file-btn').disabled = true;
+            }
+            
+            // Reconnect after a short delay
+            setTimeout(() => {
+                this.connect();
+            }, 1000);
         }
         
         sendToServer(message) {
@@ -2566,12 +2770,19 @@ func generateChatJS(adminName: String) -> String {
                 createRoomModal.querySelector('.modal-actions')
             );
             
-            // Remove error message after longer duration
+            // Auto-remove error message after 10 seconds for non-admin users
+            // Admins can see persistent error messages for debugging
+            const removeTimeout = this.isAdmin ? 15000 : 10000; // Slightly longer for admins
             setTimeout(() => {
-                if (errorContainer) {
-                    errorContainer.remove();
+                if (errorContainer && errorContainer.parentNode) {
+                    errorContainer.classList.add('expiring');
+                    setTimeout(() => {
+                        if (errorContainer && errorContainer.parentNode) {
+                            errorContainer.remove();
+                        }
+                    }, 1000);
                 }
-            }, 3000);
+            }, removeTimeout);
         }
         
         joinRoom(roomId) {
@@ -2677,6 +2888,13 @@ func generateChatJS(adminName: String) -> String {
             
             if (!content || !this.currentRoom) return;
             
+            // Check connection before sending
+            if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                console.log('Cannot send message: not connected to server');
+                this.showConnectionError('Cannot send message while disconnected. Please wait for reconnection.');
+                return;
+            }
+            
             this.sendToServer({
                 type: 'sendMessage',
                 roomId: this.currentRoom.id,
@@ -2687,8 +2905,86 @@ func generateChatJS(adminName: String) -> String {
             messageInput.value = '';
         }
         
+        showConnectionError(message) {
+            // Show a temporary error message
+            const container = document.getElementById('messages-container');
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'message system connection-error';
+            errorMsg.textContent = message;
+            container.appendChild(errorMsg);
+            container.scrollTop = container.scrollHeight;
+            
+            // Auto-remove error message after 10 seconds for non-admin users
+            // Admins can see persistent error messages for debugging
+            if (!this.isAdmin) {
+                setTimeout(() => {
+                    if (errorMsg.parentNode) {
+                        // Add expiring animation
+                        errorMsg.classList.add('expiring');
+                        setTimeout(() => {
+                            if (errorMsg.parentNode) {
+                                errorMsg.remove();
+                            }
+                        }, 1000); // Match CSS transition duration
+                    }
+                }, 10000);
+            }
+        }
+        
+        showErrorMessage(message, container = null, className = 'error-message') {
+            // General method for showing error messages with auto-removal
+            const targetContainer = container || document.getElementById('messages-container');
+            const errorMsg = document.createElement('div');
+            
+            if (container) {
+                // Modal or specific container error
+                errorMsg.className = className;
+            } else {
+                // Chat area error
+                errorMsg.className = 'message system connection-error';
+            }
+            
+            errorMsg.textContent = message;
+            
+            if (container) {
+                // Insert before modal actions if it's a modal
+                const modalActions = container.querySelector('.modal-actions');
+                if (modalActions) {
+                    container.insertBefore(errorMsg, modalActions);
+                } else {
+                    container.appendChild(errorMsg);
+                }
+            } else {
+                targetContainer.appendChild(errorMsg);
+                targetContainer.scrollTop = targetContainer.scrollHeight;
+            }
+            
+            // Auto-remove error message after 10 seconds for non-admin users
+            // Admins get slightly longer timeout for debugging
+            const removeTimeout = this.isAdmin ? 15000 : 10000;
+            setTimeout(() => {
+                if (errorMsg && errorMsg.parentNode) {
+                    errorMsg.classList.add('expiring');
+                    setTimeout(() => {
+                        if (errorMsg && errorMsg.parentNode) {
+                            errorMsg.remove();
+                        }
+                    }, 1000);
+                }
+            }, removeTimeout);
+            
+            return errorMsg;
+        }
+        
         createInvite() {
             if (!this.currentRoom) return;
+            
+            // Check connection before creating invite
+            if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                console.log('Cannot create invite: not connected to server');
+                this.showConnectionError('Cannot create invite while disconnected. Please wait for reconnection.');
+                return;
+            }
             
             this.sendToServer({
                 type: 'createInvite',
@@ -2737,6 +3033,13 @@ func generateChatJS(adminName: String) -> String {
         
         async sendFileMessage(attachment, caption = '') {
             if (!this.currentRoom) return;
+            
+            // Check connection before sending file message
+            if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                console.log('Cannot send file: not connected to server');
+                this.showConnectionError('Cannot send file while disconnected. Please wait for reconnection.');
+                return;
+            }
             
             console.log('Sending file message:', {
                 roomId: this.currentRoom.id,
@@ -3078,7 +3381,19 @@ func generateChatJS(adminName: String) -> String {
                 const roomEl = document.createElement('div');
                 roomEl.className = 'room-item';
                 roomEl.setAttribute('data-room-id', room.id);
-                roomEl.textContent = room.name;
+                
+                // On mobile, show only the first word of the room name
+                // On desktop, show the full room name
+                if (window.innerWidth <= 768) {
+                    const firstWord = room.name.split(' ')[0] || room.name;
+                    roomEl.textContent = firstWord;
+                } else {
+                    roomEl.textContent = room.name;
+                }
+                
+                // Add title attribute to show full name on hover (useful for mobile too)
+                roomEl.setAttribute('title', room.name);
+                
                 roomEl.onclick = () => this.joinRoom(room.id);
                 container.appendChild(roomEl);
             });
@@ -3091,12 +3406,42 @@ func generateChatJS(adminName: String) -> String {
         
         updateConnectionStatus() {
             const statusEl = document.getElementById('connection-status');
+            const messageInput = document.getElementById('message-input');
+            const sendBtn = document.getElementById('send-btn');
+            const fileBtn = document.getElementById('file-btn');
+            const messagesContainer = document.getElementById('messages-container');
+            
             if (this.isConnected) {
                 statusEl.textContent = 'Connected';
                 statusEl.className = 'status-connected';
+                
+                // Re-enable message input and buttons if in a room
+                if (this.currentRoom) {
+                    messageInput.disabled = false;
+                    sendBtn.disabled = false;
+                    fileBtn.disabled = false;
+                    messageInput.placeholder = 'Type a message...';
+                }
+                
+                // Remove disconnected styling from chat area
+                if (messagesContainer) {
+                    messagesContainer.classList.remove('disconnected');
+                }
+                
             } else {
                 statusEl.textContent = 'Disconnected';
                 statusEl.className = 'status-disconnected';
+                
+                // Disable message input and buttons
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+                fileBtn.disabled = true;
+                messageInput.placeholder = 'Disconnected - please wait for reconnection...';
+                
+                // Add disconnected styling to chat area
+                if (messagesContainer) {
+                    messagesContainer.classList.add('disconnected');
+                }
             }
         }
         
@@ -3281,19 +3626,72 @@ func generateChatJS(adminName: String) -> String {
         // Mobile keyboard handling for login form
         const usernameInput = document.getElementById('username-input');
         if (usernameInput) {
-            usernameInput.addEventListener('focus', () => {
-                // On mobile, scroll to ensure auth buttons are visible when keyboard appears
-                if (window.innerWidth <= 768) {
+            let isScrolling = false;
+            
+            usernameInput.addEventListener('focus', (e) => {
+                // On mobile, scroll to ensure the login input container is visible when keyboard appears
+                if (window.innerWidth <= 768 && !isScrolling) {
+                    isScrolling = true;
+                    
+                    // Prevent the default scroll behavior to avoid conflicts
+                    e.preventDefault();
+                    
+                    // Immediate re-focus to ensure input stays active
                     setTimeout(() => {
-                        const authOptions = document.querySelector('.auth-options');
-                        if (authOptions) {
-                            authOptions.scrollIntoView({ 
+                        usernameInput.focus();
+                    }, 10);
+                    
+                    // Single, well-timed scroll after keyboard has started appearing
+                    setTimeout(() => {
+                        const loginContainer = document.getElementById('login-input-container');
+                        if (loginContainer) {
+                            loginContainer.scrollIntoView({ 
                                 behavior: 'smooth', 
                                 block: 'end',
                                 inline: 'nearest'
                             });
                         }
-                    }, 300); // Delay to allow keyboard to appear
+                        
+                        // Reset scrolling flag after animation
+                        setTimeout(() => {
+                            isScrolling = false;
+                        }, 1000);
+                    }, 300); // Wait for keyboard animation to start
+                }
+            });
+            
+            // Prevent multiple focus events from causing bouncing
+            usernameInput.addEventListener('touchstart', (e) => {
+                if (window.innerWidth <= 768) {
+                    // Ensure smooth transition on touch
+                    e.target.style.transition = 'none';
+                    setTimeout(() => {
+                        e.target.style.transition = '';
+                    }, 100);
+                }
+            });
+        }
+        
+        // Mobile background tap to deselect username input
+        const loginForm = document.querySelector('.login-form');
+        if (loginForm) {
+            loginForm.addEventListener('click', (e) => {
+                // Check if we're on mobile and the tap is on the background (not on input fields or buttons)
+                if (window.innerWidth <= 768) {
+                    const clickedElement = e.target;
+                    
+                    // If the clicked element is the login form container itself (background)
+                    // or other non-interactive elements, blur the username input
+                    if (clickedElement === loginForm || 
+                        clickedElement.classList.contains('login-form') ||
+                        clickedElement.tagName === 'H2' ||
+                        (clickedElement.closest && !clickedElement.closest('input, button, .emoji-picker, .auth-options, .login-input-container'))) {
+                        
+                        const usernameInput = document.getElementById('username-input');
+                        if (usernameInput && document.activeElement === usernameInput) {
+                            usernameInput.blur();
+                        }
+                    }
                 }
             });
         }

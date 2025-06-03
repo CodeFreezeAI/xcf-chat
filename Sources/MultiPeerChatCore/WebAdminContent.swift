@@ -10,31 +10,31 @@ public enum WebAdminContent {
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Admin Panel - User Management</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+            <title>🛡️ Admin Panel</title>
             <link rel="stylesheet" href="/admin/admin.css">
         </head>
         <body>
             <div class="admin-container">
                 <header class="admin-header">
-                    <h1>🛡️ Admin Panel - User Management</h1>
+                    <h1>🛡️ Admin Panel</h1>
                     <div class="admin-actions">
-                        <button id="refresh-btn" onclick="refreshUsers()">🔄 Refresh</button>
-                        <button id="back-to-chat-btn" onclick="goBackToChat()">💬 Back to Chat</button>
+                        <button id="refresh-btn" onclick="refreshUsers()">🔄</button>
+                        <button id="back-to-chat-btn" onclick="goBackToChat()">💬</button>
                     </div>
                 </header>
 
                 <div class="stats-section">
                     <div class="stat-card">
-                        <h3>Total Users</h3>
+                        <h3>Total</h3>
                         <span id="total-users">0</span>
                     </div>
                     <div class="stat-card">
-                        <h3>Active Users</h3>
+                        <h3>Active</h3>
                         <span id="active-users">0</span>
                     </div>
                     <div class="stat-card">
-                        <h3>Disabled Users</h3>
+                        <h3>Disabled</h3>
                         <span id="disabled-users">0</span>
                     </div>
                 </div>
@@ -43,8 +43,8 @@ public enum WebAdminContent {
                     <div class="bulk-actions">
                         <h3>Bulk Actions</h3>
                         <div class="bulk-controls">
-                            <input type="text" id="ip-address-input" placeholder="Enter IP address">
-                            <button onclick="disableByIP()">Disable All Users with IP</button>
+                            <input type="text" id="ip-address-input" placeholder="IP address">
+                            <button onclick="disableByIP()">Disable IP</button>
                         </div>
                     </div>
 
@@ -52,10 +52,10 @@ public enum WebAdminContent {
                         <h3>Filters</h3>
                         <select id="status-filter" onchange="filterUsers()">
                             <option value="all">All Users</option>
-                            <option value="enabled">Enabled Only</option>
-                            <option value="disabled">Disabled Only</option>
+                            <option value="enabled">Enabled</option>
+                            <option value="disabled">Disabled</option>
                         </select>
-                        <input type="text" id="search-input" placeholder="Search by username..." onkeyup="filterUsers()">
+                        <input type="text" id="search-input" placeholder="Search username..." onkeyup="filterUsers()">
                     </div>
                 </div>
 
@@ -68,18 +68,18 @@ public enum WebAdminContent {
                         <table id="users-table">
                             <thead>
                                 <tr>
-                                    <th>User #</th>
+                                    <th>#</th>
                                     <th>Username</th>
                                     <th>Status</th>
                                     <th>Created</th>
                                     <th>Last Login</th>
-                                    <th>IP Address</th>
-                                    <th>Sign Count</th>
+                                    <th>IP</th>
+                                    <th>Signs</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="users-tbody">
-                                <!-- Users will be populated here -->
+                                <tr><td colspan="8" class="loading">Loading users...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -95,43 +95,43 @@ public enum WebAdminContent {
                         <div class="modal-body">
                             <div class="user-detail-grid">
                                 <div class="detail-item">
-                                    <label>User ID:</label>
+                                    <label>User ID</label>
                                     <span id="detail-id"></span>
                                 </div>
                                 <div class="detail-item">
-                                    <label>User Number:</label>
+                                    <label>User #</label>
                                     <span id="detail-user-number"></span>
                                 </div>
                                 <div class="detail-item">
-                                    <label>Username:</label>
+                                    <label>Username</label>
                                     <span id="detail-username"></span>
                                 </div>
                                 <div class="detail-item">
-                                    <label>Status:</label>
+                                    <label>Status</label>
                                     <span id="detail-status"></span>
                                 </div>
                                 <div class="detail-item">
-                                    <label>Created:</label>
+                                    <label>Created</label>
                                     <span id="detail-created"></span>
                                 </div>
                                 <div class="detail-item">
-                                    <label>Last Login:</label>
+                                    <label>Last Login</label>
                                     <span id="detail-last-login"></span>
                                 </div>
                                 <div class="detail-item">
-                                    <label>IP Address:</label>
+                                    <label>IP Address</label>
                                     <span id="detail-ip"></span>
                                 </div>
                                 <div class="detail-item">
-                                    <label>Sign Count:</label>
+                                    <label>Sign Count</label>
                                     <span id="detail-sign-count"></span>
                                 </div>
-                                <div class="detail-item">
-                                    <label>Credential ID:</label>
+                                <div class="detail-item full-width">
+                                    <label>Credential ID</label>
                                     <span id="detail-credential-id" class="credential-text"></span>
                                 </div>
                                 <div class="detail-item full-width">
-                                    <label>Public Key:</label>
+                                    <label>Public Key</label>
                                     <textarea id="detail-public-key" class="public-key-text" readonly></textarea>
                                 </div>
                             </div>
@@ -149,36 +149,60 @@ public enum WebAdminContent {
     // MARK: - Admin CSS Content
     public static func generateAdminCSS() -> String {
         return """
-        /* Admin Panel CSS */
+        /* Professional Admin Panel CSS - Using Chat App Color Scheme */
         :root {
-            --admin-primary: #2563eb;
-            --admin-primary-hover: #1d4ed8;
-            --admin-secondary: #64748b;
-            --admin-success: #059669;
-            --admin-success-hover: #047857;
-            --admin-danger: #dc2626;
-            --admin-danger-hover: #b91c1c;
-            --admin-warning: #d97706;
-            --admin-warning-hover: #b45309;
-            --admin-bg: #f8fafc;
-            --admin-card-bg: #ffffff;
-            --admin-border: #e2e8f0;
-            --admin-text: #1e293b;
-            --admin-text-muted: #64748b;
-            --admin-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            --admin-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            /* Use same color scheme as main chat app */
+            --bg-primary: #eceff1;
+            --bg-secondary: #ffffff;
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --accent-color: #007AFF;
+            --accent-color-hover: #0056CC;
+            --border-color: #e2e8f0;
+            --status-connected: #34C759;
+            --status-disconnected: #FF3B30;
+            --modal-bg: rgba(255, 255, 255, 0.95);
+            --gradient-start: #667eea;
+            --gradient-end: #764ba2;
+            --input-bg: #ffffff;
+            --input-text: #2d3748;
+            --disabled-bg: #8E8E93;
+            --orange-color: #FF9500;
+            --red-color: #FF3B30;
+            --green-color: #34C759;
+            --admin-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            --admin-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+            
+            /* Safari scrollbar appearance - light mode */
+            color-scheme: light;
         }
 
-        /* Dark mode */
+        /* Dark Mode */
         @media (prefers-color-scheme: dark) {
             :root {
-                --admin-bg: #0f172a;
-                --admin-card-bg: #1e293b;
-                --admin-border: #334155;
-                --admin-text: #f1f5f9;
-                --admin-text-muted: #94a3b8;
-                --admin-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-                --admin-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+                --bg-primary: #121212;
+                --bg-secondary: #1e1e1e;
+                --text-primary: #e2e8f0;
+                --text-secondary: #cbd5e0;
+                --accent-color: #007AFF;
+                --accent-color-hover: #0056CC;
+                --border-color: #2d3748;
+                --status-connected: #30D158;
+                --status-disconnected: #FF453A;
+                --modal-bg: rgba(30, 30, 30, 0.95);
+                --gradient-start: #4a5568;
+                --gradient-end: #2d3748;
+                --input-bg: #2d3748;
+                --input-text: #e2e8f0;
+                --disabled-bg: #636366;
+                --orange-color: #FF9F0A;
+                --red-color: #FF453A;
+                --green-color: #30D158;
+                --admin-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+                --admin-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.4);
+                
+                /* Safari scrollbar appearance - dark mode */
+                color-scheme: dark;
             }
         }
 
@@ -186,311 +210,351 @@ public enum WebAdminContent {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--admin-bg);
-            color: var(--admin-text);
-            line-height: 1.6;
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%), var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
             min-height: 100vh;
+            font-size: 14px;
         }
 
         .admin-container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 12px;
+            min-height: 100vh;
         }
 
-        /* Header */
+        /* Header - Condensed */
         .admin-header {
-            background: var(--admin-card-bg);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
+            background: var(--modal-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
             box-shadow: var(--admin-shadow);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid var(--admin-border);
+            border: 1px solid var(--border-color);
         }
 
         .admin-header h1 {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--admin-primary);
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent-color);
+            margin: 0;
         }
 
         .admin-actions {
             display: flex;
-            gap: 12px;
+            gap: 8px;
         }
 
         .admin-actions button {
-            padding: 10px 20px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
+            min-height: 36px;
         }
 
         #refresh-btn {
-            background: var(--admin-primary);
+            background: var(--accent-color);
             color: white;
         }
 
         #refresh-btn:hover {
-            background: var(--admin-primary-hover);
+            background: var(--accent-color-hover);
         }
 
         #back-to-chat-btn {
-            background: var(--admin-secondary);
+            background: var(--text-secondary);
             color: white;
         }
 
         #back-to-chat-btn:hover {
-            background: #475569;
+            background: var(--text-primary);
         }
 
-        /* Stats Section */
+        /* Stats Section - Condensed Grid */
         .stats-section {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         .stat-card {
-            background: var(--admin-card-bg);
-            border-radius: 12px;
-            padding: 24px;
+            background: var(--modal-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 16px 12px;
             text-align: center;
             box-shadow: var(--admin-shadow);
-            border: 1px solid var(--admin-border);
+            border: 1px solid var(--border-color);
         }
 
         .stat-card h3 {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 500;
-            color: var(--admin-text-muted);
-            margin-bottom: 8px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .stat-card span {
-            font-size: 32px;
+            font-size: 24px;
             font-weight: 700;
-            color: var(--admin-primary);
+            color: var(--accent-color);
+            display: block;
         }
 
-        /* Controls Section */
+        /* Controls Section - More Compact */
         .controls-section {
-            background: var(--admin-card-bg);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
+            background: var(--modal-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
             box-shadow: var(--admin-shadow);
-            border: 1px solid var(--admin-border);
+            border: 1px solid var(--border-color);
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 32px;
+            gap: 20px;
+        }
+
+        .bulk-actions,
+        .filters {
+            margin-bottom: 0;
+        }
+
+        .bulk-actions:last-child,
+        .filters:last-child {
+            margin-bottom: 0;
         }
 
         .bulk-actions h3,
         .filters h3 {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 16px;
-            color: var(--admin-text);
+            margin-bottom: 10px;
+            color: var(--text-primary);
         }
 
         .bulk-controls {
             display: flex;
-            gap: 12px;
-            align-items: center;
+            gap: 8px;
+            align-items: stretch;
         }
 
         .bulk-controls input {
             flex: 1;
-            padding: 10px 12px;
-            border: 1px solid var(--admin-border);
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
             border-radius: 6px;
-            background: var(--admin-bg);
-            color: var(--admin-text);
-            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--input-text);
+            font-size: 13px;
+            min-height: 36px;
+        }
+
+        .bulk-controls input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
         }
 
         .bulk-controls button {
-            padding: 10px 16px;
-            background: var(--admin-danger);
+            padding: 8px 12px;
+            background: var(--red-color);
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
             transition: background 0.2s ease;
             white-space: nowrap;
+            min-height: 36px;
         }
 
         .bulk-controls button:hover {
-            background: var(--admin-danger-hover);
+            background: #D70015;
         }
 
         .filters {
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            flex-direction: row;
+            gap: 10px;
+            align-items: flex-end;
         }
 
         .filters select,
         .filters input {
-            padding: 10px 12px;
-            border: 1px solid var(--admin-border);
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
             border-radius: 6px;
-            background: var(--admin-bg);
-            color: var(--admin-text);
-            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--input-text);
+            font-size: 13px;
+            min-height: 36px;
+            flex: 1;
         }
 
-        /* Users Section */
+        .filters select:focus,
+        .filters input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+        }
+
+        /* Users Section - Professional Table */
         .users-section {
-            background: var(--admin-card-bg);
-            border-radius: 12px;
-            padding: 24px;
+            background: var(--modal-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 16px;
             box-shadow: var(--admin-shadow);
-            border: 1px solid var(--admin-border);
+            border: 1px solid var(--border-color);
         }
 
         .users-header {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .users-header h3 {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
-            color: var(--admin-text);
+            color: var(--text-primary);
         }
 
-        /* Table */
+        /* Professional Table Design */
         .users-table-container {
             overflow-x: auto;
-            border-radius: 8px;
-            border: 1px solid var(--admin-border);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
         }
 
         #users-table {
             width: 100%;
             border-collapse: collapse;
-            background: var(--admin-card-bg);
+            font-size: 13px;
         }
 
         #users-table th {
-            background: var(--admin-bg);
-            padding: 12px;
+            background: var(--bg-primary);
+            padding: 10px 8px;
             text-align: left;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: var(--admin-text-muted);
-            border-bottom: 1px solid var(--admin-border);
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
         }
 
         #users-table td {
-            padding: 12px;
-            border-bottom: 1px solid var(--admin-border);
-            font-size: 14px;
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        #users-table tr:last-child td {
+            border-bottom: none;
         }
 
         #users-table tr:hover {
-            background: var(--admin-bg);
+            background: var(--bg-primary);
         }
 
-        /* Status badges */
+        /* Status Badges - Using App Colors */
         .status-badge {
-            padding: 4px 8px;
+            padding: 3px 8px;
             border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 10px;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            display: inline-block;
         }
 
         .status-enabled {
-            background: #dcfce7;
-            color: var(--admin-success);
+            background: rgba(52, 199, 89, 0.15);
+            color: var(--green-color);
+            border: 1px solid rgba(52, 199, 89, 0.3);
         }
 
         .status-disabled {
-            background: #fef2f2;
-            color: var(--admin-danger);
+            background: rgba(255, 59, 48, 0.15);
+            color: var(--red-color);
+            border: 1px solid rgba(255, 59, 48, 0.3);
         }
 
         @media (prefers-color-scheme: dark) {
             .status-enabled {
-                background: #064e3b;
-                color: #34d399;
+                background: rgba(48, 209, 88, 0.2);
+                color: var(--green-color);
             }
 
             .status-disabled {
-                background: #7f1d1d;
-                color: #f87171;
+                background: rgba(255, 69, 58, 0.2);
+                color: var(--red-color);
             }
         }
 
-        /* Action buttons */
+        /* Action Buttons - Compact */
         .action-buttons {
             display: flex;
-            gap: 8px;
+            gap: 4px;
+            align-items: center;
         }
 
         .action-btn {
-            padding: 6px 12px;
+            padding: 4px 8px;
             border: none;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
+            min-height: 28px;
         }
 
         .btn-view {
-            background: var(--admin-primary);
+            background: var(--accent-color);
             color: white;
         }
 
         .btn-view:hover {
-            background: var(--admin-primary-hover);
-        }
-
-        .btn-toggle {
-            background: var(--admin-warning);
-            color: white;
-        }
-
-        .btn-toggle:hover {
-            background: var(--admin-warning-hover);
+            background: var(--accent-color-hover);
         }
 
         .btn-delete {
-            background: var(--admin-danger);
+            background: var(--red-color);
             color: white;
         }
 
         .btn-delete:hover {
-            background: var(--admin-danger-hover);
+            background: #D70015;
         }
 
-        /* Toggle switch */
+        /* Compact Toggle Switch */
         .toggle-switch {
             position: relative;
             display: inline-block;
-            width: 50px;
-            height: 24px;
+            width: 40px;
+            height: 20px;
         }
 
         .toggle-switch input {
@@ -506,43 +570,45 @@ public enum WebAdminContent {
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
-            transition: 0.4s;
-            border-radius: 24px;
+            background-color: var(--disabled-bg);
+            transition: 0.3s;
+            border-radius: 20px;
         }
 
         .slider:before {
             position: absolute;
             content: "";
-            height: 18px;
-            width: 18px;
+            height: 14px;
+            width: 14px;
             left: 3px;
             bottom: 3px;
             background-color: white;
-            transition: 0.4s;
+            transition: 0.3s;
             border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
 
         input:checked + .slider {
-            background-color: var(--admin-success);
+            background-color: var(--green-color);
         }
 
         input:checked + .slider:before {
-            transform: translateX(26px);
+            transform: translateX(20px);
         }
 
-        /* Modal */
+        /* Professional Modal */
         .modal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
+            padding: 20px;
         }
 
         .modal.hidden {
@@ -550,56 +616,60 @@ public enum WebAdminContent {
         }
 
         .modal-content {
-            background: var(--admin-card-bg);
+            background: var(--modal-bg);
+            backdrop-filter: blur(10px);
             border-radius: 12px;
-            width: 90%;
+            width: 100%;
             max-width: 600px;
-            max-height: 80vh;
+            max-height: 90vh;
             overflow-y: auto;
             box-shadow: var(--admin-shadow-lg);
-            border: 1px solid var(--admin-border);
+            border: 1px solid var(--border-color);
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--admin-border);
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            border-radius: 12px 12px 0 0;
         }
 
         .modal-header h3 {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
-            color: var(--admin-text);
+            color: var(--text-primary);
         }
 
         .close-btn {
             background: none;
             border: none;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
-            color: var(--admin-text-muted);
+            color: var(--text-secondary);
             width: 32px;
             height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 4px;
+            border-radius: 6px;
+            transition: background 0.2s ease;
         }
 
         .close-btn:hover {
-            background: var(--admin-border);
+            background: var(--border-color);
         }
 
         .modal-body {
-            padding: 24px;
+            padding: 20px;
         }
 
         .user-detail-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 16px;
+            gap: 12px;
         }
 
         .detail-item {
@@ -613,253 +683,342 @@ public enum WebAdminContent {
         }
 
         .detail-item label {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: var(--admin-text-muted);
+            color: var(--text-secondary);
         }
 
         .detail-item span {
-            font-size: 14px;
-            color: var(--admin-text);
+            font-size: 13px;
+            color: var(--text-primary);
             word-break: break-all;
+            padding: 6px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
         }
 
         .credential-text {
             font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-            font-size: 12px;
-            background: var(--admin-bg);
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid var(--admin-border);
+            font-size: 10px !important;
         }
 
         .public-key-text {
             font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-            font-size: 11px;
-            background: var(--admin-bg);
-            border: 1px solid var(--admin-border);
+            font-size: 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
             border-radius: 4px;
-            padding: 12px;
+            padding: 8px;
             resize: vertical;
-            min-height: 100px;
-            color: var(--admin-text);
+            min-height: 80px;
+            color: var(--text-primary);
             width: 100%;
         }
 
-        /* Responsive */
+        .public-key-text:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+        }
+
+        /* Mobile Responsive */
         @media (max-width: 768px) {
             .admin-container {
-                padding: 12px;
+                padding: 8px;
             }
 
             .admin-header {
+                padding: 12px 16px;
                 flex-direction: column;
-                gap: 16px;
+                gap: 12px;
                 text-align: center;
             }
 
-            .controls-section {
-                grid-template-columns: 1fr;
+            .admin-header h1 {
+                font-size: 18px;
             }
 
-            .users-table-container {
-                font-size: 12px;
+            .admin-actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .stats-section {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+
+            .stat-card {
+                padding: 12px 8px;
+            }
+
+            .stat-card span {
+                font-size: 20px;
+            }
+
+            .controls-section {
+                padding: 12px;
+            }
+
+            .bulk-controls {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .filters {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .users-section {
+                padding: 12px;
+            }
+
+            #users-table {
+                font-size: 11px;
             }
 
             #users-table th,
             #users-table td {
-                padding: 8px 4px;
+                padding: 6px 4px;
             }
 
             .action-buttons {
                 flex-direction: column;
+                gap: 2px;
+            }
+
+            .action-btn {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
+
+            .toggle-switch {
+                width: 32px;
+                height: 16px;
+            }
+
+            .slider:before {
+                height: 10px;
+                width: 10px;
+                left: 3px;
+                bottom: 3px;
+            }
+
+            input:checked + .slider:before {
+                transform: translateX(16px);
             }
 
             .user-detail-grid {
                 grid-template-columns: 1fr;
             }
+
+            .modal-content {
+                margin: 10px;
+            }
+
+            .modal-header,
+            .modal-body {
+                padding: 12px 16px;
+            }
         }
 
-        /* Loading state */
+        /* Extra Small Mobile */
+        @media (max-width: 480px) {
+            .stats-section {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stat-card h3 {
+                font-size: 10px;
+            }
+
+            .stat-card span {
+                font-size: 18px;
+            }
+
+            #users-table th,
+            #users-table td {
+                padding: 4px 2px;
+            }
+
+            .action-btn {
+                font-size: 9px;
+                padding: 2px 4px;
+                min-height: 24px;
+            }
+        }
+
+        /* Loading States */
         .loading {
             text-align: center;
-            padding: 40px;
-            color: var(--admin-text-muted);
+            padding: 20px;
+            color: var(--text-secondary);
+            font-style: italic;
         }
 
-        .loading::after {
-            content: "Loading...";
-            animation: dots 1.5s steps(5, end) infinite;
-        }
-
-        @keyframes dots {
-            0%, 20% {
-                color: rgba(0,0,0,0);
-                text-shadow:
-                    .25em 0 0 rgba(0,0,0,0),
-                    .5em 0 0 rgba(0,0,0,0);
-            }
-            40% {
-                color: var(--admin-text-muted);
-                text-shadow:
-                    .25em 0 0 rgba(0,0,0,0),
-                    .5em 0 0 rgba(0,0,0,0);
-            }
-            60% {
-                text-shadow:
-                    .25em 0 0 var(--admin-text-muted),
-                    .5em 0 0 rgba(0,0,0,0);
-            }
-            80%, 100% {
-                text-shadow:
-                    .25em 0 0 var(--admin-text-muted),
-                    .5em 0 0 var(--admin-text-muted);
-            }
-        }
-        
         /* Admin Login Page Styles */
         .login-container {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--admin-bg);
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%), var(--bg-primary);
             padding: 20px;
         }
-        
+
         .login-card {
-            background: var(--admin-card-bg);
-            border-radius: 16px;
-            padding: 40px;
+            background: var(--modal-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 32px;
             width: 100%;
             max-width: 400px;
             box-shadow: var(--admin-shadow-lg);
-            border: 1px solid var(--admin-border);
+            border: 1px solid var(--border-color);
         }
-        
+
         .login-header {
             text-align: center;
-            margin-bottom: 32px;
-        }
-        
-        .login-header h1 {
-            font-size: 32px;
-            font-weight: 700;
-            color: var(--admin-primary);
-            margin-bottom: 8px;
-        }
-        
-        .login-header p {
-            color: var(--admin-text-muted);
-            font-size: 14px;
-        }
-        
-        .login-form {
-            margin-bottom: 32px;
-        }
-        
-        .form-group {
             margin-bottom: 24px;
         }
-        
+
+        .login-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--accent-color);
+            margin-bottom: 6px;
+        }
+
+        .login-header p {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .login-form {
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
         .form-group label {
             display: block;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
-            color: var(--admin-text);
-            margin-bottom: 8px;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        
+
         .form-group input {
             width: 100%;
             padding: 12px 16px;
-            border: 1px solid var(--admin-border);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
-            background: var(--admin-bg);
-            color: var(--admin-text);
-            font-size: 16px;
+            background: var(--input-bg);
+            color: var(--input-text);
+            font-size: 14px;
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
-        
+
         .form-group input:focus {
             outline: none;
-            border-color: var(--admin-primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
         }
-        
+
         .auth-button {
             width: 100%;
-            padding: 16px;
-            background: var(--admin-primary);
+            padding: 12px 16px;
+            background: var(--accent-color);
             color: white;
             border: none;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: background 0.2s ease, transform 0.1s ease;
         }
-        
+
         .auth-button:hover {
-            background: var(--admin-primary-hover);
-            transform: translateY(-1px);
+            background: var(--accent-color-hover);
         }
-        
-        .auth-button:active {
-            transform: translateY(0);
-        }
-        
+
         .auth-button:disabled {
-            background: var(--admin-text-muted);
+            background: var(--disabled-bg);
             cursor: not-allowed;
             transform: none;
         }
-        
+
         .status-message {
-            margin-top: 16px;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
             text-align: center;
             display: none;
         }
-        
+
         .status-message.success {
-            background: rgba(5, 150, 105, 0.1);
-            color: var(--admin-success);
-            border: 1px solid rgba(5, 150, 105, 0.2);
+            background: rgba(52, 199, 89, 0.15);
+            color: var(--green-color);
+            border: 1px solid rgba(52, 199, 89, 0.3);
             display: block;
         }
-        
+
         .status-message.error {
-            background: rgba(220, 38, 38, 0.1);
-            color: var(--admin-danger);
-            border: 1px solid rgba(220, 38, 38, 0.2);
+            background: rgba(255, 59, 48, 0.15);
+            color: var(--red-color);
+            border: 1px solid rgba(255, 59, 48, 0.3);
             display: block;
         }
-        
+
         .status-message.info {
-            background: rgba(37, 99, 235, 0.1);
-            color: var(--admin-primary);
-            border: 1px solid rgba(37, 99, 235, 0.2);
+            background: rgba(0, 122, 255, 0.15);
+            color: var(--accent-color);
+            border: 1px solid rgba(0, 122, 255, 0.3);
             display: block;
         }
-        
+
         .login-footer {
             text-align: center;
         }
-        
+
         .back-link {
-            color: var(--admin-text-muted);
+            color: var(--text-secondary);
             text-decoration: none;
-            font-size: 14px;
+            font-size: 12px;
             transition: color 0.2s ease;
         }
-        
+
         .back-link:hover {
-            color: var(--admin-primary);
+            color: var(--accent-color);
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
         }
         """
     }
@@ -1304,8 +1463,8 @@ public enum WebAdminContent {
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Admin Login - XCF Chat</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+            <title>🛡️ Admin Login</title>
             <link rel="stylesheet" href="/admin/admin.css">
         </head>
         <body>
@@ -1313,17 +1472,17 @@ public enum WebAdminContent {
                 <div class="login-card">
                     <div class="login-header">
                         <h1>🛡️ Admin Access</h1>
-                        <p>Authenticate with your passkey to access the admin panel</p>
+                        <p>Authenticate with your passkey</p>
                     </div>
                     
                     <div class="login-form">
                         <div class="form-group">
-                            <label for="username">Username:</label>
-                            <input type="text" id="username" placeholder="Enter your admin username" required>
+                            <label for="username">Username</label>
+                            <input type="text" id="username" placeholder="Enter admin username" required>
                         </div>
                         
                         <button id="authenticate-btn" onclick="authenticateAdmin()" class="auth-button">
-                            🔐 Authenticate with Passkey
+                            🔐 Authenticate
                         </button>
                         
                         <div id="status" class="status-message"></div>
