@@ -92,7 +92,7 @@ func generateIndexHTML() -> String {
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
         
-        <link rel="stylesheet" href="/stylev004.css">
+        <link rel="stylesheet" href="/stylev005.css">
     </head>
     <body>
         <div class="container">
@@ -182,7 +182,6 @@ func generateIndexHTML() -> String {
                                     <span class="emoji-option">🦐</span>
                                     <span class="emoji-option">🐙</span>
                                     <span class="emoji-option">🦑</span>
-                                    <span class="emoji-option">🐚</span>
                                     <span class="emoji-option">🦆</span>
                                     <span class="emoji-option">🐓</span>
                                     <span class="emoji-option">🐔</span>
@@ -215,6 +214,7 @@ func generateIndexHTML() -> String {
                                 <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
                                 <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
                             </div>
+                            <div id="login-status" class="status-message"></div>
                         </div>
                     </div>
                 </div>
@@ -323,7 +323,7 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
-        <script src="/chatv004.js"></script>
+        <script src="/chatv005.js"></script>
         <script>
         // Hide upload button and file input for now
         /*
@@ -338,13 +338,21 @@ func generateIndexHTML() -> String {
         // WebAuthn Implementation
         async function registerWebAuthn() {
             const username = document.getElementById('username-input').value;
+            const registerBtn = document.getElementById('webauthn-register-btn');
+            const loginBtn = document.getElementById('webauthn-login-btn');
+            
             if (!username) {
-                alert('Please enter a username first');
+                showLoginStatus('❌ Enter username first', 'error');
                 return;
             }
 
+            clearLoginStatus();
+
             // Check username availability first
             try {
+                setButtonState(registerBtn, loginBtn, true, '🔄 Checking username...', 'Login with Passkey');
+                showLoginStatus('Checking username...', 'info');
+                
                 const checkResponse = await fetch('/webauthn/username/check', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -352,15 +360,20 @@ func generateIndexHTML() -> String {
                 });
                 const checkResult = await checkResponse.json();
                 if (!checkResult.available) {
-                    alert(checkResult.error || 'Username is already registered.');
+                    showLoginStatus('❌ Username taken', 'error');
+                    setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
                     return;
                 }
             } catch (err) {
-                alert('Could not check username availability.');
+                showLoginStatus('❌ Username check failed', 'error');
+                setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
                 return;
             }
 
             try {
+                setButtonState(registerBtn, loginBtn, true, '🔄 Preparing registration...', 'Login with Passkey');
+                showLoginStatus('Preparing registration...', 'info');
+                
                 // Get registration options from server
                 const response = await fetch('/webauthn/register/begin', {
                     method: 'POST',
@@ -373,9 +386,13 @@ func generateIndexHTML() -> String {
                 const options = await response.json();
                 
                 if (!options.publicKey || !options.publicKey.challenge) {
-                    alert('WebAuthn registration error: Invalid options from server.');
+                    showLoginStatus('❌ Server error', 'error');
+                    setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
                     return;
                 }
+                
+                setButtonState(registerBtn, loginBtn, true, '🔐 Create your passkey...', 'Login with Passkey');
+                showLoginStatus('Create your passkey', 'info');
                 
                 // Convert base64 strings to ArrayBuffer
                 options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
@@ -383,6 +400,9 @@ func generateIndexHTML() -> String {
                 
                 // Create credentials
                 const credential = await navigator.credentials.create(options);
+                
+                setButtonState(registerBtn, loginBtn, true, '✅ Verifying registration...', 'Login with Passkey');
+                showLoginStatus('Verifying...', 'info');
                 
                 // Convert ArrayBuffer to base64
                 const attestationObject = arrayBufferToBase64(credential.response.attestationObject);
@@ -406,30 +426,53 @@ func generateIndexHTML() -> String {
                 
                 if (!verificationResponse.ok) throw new Error('Registration verification failed');
                 
-                alert('Registration successful! You can now login using your Passkey.');
+                showLoginStatus('✅ Registration Success', 'success');
+                setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
+                
             } catch (error) {
                 console.error('WebAuthn registration error:', error);
-                alert('Registration failed: ' + error.message);
+                showLoginStatus('❌ Registration failed', 'error');
+                setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
             }
         }
 
         async function loginWithWebAuthn() {
             const usernameInput = document.getElementById('username-input');
+            const registerBtn = document.getElementById('webauthn-register-btn');
+            const loginBtn = document.getElementById('webauthn-login-btn');
+            
             let username = usernameInput.value.trim();
             if (username === '') {
                 username = null;
             }
-            fetch('/webauthn/authenticate/begin', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: username })
-            })
-            .then(response => response.json())
-            .then(options => {
-                if (!options.publicKey || !options.publicKey.challenge) {
-                    alert('WebAuthn authentication error: Invalid options from server.');
-                    throw new Error('Invalid WebAuthn options');
+            
+            clearLoginStatus();
+            
+            try {
+                setButtonState(registerBtn, loginBtn, true, 'Register with Passkey', '🔄 Preparing login...');
+                showLoginStatus('Preparing login...', 'info');
+                
+                const optionsResponse = await fetch('/webauthn/authenticate/begin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+                
+                if (!optionsResponse.ok) {
+                    throw new Error('Failed to get authentication options');
                 }
+                
+                const options = await optionsResponse.json();
+                
+                if (!options.publicKey || !options.publicKey.challenge) {
+                    showLoginStatus('WebAuthn authentication error: Invalid options from server.', 'error');
+                    setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
+                    return;
+                }
+                
+                setButtonState(registerBtn, loginBtn, true, 'Register with Passkey', '🔐 Authenticate with passkey...');
+                showLoginStatus('Use your passkey', 'info');
+                
                 // Convert challenge to ArrayBuffer
                 options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
                 // Convert each allowCredentials id to ArrayBuffer
@@ -439,9 +482,16 @@ func generateIndexHTML() -> String {
                         id: base64ToArrayBuffer(cred.id)
                     }));
                 }
-                return navigator.credentials.get({ publicKey: options.publicKey });
-            })
-            .then(assertion => {
+                
+                const assertion = await navigator.credentials.get({ publicKey: options.publicKey });
+                
+                if (!assertion) {
+                    throw new Error('Authentication cancelled or failed');
+                }
+                
+                setButtonState(registerBtn, loginBtn, true, 'Register with Passkey', '✅ Verifying authentication...');
+                showLoginStatus('Verifying...', 'info');
+                
                 const credential = {
                     id: assertion.id,
                     rawId: arrayBufferToBase64(assertion.rawId),
@@ -454,27 +504,35 @@ func generateIndexHTML() -> String {
                     },
                     username: username || ''
                 };
-                return fetch('/webauthn/authenticate/complete', {
+                
+                const verifyResponse = await fetch('/webauthn/authenticate/complete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(credential)
                 });
-            })
-            .then(response => response.json())
-            .then(result => {
+                
+                const result = await verifyResponse.json();
+                
                 if (result.success) {
                     if (!usernameInput.value && result.username) {
                         usernameInput.value = result.username;
                     }
-                    // FIX: Actually join the chat after successful authentication!
-                    joinChat();
+                    showLoginStatus('✅ Login Success', 'success');
+                    
+                    // Join the chat after successful authentication
+                    setTimeout(() => {
+                        joinChat();
+                    }, 1000);
                 } else {
-                    alert('Authentication failed: ' + (result.error || 'Unknown error'));
+                    showLoginStatus('❌ Login failed', 'error');
+                    setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
                 }
-            })
-            .catch(err => {
-                alert('WebAuthn authentication error: ' + err);
-            });
+                
+            } catch (error) {
+                console.error('WebAuthn authentication error:', error);
+                showLoginStatus('❌ Authentication failed', 'error');
+                setButtonState(registerBtn, loginBtn, false, 'Register with Passkey', 'Login with Passkey');
+            }
         }
 
         // Utility functions for ArrayBuffer conversion
@@ -494,6 +552,38 @@ func generateIndexHTML() -> String {
                 binary += String.fromCharCode(bytes[i]);
             }
             return window.btoa(binary);
+        }
+
+        // Status message functions
+        function showLoginStatus(message, type = 'info') {
+            console.log(`[LoginStatus] ${type.toUpperCase()}: ${message}`);
+            const statusEl = document.getElementById('login-status');
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type}`;
+            
+            // Scroll status message into view on mobile
+            if (window.innerWidth <= 768) {
+                setTimeout(() => {
+                    statusEl.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest',
+                        inline: 'nearest'
+                    });
+                }, 100);
+            }
+        }
+
+        function clearLoginStatus() {
+            const statusEl = document.getElementById('login-status');
+            statusEl.className = 'status-message';
+            statusEl.textContent = '';
+        }
+
+        function setButtonState(registerBtn, loginBtn, disabled, registerText, loginText) {
+            registerBtn.disabled = disabled;
+            loginBtn.disabled = disabled;
+            registerBtn.textContent = registerText;
+            loginBtn.textContent = loginText;
         }
 
         // Replace all ${rpId} with <span id="rp-id"></span>
@@ -767,28 +857,48 @@ func generateCSS() -> String {
     }
 
     .auth-options {
-        gap: 12px;
-        margin-top: 15px;
-        margin-bottom: 2rem;
-        width: 90%;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 20px;
+        margin-bottom: 0;
+        width: 100%;
         max-width: 300px;
-        flex-shrink: 0;
     }
 
-    .login-form button {
-        padding: 1rem 2rem;
-        font-size: 1.1rem;
-        background: var(--accent-color);
-        color: white;
+    .auth-options button {
+        padding: 12px 20px;
         border: none;
-        border-radius: 50px;
+        border-radius: 8px;
+        color: white;
         cursor: pointer;
-        transition: background 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
-    .login-form button:hover {
-        background: var(--accent-color-hover);
+    .auth-options button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    #webauthn-register-btn {
+        background-color: #2196F3;
+    }
+
+    #webauthn-register-btn:hover {
+        background-color: #1976D2;
+    }
+
+    #webauthn-login-btn {
+        background-color: #FF9800;
+    }
+
+    #webauthn-login-btn:hover {
+        background-color: #F57C00;
     }
 
     /* LOGIN INPUT CONTAINER */
@@ -1815,6 +1925,7 @@ func generateCSS() -> String {
         flex-direction: column;
         gap: 15px;
         margin-top: 20px;
+        margin-bottom: 0;
         width: 100%;
         max-width: 300px;
     }
@@ -1852,6 +1963,63 @@ func generateCSS() -> String {
 
     #webauthn-login-btn:hover {
         background-color: #F57C00;
+    }
+
+    /* Status Message Styles */
+    .status-message {
+        margin-top: 4px;
+        margin-bottom: 0;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+        text-align: center;
+        display: none;
+        width: 100%;
+        max-width: 300px;
+        box-sizing: border-box;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .status-message.success {
+        background: rgba(52, 199, 89, 0.15);
+        color: var(--green-color);
+        border: 1px solid rgba(52, 199, 89, 0.3);
+        display: block;
+    }
+
+    .status-message.error {
+        background: rgba(255, 59, 48, 0.15);
+        color: var(--red-color);
+        border: 1px solid rgba(255, 59, 48, 0.3);
+        display: block;
+    }
+
+    .status-message.info {
+        background: rgba(0, 122, 255, 0.15);
+        color: var(--accent-color);
+        border: 1px solid rgba(0, 122, 255, 0.3);
+        display: block;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .status-message.success {
+            background: rgba(48, 209, 88, 0.2);
+            color: var(--green-color);
+        }
+
+        .status-message.error {
+            background: rgba(255, 69, 58, 0.2);
+            color: var(--red-color);
+        }
+
+        .status-message.info {
+            background: rgba(0, 122, 255, 0.2);
+            color: var(--accent-color);
+        }
     }
 
     /* FILE UPLOAD STYLES */
