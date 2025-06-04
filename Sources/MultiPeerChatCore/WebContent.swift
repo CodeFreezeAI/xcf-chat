@@ -4171,14 +4171,21 @@ func generateChatJS(adminName: String) -> String {
                 roomEl.className = 'room-item';
                 roomEl.setAttribute('data-room-id', room.id);
                 
-                // On mobile, show only the first word of the room name
-                // On desktop, show the full room name
-                if (window.innerWidth <= 768) {
-                    const firstWord = room.name.split(' ')[0] || room.name;
-                    roomEl.textContent = firstWord;
-                } else {
-                    roomEl.textContent = room.name;
-                }
+                // Store the full room name as a data attribute
+                roomEl.setAttribute('data-full-name', room.name);
+                
+                // Update room name display based on window width
+                const updateRoomName = () => {
+                    if (window.innerWidth <= 768) {
+                        const firstWord = room.name.split(' ')[0] || room.name;
+                        roomEl.textContent = firstWord;
+                    } else {
+                        roomEl.textContent = room.name;
+                    }
+                };
+                
+                // Initial display
+                updateRoomName();
                 
                 // Add title attribute to show full name on hover (useful for mobile too)
                 roomEl.setAttribute('title', room.name);
@@ -4186,6 +4193,21 @@ func generateChatJS(adminName: String) -> String {
                 roomEl.onclick = () => this.joinRoom(room.id);
                 container.appendChild(roomEl);
             });
+            
+            // Add window resize listener to update room names
+            window.addEventListener('resize', () => {
+                const roomElements = container.querySelectorAll('.room-item');
+                roomElements.forEach(roomEl => {
+                    const fullName = roomEl.getAttribute('data-full-name');
+                    if (window.innerWidth <= 768) {
+                        const firstWord = fullName.split(' ')[0] || fullName;
+                        roomEl.textContent = firstWord;
+                    } else {
+                        roomEl.textContent = fullName;
+                    }
+                });
+            });
+            
             // Highlight the selected room
             if (this.currentRoom) {
                 const activeRoom = container.querySelector(`[data-room-id="${this.currentRoom.id}"]`);
