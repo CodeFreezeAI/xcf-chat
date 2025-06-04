@@ -208,15 +208,13 @@ func generateIndexHTML() -> String {
                                 </div>
                             </div>
                         </div>
-                        <div class="user-name-section" id="user-name-section">
-                            <input type="text" id="nickname-input" placeholder="Enter your username" maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-safari-autofill="off" data-webkit-autofill="off" data-1password-ignore="true" data-bitwarden-watching="false" data-ms-editor="false">
-                        </div>
-                        <div class="authentication-section" id="authentication-section">
-                            <div class="passkey-controls">
+                        <div class="login-input-container" id="login-input-container">
+                            <input type="text" id="nickname-input" placeholder="Enter your username" maxlength="20" autocomplete="username" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+                            <div class="auth-options" id="login-buttons-anchor">
                                 <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
                                 <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
+                                <div id="login-status" class="status-message"></div>
                             </div>
-                            <div id="login-status" class="status-message"></div>
                         </div>
                     </div>
                 </div>
@@ -457,14 +455,6 @@ func generateIndexHTML() -> String {
             window.webauthnInProgress = true;
             
             const username = document.getElementById('nickname-input').value;
-            const usernameInput = document.getElementById('nickname-input');
-            
-            // Aggressively suppress autofill during WebAuthn
-            usernameInput.setAttribute('readonly', 'true');
-            usernameInput.setAttribute('data-1p-ignore', 'true');
-            usernameInput.setAttribute('data-lpignore', 'true');
-            usernameInput.setAttribute('data-webkit-autofill', 'off');
-            usernameInput.style.webkitTextSecurity = 'none';
             
             try {
                 if (!username) {
@@ -554,9 +544,6 @@ func generateIndexHTML() -> String {
                     window.webauthnInProgress = false;
                 }
             } finally {
-                // Re-enable input and remove readonly
-                usernameInput.removeAttribute('readonly');
-                usernameInput.style.webkitTextSecurity = '';
                 window.webauthnInProgress = false;
             }
         }
@@ -570,15 +557,6 @@ func generateIndexHTML() -> String {
             window.webauthnInProgress = true;
             
             const usernameInput = document.getElementById('nickname-input');
-            
-            // Aggressively suppress autofill during WebAuthn
-            usernameInput.setAttribute('readonly', 'true');
-            usernameInput.setAttribute('data-1p-ignore', 'true');
-            usernameInput.setAttribute('data-lpignore', 'true');
-            usernameInput.setAttribute('data-webkit-autofill', 'off');
-            usernameInput.setAttribute('data-bitwarden-watching', 'false');
-            usernameInput.style.webkitTextSecurity = 'none';
-            usernameInput.blur(); // Remove focus to prevent autofill popup
             
             let username = usernameInput.value.trim();
             if (username === '') {
@@ -673,9 +651,7 @@ func generateIndexHTML() -> String {
                     showLoginStatus('❌ Authentication failed', 'error');
                 }
             } finally {
-                // Re-enable input and remove readonly
-                usernameInput.removeAttribute('readonly');
-                usernameInput.style.webkitTextSecurity = '';
+                // Reset state without disabling buttons
                 window.webauthnInProgress = false;
             }
         }
@@ -1244,17 +1220,12 @@ func generateCSS() -> String {
     /* Hide browser password manager icons and overlays */
     #nickname-input::-webkit-credentials-auto-fill-button,
     #nickname-input::-webkit-password-auto-fill-button,
-    #nickname-input::-webkit-strong-password-auto-fill-button,
-    #nickname-input::-webkit-password-manager-icon {
+    #nickname-input::-webkit-strong-password-auto-fill-button {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
         position: absolute !important;
         right: -9999px !important;
-        opacity: 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-        z-index: -9999 !important;
     }
 
     /* Prevent autofill styling and background changes */
@@ -1265,38 +1236,12 @@ func generateCSS() -> String {
         -webkit-box-shadow: 0 0 0 30px var(--input-bg) inset !important;
         box-shadow: 0 0 0 30px var(--input-bg) inset !important;
         -webkit-text-fill-color: var(--input-text) !important;
-        background-color: var(--input-bg) !important;
-        background-image: none !important;
-        color: var(--input-text) !important;
-        transition: background-color 5000s ease-in-out 0s !important;
     }
 
     /* Hide any additional browser UI elements */
     #nickname-input::-ms-reveal,
     #nickname-input::-ms-clear {
         display: none !important;
-    }
-
-    /* Prevent autofill animation flash */
-    #nickname-input[readonly] {
-        cursor: default !important;
-        user-select: none !important;
-        -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-    }
-
-    /* Additional WebKit autofill suppression */
-    #nickname-input {
-        -webkit-autofill: none !important;
-        -webkit-autocomplete: off !important;
-        -webkit-user-modify: read-write-plaintext-only !important;
-    }
-
-    #nickname-input[readonly] {
-        -webkit-user-modify: read-only !important;
-        background-color: var(--input-bg) !important;
-        color: var(--input-text) !important;
     }
 
     /* DESKTOP CHAT SCREEN */
@@ -3126,95 +3071,6 @@ func generateCSS() -> String {
             height: 35px;
         }
     }
-
-    /* USER NAME SECTION - ISOLATED FROM BUTTONS */
-    .user-name-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 90%;
-        max-width: 300px;
-        flex-shrink: 0;
-        margin-bottom: 20px;
-        /* Prevent bouncing on mobile */
-        transform: translateZ(0);
-        -webkit-transform: translateZ(0);
-    }
-
-    .user-name-section input {
-        width: 100%;
-        padding: 1rem 1.5rem;
-        font-size: 1.1rem;
-        border: 2px solid var(--border-color);
-        border-radius: 50px;
-        text-align: center;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        background-color: var(--input-bg);
-        color: var(--input-text);
-        outline: none;
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
-        box-sizing: border-box;
-        /* Prevent input jumping on mobile */
-        -webkit-user-select: text;
-        user-select: text;
-        -webkit-appearance: none;
-        appearance: none;
-    }
-
-    .user-name-section input:focus {
-        border: 2px solid var(--accent-color);
-        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
-        outline: none;
-        /* Prevent the default scroll behavior to avoid conflicts */
-        transform: translateZ(0);
-        -webkit-transform: translateZ(0);
-    }
-
-    /* AUTHENTICATION SECTION - SEPARATED FROM INPUT */
-    .authentication-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 90%;
-        max-width: 300px;
-        flex-shrink: 0;
-        gap: 15px;
-    }
-
-    .passkey-controls {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        width: 100%;
-    }
-
-    .passkey-controls button {
-        padding: 12px 20px;
-        border: none;
-        border-radius: 8px;
-        color: white;
-        cursor: pointer;
-        font-size: 16px;
-        font-weight: 500;
-        transition: all 0.15s ease;
-        width: 100%;
-        text-align: center;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-    }
-
-    .passkey-controls button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-    }
-
-    .passkey-controls button:active {
-        transform: translateY(1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-    }
-
-    /* LOGIN INPUT CONTAINER */
     """
 }
 
