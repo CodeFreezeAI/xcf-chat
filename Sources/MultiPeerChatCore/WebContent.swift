@@ -1319,6 +1319,18 @@ func generateCSS() -> String {
         -webkit-transform: translateZ(0);
     }
 
+    /* Login form wrapper */
+    #login-form {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: none;
+    }
+
     .login-input-container input {
         width: 100%;
         padding: 1rem 1.5rem;
@@ -1822,6 +1834,22 @@ func generateCSS() -> String {
             will-change: transform;
             backface-visibility: hidden;
             -webkit-backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Mobile login form wrapper */
+        #login-form {
+            width: 100% !important;
+            max-width: 100% !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+            border: none;
+            background: none;
         }
 
         .login-input-container input {
@@ -2831,7 +2859,6 @@ func generateCSS() -> String {
             width: 90%;
             max-width: none;
             margin: 1rem;
-            padding: 1.5rem;
         }
 
         .auth-options {
@@ -3200,6 +3227,30 @@ func generateCSS() -> String {
         .modal .emoji-option {
             font-size: 1.5rem;
             height: 35px;
+        }
+    }
+
+    /* Hide any additional browser UI elements */
+    #nickname-input::-ms-reveal,
+    #nickname-input::-ms-clear {
+        display: none !important;
+    }
+
+    /* WebAuthn conditional UI positioning support */
+    #login-form {
+        position: relative;
+        z-index: 1;
+    }
+
+    #nickname-input {
+        position: relative;
+        z-index: 2;
+    }
+
+    /* Ensure WebAuthn UI appears properly centered */
+    @supports (anchor-name: --input-anchor) {
+        #nickname-input {
+            anchor-name: --input-anchor;
         }
     }
     """
