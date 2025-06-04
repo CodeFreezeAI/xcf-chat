@@ -3406,7 +3406,8 @@ func generateChatJS(adminName: String) -> String {
 
                     // Show system message if Lobby
                     if (message.room.name === 'Lobby' && !wasReconnectingToSameRoom) {
-                        this.showTemporarySystemMessage('You are now in the Lobby.', 10000);
+                        // Remove the temporary system message
+                        // this.showTemporarySystemMessage('You are now in the Lobby.', 10000);
                     }
                     break;
                     
@@ -3415,11 +3416,11 @@ func generateChatJS(adminName: String) -> String {
                     break;
                     
                 case 'userJoined':
-                    this.addSystemMessage(`${message.username} joined the room`);
+                    // Removed user joined message
                     break;
                     
                 case 'userLeft':
-                    this.addSystemMessage(`${message.username} left the room`);
+                    // Removed user left message
                     break;
                     
                 case 'inviteCreated':
@@ -3705,21 +3706,18 @@ func generateChatJS(adminName: String) -> String {
             container.appendChild(errorMsg);
             container.scrollTop = container.scrollHeight;
             
-            // Auto-remove error message after 10 seconds for non-admin users
-            // Admins can see persistent error messages for debugging
-            if (!this.isAdmin) {
-                setTimeout(() => {
-                    if (errorMsg.parentNode) {
-                        // Add expiring animation
-                        errorMsg.classList.add('expiring');
-                        setTimeout(() => {
-                            if (errorMsg.parentNode) {
-                                errorMsg.remove();
-                            }
-                        }, 1000); // Match CSS transition duration
-                    }
-                }, 10000);
-            }
+            // Auto-remove error message after 10 seconds for all users
+            setTimeout(() => {
+                if (errorMsg.parentNode) {
+                    // Add expiring animation
+                    errorMsg.classList.add('expiring');
+                    setTimeout(() => {
+                        if (errorMsg.parentNode) {
+                            errorMsg.remove();
+                        }
+                    }, 1000); // Match CSS transition duration
+                }
+            }, 10000); // Always remove after 10 seconds
         }
         
         showErrorMessage(message, container = null, className = 'error-message') {

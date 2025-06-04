@@ -331,12 +331,6 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
             "room": roomToDict(room),
             "isAdmin": isAdmin
         ])
-        
-        // Notify others in the room
-        broadcastToRoom(roomId, message: [
-            "type": "userJoined",
-            "username": username
-        ], excludeUser: username)
     }
     
     private func handleLeaveRoom(_ json: [String: Any], client: WebSocketClient) {
@@ -563,12 +557,6 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         let user = User(username: username)
         room.removeParticipant(user)
         rooms[roomId] = room
-        
-        // Notify others in the room
-        broadcastToRoom(roomId, message: [
-            "type": "userLeft",
-            "username": username
-        ], excludeUser: username)
     }
     
     private func broadcastToRoom(_ roomId: String, message: [String: Any], excludeUser: String? = nil) {

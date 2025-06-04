@@ -213,29 +213,9 @@ public class ChatClient: ObservableObject, NetworkManagerDelegate {
                 rooms[index].addParticipant(user)
             }
             
-            if currentRoom?.id == roomId {
-                let systemMessage = ChatMessage(
-                    content: "\(user.username) joined the room",
-                    sender: user,
-                    roomId: roomId,
-                    messageType: .userJoined
-                )
-                messages.append(systemMessage)
-            }
-            
         case .userLeft(let user, let roomId):
             if let index = rooms.firstIndex(where: { $0.id == roomId }) {
                 rooms[index].removeParticipant(user)
-            }
-            
-            if currentRoom?.id == roomId {
-                let systemMessage = ChatMessage(
-                    content: "\(user.username) left the room",
-                    sender: user,
-                    roomId: roomId,
-                    messageType: .userLeft
-                )
-                messages.append(systemMessage)
             }
             
         case .roomCreated(let room):
