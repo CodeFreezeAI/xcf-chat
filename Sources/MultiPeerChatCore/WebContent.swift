@@ -1742,19 +1742,22 @@ func generateCSS() -> String {
         .sidebar {
             width: 100%;
             height: auto;
-            max-height: 150px;
-            padding: 0.75rem 0.75rem 0.375rem 0.75rem;
+            max-height: 300px;
+            padding: 0.75rem;
             border-right: none;
             border-bottom: 1px solid var(--border-color);
             overflow: visible;
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
         }
 
         .sidebar-top {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            margin-bottom: 0.25rem;
+            gap: 0.25rem;
+            margin-bottom: 0;
+            flex-shrink: 0;
         }
 
         .user-info {
@@ -1763,6 +1766,9 @@ func generateCSS() -> String {
             height: 50px;
             min-height: 50px;
             box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .user-avatar {
@@ -1791,18 +1797,29 @@ func generateCSS() -> String {
 
         .rooms-section {
             grid-column: 1 / -1;
-            margin-bottom: -25rem;
+            flex: 1;
+            overflow: hidden;
+            margin-top: -0.25rem;
         }
 
         .rooms-list-container {
-            max-height: 80px;
+            max-height: 180px;
             overflow-y: auto;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+        }
+
+        .rooms-list-container.collapsed {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
         }
 
         .rooms-list {
             display: flex;
             flex-wrap: wrap;
             gap: 0.25rem;
+            padding: 0;
+            margin: 0;
         }
 
         .room-item {
@@ -3041,8 +3058,9 @@ func generateChatJS(adminName: String) -> String {
             this.connectionHealthTimer = null; // Timer for connection health checks
             this.lastPongReceived = Date.now(); // Track last pong response
             this.pingInterval = null; // Ping interval timer
-            this.CONNECTION_TIMEOUT = 30000; // 30 seconds
-            this.PING_INTERVAL = 15000; // Send ping every 15 seconds
+            this.CONNECTION_TIMEOUT = 120000; // 2 minutes - much more reasonable
+            this.PING_INTERVAL = 30000; // Send ping every 30 seconds - less aggressive
+            this.reconnectTimeout = null; // Add reconnect timeout tracker
             
             this.initializeEventListeners();
         }
@@ -3059,9 +3077,16 @@ func generateChatJS(adminName: String) -> String {
         }
         
         connect() {
+            // Don't close healthy connections - just return if already connected
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                console.log('⚠️ Already connected, closing existing connection');
-                this.ws.close();
+                console.log('✅ Already connected, skipping reconnection');
+                return;
+            }
+            
+            // Clear any existing reconnect timeout
+            if (this.reconnectTimeout) {
+                clearTimeout(this.reconnectTimeout);
+                this.reconnectTimeout = null;
             }
             
             this.isConnected = false;
@@ -3091,7 +3116,7 @@ func generateChatJS(adminName: String) -> String {
                     isReconnecting: this.isReconnecting
                 });
                 
-                // Start periodic ping to keep connection alive
+                // Start much less aggressive connection monitoring
                 this.startConnectionHealthCheck();
             };
             
@@ -3131,13 +3156,13 @@ func generateChatJS(adminName: String) -> String {
                     document.getElementById('file-btn').disabled = true;
                 }
                 
-                // Attempt to reconnect after 3 seconds
-                setTimeout(() => {
+                // Much less aggressive reconnection - only try once after 5 seconds
+                this.reconnectTimeout = setTimeout(() => {
                     if (!this.isConnected) {
                         console.log('Attempting to reconnect...');
                         this.connect();
                     }
-                }, 3000);
+                }, 5000);
             };
             
             this.ws.onerror = (error) => {
@@ -3146,24 +3171,27 @@ func generateChatJS(adminName: String) -> String {
         }
         
         startConnectionHealthCheck() {
-            // Send ping every 15 seconds
+            // Clear any existing timers first to prevent duplicates
+            this.clearConnectionTimers();
+            
+            // Send ping every 30 seconds (much less aggressive)
             this.pingInterval = setInterval(() => {
                 if (this.isConnected && this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.sendToServer({ type: 'ping' });
                 }
             }, this.PING_INTERVAL);
             
-            // Check connection health every 5 seconds
+            // Check connection health every 30 seconds (much less aggressive)
             this.connectionHealthTimer = setInterval(() => {
                 const now = Date.now();
                 const timeSinceLastPong = now - this.lastPongReceived;
                 
-                // If we haven't received a pong in 30 seconds, consider connection dead
+                // Only consider connection dead after 2 minutes of no response (much more reasonable)
                 if (timeSinceLastPong > this.CONNECTION_TIMEOUT) {
-                    console.log('Connection appears to be dead (no pong received), forcing reconnection...');
+                    console.log('Connection appears to be dead (no pong received for 2 minutes), forcing reconnection...');
                     this.forceReconnection();
                 }
-            }, 5000); // Check every 5 seconds instead of every 30 seconds
+            }, 30000); // Check every 30 seconds instead of every 5 seconds
         }
         
         clearConnectionTimers() {
@@ -3174,6 +3202,10 @@ func generateChatJS(adminName: String) -> String {
             if (this.connectionHealthTimer) {
                 clearInterval(this.connectionHealthTimer);
                 this.connectionHealthTimer = null;
+            }
+            if (this.reconnectTimeout) {
+                clearTimeout(this.reconnectTimeout);
+                this.reconnectTimeout = null;
             }
         }
         
@@ -3204,10 +3236,10 @@ func generateChatJS(adminName: String) -> String {
                 document.getElementById('file-btn').disabled = true;
             }
             
-            // Reconnect after a short delay
-            setTimeout(() => {
+            // Reconnect after a longer delay to prevent rapid reconnection loops
+            this.reconnectTimeout = setTimeout(() => {
                 this.connect();
-            }, 1000);
+            }, 3000);
         }
         
         sendToServer(message) {
