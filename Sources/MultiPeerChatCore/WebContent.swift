@@ -1349,7 +1349,6 @@ func generateCSS() -> String {
     }
 
     /* Hide browser password manager icons and overlays */
-    /*
     #nickname-input::-webkit-credentials-auto-fill-button,
     #nickname-input::-webkit-password-auto-fill-button,
     #nickname-input::-webkit-strong-password-auto-fill-button {
@@ -1359,7 +1358,6 @@ func generateCSS() -> String {
         position: absolute !important;
         right: -9999px !important;
     }
-    */
 
     /* Prevent autofill styling and background changes */
     #nickname-input:-webkit-autofill,
