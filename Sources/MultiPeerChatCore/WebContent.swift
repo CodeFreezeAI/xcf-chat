@@ -232,7 +232,7 @@ func generateIndexHTML() -> String {
                             <div class="rooms-section-header" onclick="toggleRoomsList()">
                                 <span class="toggle-icon">▶</span>
                                 <h3>Rooms</h3>
-                                <button onclick="showCreateRoom()">+</button>
+                                <button onclick="showCreateRoom()" style="padding-bottom: 2px;">+</button>
                             </div>
                         </div>
                         
@@ -1556,7 +1556,7 @@ func generateCSS() -> String {
     }
 
     .message-input-container button {
-        /*padding: 0.75rem 1.5rem;*/
+        padding: 0.75rem 1.5rem;
         background: var(--accent-color);
         color: white;
         border: none;
@@ -1590,6 +1590,7 @@ func generateCSS() -> String {
         justify-content: center;
         transition: background 0.3s ease;
         flex-shrink: 0;
+        padding: 0 !important;
     }
 
     .circle-attachment-btn:hover {
