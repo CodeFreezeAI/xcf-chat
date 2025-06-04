@@ -636,6 +636,10 @@ func generateIndexHTML() -> String {
                     if (!usernameInput.value && result.username) {
                         usernameInput.value = result.username;
                     }
+                    
+                    // Save username to localStorage
+                    localStorage.setItem('lastUsername', usernameInput.value);
+                    
                     showLoginStatus('✅ Login Success', 'success');
                     
                     // Join the chat after successful authentication
@@ -886,6 +890,9 @@ func generateIndexHTML() -> String {
                                 if (result.username) {
                                     usernameInput.value = result.username;
                                 }
+                                
+                                // Save username to localStorage
+                                localStorage.setItem('lastUsername', usernameInput.value);
                                 
                                 showLoginStatus('✅ Passkey Login Success', 'success');
                                 
@@ -3649,16 +3656,20 @@ func generateChatJS(adminName: String) -> String {
                 return;
             }
             
+            // Save username to localStorage
+            localStorage.setItem('lastUsername', username);
+            
             this.username = username;
+            chatClient.userEmoji = currentEmoji;
             document.getElementById('current-username').textContent = username;
+            document.querySelector('.user-avatar').textContent = currentEmoji;
             
             // Switch to chat screen
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
             
-            // Connect to server (this will NOT be a reconnection for initial login)
-            this.isReconnecting = false;
-            this.connect();
+            // Connect to server
+            chatClient.connect();
         }
         
         createRoom() {
@@ -4606,10 +4617,14 @@ func generateChatJS(adminName: String) -> String {
                 return;
             }
             
+            // Save username to localStorage
+            localStorage.setItem('lastUsername', username);
+            
             chatClient.username = username;
             chatClient.userEmoji = currentEmoji;
             document.getElementById('current-username').textContent = username;
             document.querySelector('.user-avatar').textContent = currentEmoji;
+            
             
             // Switch to chat screen
             document.getElementById('login-screen').classList.add('hidden');
@@ -4619,8 +4634,19 @@ func generateChatJS(adminName: String) -> String {
             chatClient.connect();
         }
         
-        // Focus username input
-        document.getElementById('nickname-input').focus();
+        // Don't focus username input initially
+        // document.getElementById('nickname-input').focus();
+        
+        // Load saved username from localStorage and blur after 1000ms
+        const savedUsername = localStorage.getItem('lastUsername');
+        if (savedUsername) {
+            document.getElementById('nickname-input').value = savedUsername;
+        }
+        
+        // Blur username field after 1000ms
+        setTimeout(() => {
+            document.getElementById('nickname-input').blur();
+        }, 1000);
         
         // Mobile keyboard handling for login form - prevent duplicate listeners
         const usernameInput = document.getElementById('nickname-input');
@@ -4745,6 +4771,16 @@ func generateChatJS(adminName: String) -> String {
         if (window.chatClient && window.chatClient.ws) {
             window.chatClient.ws.close();
         }
+        
+        // Load saved username from localStorage and blur after 1ms
+        const savedUsername = localStorage.getItem('lastUsername');
+        if (savedUsername) {
+            document.getElementById('nickname-input').value = savedUsername;
+        }
+        
+        setTimeout(() => {
+            document.getElementById('nickname-input').blur();
+        }, 1);
     }
     
     // User emoji picker functions
