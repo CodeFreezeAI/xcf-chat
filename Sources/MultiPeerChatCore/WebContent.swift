@@ -459,39 +459,12 @@ func generateIndexHTML() -> String {
             const username = document.getElementById('nickname-input').value;
             const usernameInput = document.getElementById('nickname-input');
             
-            // NUCLEAR AUTOFILL SUPPRESSION - Hide and disguise the input completely
-            const originalId = usernameInput.id;
-            const originalName = usernameInput.name;
-            const originalPlaceholder = usernameInput.placeholder;
-            const originalType = usernameInput.type;
-            const originalAutocomplete = usernameInput.autocomplete;
-            
-            // Completely disguise the input field
-            usernameInput.id = 'temp-field-' + Math.random().toString(36).substr(2, 9);
-            usernameInput.name = 'temp-name-' + Math.random().toString(36).substr(2, 9);
-            usernameInput.placeholder = '';
-            usernameInput.type = 'text';
-            usernameInput.autocomplete = 'off';
+            // Aggressively suppress autofill during WebAuthn
             usernameInput.setAttribute('readonly', 'true');
             usernameInput.setAttribute('data-1p-ignore', 'true');
             usernameInput.setAttribute('data-lpignore', 'true');
             usernameInput.setAttribute('data-webkit-autofill', 'off');
             usernameInput.style.webkitTextSecurity = 'none';
-            usernameInput.style.visibility = 'hidden';
-            usernameInput.style.opacity = '0';
-            usernameInput.style.pointerEvents = 'none';
-            usernameInput.blur();
-            
-            // Add a decoy input to confuse autofill
-            const decoyInput = document.createElement('input');
-            decoyInput.type = 'password';
-            decoyInput.name = 'decoy-' + Math.random().toString(36).substr(2, 9);
-            decoyInput.style.position = 'absolute';
-            decoyInput.style.left = '-9999px';
-            decoyInput.style.opacity = '0';
-            decoyInput.style.pointerEvents = 'none';
-            decoyInput.tabIndex = -1;
-            document.body.appendChild(decoyInput);
             
             try {
                 if (!username) {
@@ -581,23 +554,9 @@ func generateIndexHTML() -> String {
                     window.webauthnInProgress = false;
                 }
             } finally {
-                // RESTORE INPUT FIELD COMPLETELY
-                usernameInput.id = originalId;
-                usernameInput.name = originalName || '';
-                usernameInput.placeholder = originalPlaceholder;
-                usernameInput.type = originalType;
-                usernameInput.autocomplete = originalAutocomplete;
+                // Re-enable input and remove readonly
                 usernameInput.removeAttribute('readonly');
-                usernameInput.style.visibility = '';
-                usernameInput.style.opacity = '';
-                usernameInput.style.pointerEvents = '';
                 usernameInput.style.webkitTextSecurity = '';
-                
-                // Remove decoy input
-                if (decoyInput && decoyInput.parentNode) {
-                    decoyInput.parentNode.removeChild(decoyInput);
-                }
-                
                 window.webauthnInProgress = false;
             }
         }
@@ -612,44 +571,14 @@ func generateIndexHTML() -> String {
             
             const usernameInput = document.getElementById('nickname-input');
             
-            // NUCLEAR AUTOFILL SUPPRESSION - Hide and disguise the input completely
-            const originalId = usernameInput.id;
-            const originalName = usernameInput.name;
-            const originalPlaceholder = usernameInput.placeholder;
-            const originalType = usernameInput.type;
-            const originalAutocomplete = usernameInput.autocomplete;
-            
-            // Completely disguise the input field
-            usernameInput.id = 'temp-field-' + Math.random().toString(36).substr(2, 9);
-            usernameInput.name = 'temp-name-' + Math.random().toString(36).substr(2, 9);
-            usernameInput.placeholder = '';
-            usernameInput.type = 'text';
-            usernameInput.autocomplete = 'off';
+            // Aggressively suppress autofill during WebAuthn
             usernameInput.setAttribute('readonly', 'true');
             usernameInput.setAttribute('data-1p-ignore', 'true');
             usernameInput.setAttribute('data-lpignore', 'true');
             usernameInput.setAttribute('data-webkit-autofill', 'off');
             usernameInput.setAttribute('data-bitwarden-watching', 'false');
             usernameInput.style.webkitTextSecurity = 'none';
-            usernameInput.style.visibility = 'hidden';
-            usernameInput.style.opacity = '0';
-            usernameInput.style.pointerEvents = 'none';
-            usernameInput.blur();
-            
-            // Add multiple decoy inputs to confuse autofill
-            const decoyInputs = [];
-            for (let i = 0; i < 3; i++) {
-                const decoyInput = document.createElement('input');
-                decoyInput.type = i === 0 ? 'password' : 'text';
-                decoyInput.name = 'decoy-' + Math.random().toString(36).substr(2, 9);
-                decoyInput.style.position = 'absolute';
-                decoyInput.style.left = '-9999px';
-                decoyInput.style.opacity = '0';
-                decoyInput.style.pointerEvents = 'none';
-                decoyInput.tabIndex = -1;
-                document.body.appendChild(decoyInput);
-                decoyInputs.push(decoyInput);
-            }
+            usernameInput.blur(); // Remove focus to prevent autofill popup
             
             let username = usernameInput.value.trim();
             if (username === '') {
@@ -744,25 +673,9 @@ func generateIndexHTML() -> String {
                     showLoginStatus('❌ Authentication failed', 'error');
                 }
             } finally {
-                // RESTORE INPUT FIELD COMPLETELY
-                usernameInput.id = originalId;
-                usernameInput.name = originalName || '';
-                usernameInput.placeholder = originalPlaceholder;
-                usernameInput.type = originalType;
-                usernameInput.autocomplete = originalAutocomplete;
+                // Re-enable input and remove readonly
                 usernameInput.removeAttribute('readonly');
-                usernameInput.style.visibility = '';
-                usernameInput.style.opacity = '';
-                usernameInput.style.pointerEvents = '';
                 usernameInput.style.webkitTextSecurity = '';
-                
-                // Remove all decoy inputs
-                decoyInputs.forEach(decoyInput => {
-                    if (decoyInput && decoyInput.parentNode) {
-                        decoyInput.parentNode.removeChild(decoyInput);
-                    }
-                });
-                
                 window.webauthnInProgress = false;
             }
         }
@@ -1384,53 +1297,6 @@ func generateCSS() -> String {
         -webkit-user-modify: read-only !important;
         background-color: var(--input-bg) !important;
         color: var(--input-text) !important;
-    }
-
-    /* COMPREHENSIVE AUTOFILL DROPDOWN SUPPRESSION */
-    input::-webkit-contacts-auto-fill-button,
-    input::-webkit-credentials-auto-fill-button,
-    input::-webkit-password-auto-fill-button,
-    input::-webkit-strong-password-auto-fill-button {
-        display: none !important;
-        visibility: hidden !important;
-        position: absolute !important;
-        right: -9999px !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
-
-    /* Hide any autofill dropdown or suggestion overlays */
-    *[class*="autofill"],
-    *[class*="dropdown"],
-    *[class*="suggestion"],
-    *[id*="autofill"],
-    *[id*="dropdown"],
-    *[id*="suggestion"] {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        z-index: -9999 !important;
-    }
-
-    /* Suppress any webkit autofill animations */
-    @-webkit-keyframes autofill {
-        0%, 100% { background: transparent !important; }
-    }
-
-    input:-webkit-autofill {
-        -webkit-animation: autofill 0s forwards !important;
-        animation: autofill 0s forwards !important;
-    }
-
-    /* Hide during WebAuthn operations */
-    input[data-webauthn-hidden="true"] {
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        position: absolute !important;
-        left: -9999px !important;
-        z-index: -9999 !important;
     }
 
     /* DESKTOP CHAT SCREEN */
@@ -4717,34 +4583,6 @@ func generateChatJS(adminName: String) -> String {
         toggleIcon.textContent = '▶';
 
         chatClient = new ChatClient();
-        
-        // NUCLEAR AUTOFILL PREVENTION - Randomize input field from the start
-        const usernameInput = document.getElementById('nickname-input');
-        if (usernameInput) {
-            // Add random attributes to confuse autofill detection
-            const randomSuffix = Math.random().toString(36).substr(2, 9);
-            usernameInput.setAttribute('data-random', randomSuffix);
-            usernameInput.setAttribute('data-temp-id', 'field-' + randomSuffix);
-            
-            // Add aggressive autofill prevention
-            usernameInput.setAttribute('aria-autocomplete', 'none');
-            usernameInput.setAttribute('role', 'textbox');
-            usernameInput.setAttribute('data-webauthn-input', 'true');
-            
-            // Create invisible decoy inputs on page load
-            for (let i = 0; i < 2; i++) {
-                const decoy = document.createElement('input');
-                decoy.type = 'password';
-                decoy.name = 'invisible-decoy-' + Math.random().toString(36).substr(2, 9);
-                decoy.style.position = 'absolute';
-                decoy.style.left = '-9999px';
-                decoy.style.opacity = '0';
-                decoy.style.pointerEvents = 'none';
-                decoy.tabIndex = -1;
-                decoy.autocomplete = 'new-password';
-                document.body.appendChild(decoy);
-            }
-        }
         
         // Emoji picker setup
         const selectedEmoji = document.getElementById('selected-emoji');
