@@ -209,7 +209,9 @@ func generateIndexHTML() -> String {
                             </div>
                         </div>
                         <div class="login-input-container" id="login-input-container">
-                            <input type="text" id="nickname-input" placeholder="Enter your username" maxlength="20" autocomplete="username" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+                            <form id="login-form" autocomplete="on">
+                                <input type="text" id="nickname-input" name="username" placeholder="Enter your username" maxlength="20" autocomplete="username webauthn">
+                            </form>
                             <div class="auth-options" id="login-buttons-anchor">
                                 <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
                                 <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
@@ -548,16 +550,22 @@ func generateIndexHTML() -> String {
             }
         }
 
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
         async function loginWithWebAuthn() {
+
+             const usernameInput = document.getElementById('nickname-input');
+             //sleep(3000)
+
             // Prevent multiple concurrent operations
-            if (window.webauthnInProgress) {
-                console.log('WebAuthn operation already in progress, ignoring duplicate click');
-                return;
-            }
+            // if (window.webauthnInProgress) {
+            //     console.log('WebAuthn operation already in progress, ignoring duplicate click');
+            //     return;
+            // }
+
             window.webauthnInProgress = true;
             
-            const usernameInput = document.getElementById('nickname-input');
-            
+           
             let username = usernameInput.value.trim();
             if (username === '') {
                 username = null;
@@ -779,7 +787,130 @@ func generateIndexHTML() -> String {
             } else {
                 window.currentEmoji = '👤'; // Default emoji
             }
+            
+            // Setup WebAuthn conditional mediation for passkey autofill
+            setupPasskeyAutofill();
         });
+
+        // WebAuthn Conditional Mediation for Passkey Autofill
+        async function setupPasskeyAutofill() {
+            // Check if conditional mediation is supported
+            if (!window.PublicKeyCredential || 
+                !PublicKeyCredential.isConditionalMediationAvailable ||
+                !(await PublicKeyCredential.isConditionalMediationAvailable())) {
+                console.log('Conditional mediation not supported');
+                return;
+            }
+            
+            console.log('Setting up passkey autofill...');
+            
+            try {
+                // Set up conditional mediation request
+                const conditionalOptions = {
+                    publicKey: {
+                        challenge: new Uint8Array(32), // Dummy challenge for conditional UI
+                        allowCredentials: [], // Empty to allow any passkey for this domain
+                        userVerification: 'preferred',
+                        timeout: 60000
+                    },
+                    mediation: 'conditional'
+                };
+                
+                // Start conditional mediation
+                navigator.credentials.get(conditionalOptions).then(async (assertion) => {
+                    if (assertion) {
+                        console.log('Passkey selected from autofill:', assertion);
+                        
+                        // User selected a passkey from autofill, now authenticate
+                        try {
+                            // Get proper challenge from server for the selected credential
+                            const optionsResponse = await fetch('/webauthn/authenticate/begin', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    username: null, // Let server determine from credential
+                                    credentialId: arrayBufferToBase64(assertion.rawId)
+                                })
+                            });
+                            
+                            if (!optionsResponse.ok) {
+                                throw new Error('Failed to get authentication options');
+                            }
+                            
+                            const options = await optionsResponse.json();
+                            
+                            showLoginStatus('Authenticating with passkey...', 'info');
+                            
+                            // Convert challenge to ArrayBuffer
+                            options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
+                            if (options.publicKey.allowCredentials) {
+                                options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(cred => ({
+                                    ...cred,
+                                    id: base64ToArrayBuffer(cred.id)
+                                }));
+                            }
+                            
+                            // Perform actual authentication
+                            const finalAssertion = await navigator.credentials.get({ publicKey: options.publicKey });
+                            
+                            if (!finalAssertion) {
+                                throw new Error('Authentication failed');
+                            }
+                            
+                            showLoginStatus('Verifying passkey...', 'info');
+                            
+                            const credential = {
+                                id: finalAssertion.id,
+                                rawId: arrayBufferToBase64(finalAssertion.rawId),
+                                type: finalAssertion.type,
+                                response: {
+                                    clientDataJSON: arrayBufferToBase64(finalAssertion.response.clientDataJSON),
+                                    authenticatorData: arrayBufferToBase64(finalAssertion.response.authenticatorData),
+                                    signature: arrayBufferToBase64(finalAssertion.response.signature),
+                                    userHandle: finalAssertion.response.userHandle ? arrayBufferToBase64(finalAssertion.response.userHandle) : null
+                                },
+                                username: ''
+                            };
+                            
+                            const verifyResponse = await fetch('/webauthn/authenticate/complete', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(credential)
+                            });
+                            
+                            const result = await verifyResponse.json();
+                            
+                            if (result.success) {
+                                // Fill in the username field
+                                const usernameInput = document.getElementById('nickname-input');
+                                if (result.username) {
+                                    usernameInput.value = result.username;
+                                }
+                                
+                                showLoginStatus('✅ Passkey Login Success', 'success');
+                                
+                                // Automatically join the chat
+                                setTimeout(() => {
+                                    joinChat();
+                                }, 1000);
+                            } else {
+                                showLoginStatus('❌ Passkey authentication failed', 'error');
+                            }
+                            
+                        } catch (error) {
+                            console.error('Passkey autofill authentication error:', error);
+                            showLoginStatus('❌ Passkey authentication failed', 'error');
+                        }
+                    }
+                }).catch((error) => {
+                    // Conditional mediation was cancelled or failed - this is normal
+                    console.log('Conditional mediation ended:', error.message);
+                });
+                
+            } catch (error) {
+                console.error('Failed to setup conditional mediation:', error);
+            }
+        }
 
         // Emoji picker functions
         function selectEmoji(emoji) {
@@ -1218,6 +1349,7 @@ func generateCSS() -> String {
     }
 
     /* Hide browser password manager icons and overlays */
+    /*
     #nickname-input::-webkit-credentials-auto-fill-button,
     #nickname-input::-webkit-password-auto-fill-button,
     #nickname-input::-webkit-strong-password-auto-fill-button {
@@ -1227,6 +1359,7 @@ func generateCSS() -> String {
         position: absolute !important;
         right: -9999px !important;
     }
+    */
 
     /* Prevent autofill styling and background changes */
     #nickname-input:-webkit-autofill,
