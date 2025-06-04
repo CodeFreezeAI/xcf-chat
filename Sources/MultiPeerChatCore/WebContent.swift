@@ -92,7 +92,7 @@ func generateIndexHTML() -> String {
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
         
-        <link rel="stylesheet" href="/stylev006.css">
+        <link rel="stylesheet" href="/stylev007.css">
     </head>
     <body>
         <div class="container">
@@ -433,7 +433,7 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
-        <script src="/chatv006.js"></script>
+        <script src="/chatv007.js"></script>
         <script>
         // Hide upload button and file input for now
         /*
@@ -1743,7 +1743,7 @@ func generateCSS() -> String {
             width: 100%;
             height: auto;
             max-height: 150px;
-            padding: 0.75rem;
+            padding: 0.75rem 0.75rem 0.375rem 0.75rem;
             border-right: none;
             border-bottom: 1px solid var(--border-color);
             overflow: visible;
@@ -1754,14 +1754,15 @@ func generateCSS() -> String {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 0.5rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
         }
 
         .user-info {
             padding: 0.75rem;
             margin-bottom: 0;
-            height: auto;
+            height: 50px;
             min-height: 50px;
+            box-sizing: border-box;
         }
 
         .user-avatar {
@@ -1771,8 +1772,9 @@ func generateCSS() -> String {
         .rooms-section-header {
             padding: 0.75rem;
             margin-bottom: 0;
-            height: auto;
+            height: 50px;
             min-height: 50px;
+            box-sizing: border-box;
             grid-column: 2;
         }
 
@@ -1789,6 +1791,7 @@ func generateCSS() -> String {
 
         .rooms-section {
             grid-column: 1 / -1;
+            margin-bottom: -25rem;
         }
 
         .rooms-list-container {
