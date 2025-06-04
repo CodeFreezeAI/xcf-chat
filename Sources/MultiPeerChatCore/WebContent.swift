@@ -270,7 +270,7 @@ func generateIndexHTML() -> String {
                         <div class="message-input-container">
                             <div class="file-upload-area">
                                 <input type="file" id="file-input" style="display:none;" accept="image/*,.pdf,.doc,.docx,.txt,.zip" multiple>
-                                <button id="file-btn" class="circle-attachment-btn" onclick="selectFiles()" title="Attach files" disabled>📎</button>
+                                <button id="file-btn" class="circle-attachment-btn" onclick="selectFiles()" title="Attach files" disabled>🔗</button>
                             </div>
                             <input type="text" id="message-input" placeholder="Type a message..." disabled>
                             <button id="send-btn" onclick="sendMessage()" disabled>Send</button>
@@ -1284,7 +1284,16 @@ func generateCSS() -> String {
     }
 
     .user-avatar {
-        font-size: 1.5rem;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--orange-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
     }
 
     .rooms-section {
@@ -1547,7 +1556,7 @@ func generateCSS() -> String {
     }
 
     .message-input-container button {
-        padding: 0.75rem 1.5rem;
+        /*padding: 0.75rem 1.5rem;*/
         background: var(--accent-color);
         color: white;
         border: none;
@@ -1571,23 +1580,27 @@ func generateCSS() -> String {
         height: 44px;
         border-radius: 50%;
         border: none;
-        background: var(--accent-color);
-        color: white;
+        background: var(--orange-color) !important;
+        color: white !important;
         cursor: pointer;
         font-size: 1.2rem;
+        font-weight: bold;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: background 0.3s ease;
+        flex-shrink: 0;
     }
 
     .circle-attachment-btn:hover {
-        background: var(--accent-color-hover);
+        background: var(--orange-color-hover);
+        color: white !important;
     }
 
     .circle-attachment-btn:disabled {
         background: var(--disabled-bg);
         cursor: not-allowed;
+        color: white !important;
     }
 
     /* MOBILE COMPLETE OVERHAUL */
@@ -1887,6 +1900,9 @@ func generateCSS() -> String {
             bottom: 0;
             left: 0;
             right: 0;
+            height: 90px;
+            min-height: 90px;
+            max-height: 90px;
             padding: 1rem;
             padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
             background: var(--bg-secondary);
@@ -1909,23 +1925,45 @@ func generateCSS() -> String {
             background-color: var(--input-bg);
             color: var(--input-text);
             min-height: 44px;
+            max-height: 44px;
+            height: 44px;
+            width: 44px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .message-input-container input:focus {
+            border: 1px solid var(--accent-color);
+            box-shadow: none;
+            outline: none;
         }
 
         .message-input-container button {
             padding: 0.75rem 1.2rem;
-            background: var(--accent-color);
+            /* background: var(--accent-color);*/
             color: white;
             border: none;
             border-radius: 25px;
             font-size: 0.9rem;
             min-height: 44px;
-            min-width: 60px;
+            min-width: 44px;
         }
 
         .circle-attachment-btn {
             width: 44px;
             height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: var(--orange-color) !important;
+            color: white !important;
+            cursor: pointer;
             font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+            flex-shrink: 0;
         }
 
         /* HIDE INVITE BUTTON ON MOBILE */
@@ -2837,7 +2875,7 @@ func generateCSS() -> String {
         width: 32px;
         height: 32px;
         border-radius: 50%;
-        background: var(--accent-color);
+        background: var(--orange-color);
         display: flex;
         align-items: center;
         justify-content: center;
