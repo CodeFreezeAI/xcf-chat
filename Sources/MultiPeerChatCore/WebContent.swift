@@ -19,7 +19,7 @@ func generateIndexHTML() -> String {
         
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website">
-        <meta property="og:url" content="https://chat.xcf.ai/">
+        <meta property="og:url" content="https:///">
         <meta property="og:title" content="XCF Chat - Secure Real-time Chat Platform">
         <meta property="og:description" content="Anonymous • Passwordless • Emoji Avatars • WebAuthn FIDO2 Passkey Security">
         <meta property="og:image" content="https://chat.xcf.ai/chat-preview.png">

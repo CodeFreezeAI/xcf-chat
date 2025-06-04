@@ -221,9 +221,16 @@ public class PersistenceManager {
     }
     
     public func deleteAdminUser(_ userId: UUID) {
-        var adminUsers = loadAdminUsers()
-        adminUsers.removeAll { $0.id == userId }
-        saveAdminUsers(adminUsers)
+        let adminUsers = loadAdminUsers()
+        if let userToDelete = adminUsers.first(where: { $0.id == userId }) {
+            // Delete user's credentials from WebAuthnManager
+            WebAuthnManager.shared.deleteUserCredentials(username: userToDelete.username)
+            
+            // Remove user from admin users list
+            let updatedUsers = adminUsers.filter { $0.id != userId }
+            saveAdminUsers(updatedUsers)
+            print("[Persistence] ✅ Successfully deleted user: \(userToDelete.username)")
+        }
     }
     
     public func getAdminUser(by username: String) -> AdminUser? {

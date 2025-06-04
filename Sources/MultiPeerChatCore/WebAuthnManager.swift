@@ -55,6 +55,8 @@ public class WebAuthnCredentialModel {
 }
 
 public class WebAuthnManager {
+    public static let shared = WebAuthnManager(rpId: "localhost")
+    
     private var credentials: [String: WebAuthnCredential] = [:]
     private var credentialIdToUsername: [String: String] = [:]
     private let webAuthnProtocol: WebAuthnProtocol
@@ -1327,6 +1329,22 @@ public class WebAuthnManager {
             return nil
         }
         return adminUser.emoji
+    }
+    
+    // Delete user credentials and release username
+    public func deleteUserCredentials(username: String) {
+        print("[WebAuthn] Deleting credentials for user: \(username)")
+        
+        // Remove from in-memory storage
+        if let credential = credentials[username] {
+            credentialIdToUsername.removeValue(forKey: credential.id)
+        }
+        credentials.removeValue(forKey: username)
+        
+        // Save changes to persistent storage
+        saveCredentials()
+        
+        print("[WebAuthn] ✅ Successfully deleted credentials for user: \(username)")
     }
 }
 
