@@ -470,14 +470,14 @@ public class WebAuthnManager {
             
             // Verify this is RS256 algorithm
             if alg == -257 { // RS256
-                // Store RSA public key as JSON for easier parsing later
-                let rsaKey = [
-                    "kty": "RSA", 
-                    "n": nData.base64EncodedString(),
-                    "e": eData.base64EncodedString()
-                ]
-                let rsaKeyData = try JSONSerialization.data(withJSONObject: rsaKey)
-                publicKeyString = rsaKeyData.base64EncodedString()
+            // Store RSA public key as JSON for easier parsing later
+            let rsaKey = [
+                "kty": "RSA",
+                "n": nData.base64EncodedString(),
+                "e": eData.base64EncodedString()
+            ]
+            let rsaKeyData = try JSONSerialization.data(withJSONObject: rsaKey)
+            publicKeyString = rsaKeyData.base64EncodedString()
             } else {
                 throw WebAuthnError.invalidCredential
             }
@@ -643,9 +643,9 @@ public class WebAuthnManager {
              // TODO: Implement FIDO U2F attestation verification
              print("[WebAuthn] ⚠️ FIDO U2F attestation format not yet implemented")
          }
-     }
-     
-     private func loadCredentials() {
+    }
+    
+    private func loadCredentials() {
         switch storageBackend {
         case .json:
             loadCredentialsFromJSON()

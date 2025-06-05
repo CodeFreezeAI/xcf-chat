@@ -1,6 +1,9 @@
 import Foundation
 import Network
 import CommonCrypto
+import CoreGraphics
+import CoreText
+import ImageIO
 
 // MARK: - String Extension for Regex Matching
 extension String {
@@ -273,10 +276,10 @@ public class WebServer: ObservableObject {
         case ("GET", "/"):
             response = generateIndexHTML()
             contentType = "text/html"
-        case ("GET", "/chatv007.js"):
+        case ("GET", "/chatv008.js"):
             response = generateChatJS(adminName: adminUsername)
             contentType = "application/javascript"
-        case ("GET", "/stylev007.css"):
+        case ("GET", "/stylev008.css"):
             response = generateCSS()
             contentType = "text/css"
         // Admin Routes - REQUIRES AUTHENTICATION
@@ -447,6 +450,9 @@ public class WebServer: ObservableObject {
             return
         case ("POST", "/webauthn/username/check"):
             handleWebAuthnUsernameCheck(connection, request: request)
+            return
+        case ("POST", "/emoji/analyze"):
+            handleEmojiColorAnalysis(connection, request: request)
             return
         default:
             response = "404 Not Found"
@@ -619,6 +625,179 @@ public class WebServer: ObservableObject {
         } else {
             sendJSONResponse(connection, json: "{\"available\":false,\"error\":\"Username already registered\"}")
         }
+    }
+    
+    private func handleEmojiColorAnalysis(_ connection: NWConnection, request: String) {
+        print("[EmojiColor] Processing emoji color analysis request")
+        
+        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
+            sendErrorResponse(connection, error: "Invalid request format")
+            return
+        }
+        
+        let bodyString = String(request[bodyStart...])
+        guard let bodyData = bodyString.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
+              let emoji = json["emoji"] as? String else {
+            sendErrorResponse(connection, error: "Invalid request body or missing emoji")
+            return
+        }
+        
+        print("[EmojiColor] Analyzing emoji: \(emoji)")
+        
+        // Analyze the emoji colors
+        do {
+            let colors = try analyzeEmojiColors(emoji: emoji)
+            
+            let response: [String: Any] = [
+                "success": true,
+                "emoji": emoji,
+                "averageColor": colors.averageColor,
+                "contrastColor": colors.contrastColor,
+                "textColor": colors.textColor
+            ]
+            
+            let responseData = try JSONSerialization.data(withJSONObject: response)
+            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
+            
+        } catch {
+            print("[EmojiColor] Error analyzing emoji: \(error)")
+            sendErrorResponse(connection, error: "Failed to analyze emoji colors: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Emoji Color Analysis
+    
+    struct EmojiColors {
+        let averageColor: String
+        let contrastColor: String
+        let textColor: String
+    }
+    
+    enum EmojiColorError: Error {
+        case invalidEmoji
+        case renderingFailed
+        case colorAnalysisFailed
+    }
+    
+    private func analyzeEmojiColors(emoji: String) throws -> EmojiColors {
+        // Create a bitmap context to render the emoji
+        let size: CGFloat = 64
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        
+        guard let context = CGContext(
+            data: nil,
+            width: Int(size),
+            height: Int(size),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw EmojiColorError.renderingFailed
+        }
+        
+        // Set up the context
+        context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 0)) // Transparent background
+        context.fill(CGRect(x: 0, y: 0, width: size, height: size))
+        
+        // Create attributed string for the emoji
+        let font = CTFontCreateWithName("Apple Color Emoji" as CFString, size * 0.7, nil)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: CGColor(red: 1, green: 1, blue: 1, alpha: 1)
+        ]
+        let attributedString = NSAttributedString(string: emoji, attributes: attributes)
+        
+        // Create a line and draw it
+        let line = CTLineCreateWithAttributedString(attributedString)
+        let bounds = CTLineGetBoundsWithOptions(line, .useOpticalBounds)
+        
+        // Center the emoji
+        let x = (size - bounds.width) / 2 - bounds.origin.x
+        let y = (size - bounds.height) / 2 - bounds.origin.y
+        
+        context.textPosition = CGPoint(x: x, y: y)
+        CTLineDraw(line, context)
+        
+        // Get the image data
+        guard let image = context.makeImage(),
+              let dataProvider = image.dataProvider,
+              let data = dataProvider.data else {
+            throw EmojiColorError.renderingFailed
+        }
+        
+        // Analyze the colors
+        let pixelData = CFDataGetBytePtr(data)
+        let bytesPerPixel = 4
+        let totalPixels = Int(size * size)
+        
+        var totalRed: Int = 0
+        var totalGreen: Int = 0
+        var totalBlue: Int = 0
+        var validPixels = 0
+        
+        for i in 0..<totalPixels {
+            let pixelIndex = i * bytesPerPixel
+            let alpha = pixelData?[pixelIndex + 3] ?? 0
+            
+            // Only count non-transparent pixels
+            if alpha > 30 {
+                let red = pixelData?[pixelIndex] ?? 0
+                let green = pixelData?[pixelIndex + 1] ?? 0
+                let blue = pixelData?[pixelIndex + 2] ?? 0
+                
+                totalRed += Int(red)
+                totalGreen += Int(green)
+                totalBlue += Int(blue)
+                validPixels += 1
+            }
+        }
+        
+        guard validPixels > 0 else {
+            throw EmojiColorError.colorAnalysisFailed
+        }
+        
+        // Calculate average color
+        let avgRed = totalRed / validPixels
+        let avgGreen = totalGreen / validPixels
+        let avgBlue = totalBlue / validPixels
+        
+        // Calculate brightness
+        let brightness = (avgRed + avgGreen + avgBlue) / 3
+        
+        // Generate contrasting background color
+        let contrastRed: Int
+        let contrastGreen: Int
+        let contrastBlue: Int
+        
+        if brightness > 128 {
+            // Dark contrast for bright emojis
+            contrastRed = max(0, avgRed - 100)
+            contrastGreen = max(0, avgGreen - 100)
+            contrastBlue = max(0, avgBlue - 100)
+        } else {
+            // Light contrast for dark emojis
+            contrastRed = min(255, avgRed + 100)
+            contrastGreen = min(255, avgGreen + 100)
+            contrastBlue = min(255, avgBlue + 100)
+        }
+        
+        // Determine text color (black or white) based on contrast background
+        let contrastBrightness = (contrastRed + contrastGreen + contrastBlue) / 3
+        let textColor = contrastBrightness > 128 ? "#000000" : "#FFFFFF"
+        
+        // Convert to hex strings
+        let averageColor = String(format: "#%02X%02X%02X", avgRed, avgGreen, avgBlue)
+        let contrastColor = String(format: "#%02X%02X%02X", contrastRed, contrastGreen, contrastBlue)
+        
+        print("[EmojiColor] Average: \(averageColor), Contrast: \(contrastColor), Text: \(textColor)")
+        
+        return EmojiColors(
+            averageColor: averageColor,
+            contrastColor: contrastColor,
+            textColor: textColor
+        )
     }
     
     private func handleFileUploadRequest(_ connection: NWConnection, initialData: Data, request: String) {
