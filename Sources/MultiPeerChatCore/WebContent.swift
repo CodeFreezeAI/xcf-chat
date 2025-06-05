@@ -7,7 +7,7 @@ func generateIndexHTML() -> String {
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
         
         <!-- Primary Meta Tags -->
         <title>💬 chat.xcf.ai</title>
@@ -4828,11 +4828,81 @@ func generateChatJS(adminName: String) -> String {
             });
         }
         
+        // Mobile keyboard handling for login form - prevent duplicate listeners
+        const mobileInput = document.getElementById('nickname-input');
+        if (mobileInput && !mobileInput.hasEventListeners) {
+            mobileInput.hasEventListeners = true; // Mark to prevent duplicates
+            let isScrolling = false;
+            
+            mobileInput.addEventListener('focus', (e) => {
+                // On mobile, scroll to ensure the login input container is visible when keyboard appears
+                if (window.innerWidth <= 768 && !isScrolling) {
+                    isScrolling = true;
+                    
+                    // Immediate re-focus to ensure input stays active
+                    setTimeout(() => {
+                        //
+                        mobileInput.focus();
+                    }, 15);
 
+                    
+                    // Faster scroll timing for better responsiveness
+                    setTimeout(() => {
+                        const loginContainer = document.getElementById('login-input-container');
+                        if (loginContainer) {
+                            loginContainer.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'end',
+                                inline: 'nearest'
+                            });
+                        }
+                        
+                        // Reset scrolling flag after animation
+                    
+                        setTimeout(() => {
+                            isScrolling = false;
+                        }, 500); // Reduced from 1000ms
+                    }, 150); // Reduced from 300ms
+                }
+            });
+            
+            // Prevent multiple focus events from causing bouncing - make more responsive
+            mobileInput.addEventListener('touchstart', (e) => {
+                if (window.innerWidth <= 768) {
+                    // Ensure smooth transition on touch - faster transition
+                    e.target.style.transition = 'none';
+                    setTimeout(() => {
+                        e.target.style.transition = '';
+                    }, 50); // Reduced from 100ms
+                }
+            });
+        }
         
 
 
-
+        // Mobile background tap to deselect username input
+        const loginForm = document.querySelector('.login-form');
+        if (loginForm) {
+            loginForm.addEventListener('click', (e) => {
+                // Check if we're on mobile and the tap is on the background (not on input fields or buttons)
+                if (window.innerWidth <= 768) {
+                    const clickedElement = e.target;
+                    
+                    // If the clicked element is the login form container itself (background)
+                    // or other non-interactive elements, blur the username input
+                    if (clickedElement === loginForm || 
+                        clickedElement.classList.contains('login-form') ||
+                        clickedElement.tagName === 'H2' ||
+                        (clickedElement.closest && !clickedElement.closest('input, button, .emoji-picker, .auth-options, .login-input-container'))) {
+                        
+                        const inputEl = document.getElementById('nickname-input');
+                        if (inputEl && document.activeElement === inputEl) {
+                            inputEl.blur();
+                        }
+                    }
+                }
+            });
+        }
         
         // Close modals when clicking outside
         document.addEventListener('click', (e) => {
