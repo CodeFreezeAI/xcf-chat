@@ -7,7 +7,7 @@ func generateIndexHTML() -> String {
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         
         <!-- Primary Meta Tags -->
         <title>💬 chat.xcf.ai</title>
@@ -213,7 +213,7 @@ func generateIndexHTML() -> String {
                             <div class="auth-options" id="login-buttons-anchor">
                                 <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
                                 <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
-                                <div id="login-status" class="status-message"></div>
+                                <div id="login-status" class="status-message mobile-error-space"></div>
                             </div>
                         </div>
                     </div>
@@ -443,6 +443,39 @@ func generateIndexHTML() -> String {
             if (fileInput) fileInput.style.display = 'none';
         });
         */
+
+                // Mobile emoji interaction sequence  
+        function onMobileEmojiSequence() {
+            if (window.innerWidth > 768) return;
+            
+            setTimeout(function() { 
+                const emojiOption = document.querySelector('.emoji-option');
+                if (emojiOption) emojiOption.dispatchEvent(new Event('click'));
+            }, 10);
+            
+            setTimeout(function() { 
+                const selectedEmoji = document.getElementById('selected-emoji');
+                if (selectedEmoji) selectedEmoji.focus();
+            }, 20);
+            
+            setTimeout(function() { 
+                document.activeElement.blur();
+            }, 30);
+            
+            setTimeout(function() { 
+                const selectedEmoji = document.getElementById('selected-emoji');
+                if (selectedEmoji) selectedEmoji.style.transform = 'scale(1.1)';
+            }, 40);
+            
+            setTimeout(function() { 
+                const selectedEmoji = document.getElementById('selected-emoji');
+                if (selectedEmoji) selectedEmoji.style.transform = 'scale(1.0)';
+            }, 50);
+            
+            setTimeout(function() { 
+                document.body.style.pointerEvents = 'auto';
+            }, 60);
+        }
 
         // WebAuthn Implementation
         async function registerWebAuthn() {
@@ -820,6 +853,7 @@ func generateIndexHTML() -> String {
             const usernameInput = document.getElementById('nickname-input');
             if (savedUsername && usernameInput) {
                 usernameInput.value = savedUsername;
+                usernameInput.blur();
             }
             
             // Load saved emoji for the current user from localStorage
@@ -1735,16 +1769,16 @@ func generateCSS() -> String {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 1rem;
-            gap: 1rem;
+            padding: 0.5rem;
+            gap: 0.3rem;
             justify-content: flex-start;
-            padding-top: 2rem;
+            padding-top: 1rem;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             height: 100%;
             box-sizing: border-box;
             /* Ensure content is accessible when keyboard appears */
-            padding-bottom: calc(2rem + env(keyboard-inset-height, 0px));
+            padding-bottom: calc(1rem + env(keyboard-inset-height, 0px));
             /* Make the background area more tappable on mobile */
             min-height: 100%;
             touch-action: manipulation;
@@ -1761,7 +1795,7 @@ func generateCSS() -> String {
 
         .login-form h2 {
             font-size: 1.5rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
             flex-shrink: 0;
             color: white;
             text-align: center;
@@ -1771,7 +1805,7 @@ func generateCSS() -> String {
         .login-input-container {
             width: 90% !important;
             max-width: 300px !important;
-            gap: 12px;
+            gap: 4px;
             /* Improve mobile stability */
             position: relative;
             will-change: transform;
@@ -1805,15 +1839,16 @@ func generateCSS() -> String {
             font-size: 4rem !important;
             width: 80px !important;
             height: 80px !important;
-            margin-bottom: 1rem !important;
+            margin-bottom: 0.15rem !important;
             flex-shrink: 0;
             align-self: center;
         }
 
         .emoji-scroll-container {
-            height: 150px;
+            height: 120px;
             width: 100%;
             flex-shrink: 0;
+            margin-bottom: 0;
         }
 
         .emoji-picker {
@@ -1824,12 +1859,22 @@ func generateCSS() -> String {
         }
 
         .auth-options {
-            gap: 12px;
-            margin-top: 15px;
-            margin-bottom: 2rem;
+            gap: 8px;
+            margin-top: 0;
+            margin-bottom: 1rem;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
+        }
+        
+        .mobile-error-space {
+            min-height: 48px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin-top: 4px;
+            padding: 12px 15px;
+            border: 2px solid transparent;
+            box-sizing: border-box;
         }
 
         /* MOBILE CHAT SCREEN - COMPLETE REDESIGN */
@@ -4663,6 +4708,7 @@ func generateChatJS(adminName: String) -> String {
         const usernameInput = document.getElementById('nickname-input');
         if (savedUsername && usernameInput) {
             usernameInput.value = savedUsername;
+            usernameInput.blur();
         }
 
         // Emoji picker setup
@@ -4749,11 +4795,12 @@ func generateChatJS(adminName: String) -> String {
         // Focus username input and select text if present
         const nicknameInput = document.getElementById('nickname-input');
         if (nicknameInput) {
-            nicknameInput.focus();
+            //nicknameInput.focus();
             if (savedUsername) {
-                nicknameInput.select();
+                //nicknameInput.select();
             }
-            
+            inputElement.blur();
+
             // Add event listener to load emoji when username changes
             nicknameInput.addEventListener('blur', function() {
                 const username = this.value.trim();
@@ -4781,76 +4828,11 @@ func generateChatJS(adminName: String) -> String {
             });
         }
         
-        // Mobile keyboard handling for login form - prevent duplicate listeners
-        const mobileInput = document.getElementById('nickname-input');
-        if (mobileInput && !mobileInput.hasEventListeners) {
-            mobileInput.hasEventListeners = true; // Mark to prevent duplicates
-            let isScrolling = false;
-            
-            mobileInput.addEventListener('focus', (e) => {
-                // On mobile, scroll to ensure the login input container is visible when keyboard appears
-                if (window.innerWidth <= 768 && !isScrolling) {
-                    isScrolling = true;
-                    
-                    // Immediate re-focus to ensure input stays active
-                    setTimeout(() => {
-                        mobileInput.focus();
-                    }, 10);
-                    
-                    // Faster scroll timing for better responsiveness
-                    setTimeout(() => {
-                        const loginContainer = document.getElementById('login-input-container');
-                        if (loginContainer) {
-                            loginContainer.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'end',
-                                inline: 'nearest'
-                            });
-                        }
-                        
-                        // Reset scrolling flag after animation
-                        setTimeout(() => {
-                            isScrolling = false;
-                        }, 500); // Reduced from 1000ms
-                    }, 150); // Reduced from 300ms
-                }
-            });
-            
-            // Prevent multiple focus events from causing bouncing - make more responsive
-            mobileInput.addEventListener('touchstart', (e) => {
-                if (window.innerWidth <= 768) {
-                    // Ensure smooth transition on touch - faster transition
-                    e.target.style.transition = 'none';
-                    setTimeout(() => {
-                        e.target.style.transition = '';
-                    }, 50); // Reduced from 100ms
-                }
-            });
-        }
+
         
-        // Mobile background tap to deselect username input
-        const loginForm = document.querySelector('.login-form');
-        if (loginForm) {
-            loginForm.addEventListener('click', (e) => {
-                // Check if we're on mobile and the tap is on the background (not on input fields or buttons)
-                if (window.innerWidth <= 768) {
-                    const clickedElement = e.target;
-                    
-                    // If the clicked element is the login form container itself (background)
-                    // or other non-interactive elements, blur the username input
-                    if (clickedElement === loginForm || 
-                        clickedElement.classList.contains('login-form') ||
-                        clickedElement.tagName === 'H2' ||
-                        (clickedElement.closest && !clickedElement.closest('input, button, .emoji-picker, .auth-options, .login-input-container'))) {
-                        
-                        const inputEl = document.getElementById('nickname-input');
-                        if (inputEl && document.activeElement === inputEl) {
-                            inputEl.blur();
-                        }
-                    }
-                }
-            });
-        }
+
+
+
         
         // Close modals when clicking outside
         document.addEventListener('click', (e) => {
@@ -4878,6 +4860,13 @@ func generateChatJS(adminName: String) -> String {
         });
 
         // Note: Create room button already exists in HTML - no need to create duplicate
+        
+        // Trigger mobile emoji sequence on page load after DOM is ready
+        if (window.innerWidth <= 768) {
+            setTimeout(function() {
+                onMobileEmojiSequence();
+            }, 500);
+        }
     });
 
     // After the ChatClient class definition, add:
@@ -4910,6 +4899,7 @@ func generateChatJS(adminName: String) -> String {
         // Restore username
         if (savedUsername && inputElement) {
             inputElement.value = savedUsername;
+            inputElement.blur();
         }
         
         // Restore emoji
@@ -4940,10 +4930,11 @@ func generateChatJS(adminName: String) -> String {
         
         // Focus and select username input
         if (inputElement) {
-            inputElement.focus();
+            //inputElement.focus();
             if (savedUsername) {
-                inputElement.select();
+                //inputElement.select();
             }
+            inputElement.blur();
         }
         
         // Disconnect WebSocket if needed
