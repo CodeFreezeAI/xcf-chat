@@ -4766,7 +4766,30 @@ func generateChatJS(adminName: String) -> String {
         document.getElementById('login-screen').classList.remove('hidden');
         // Optionally clear username, emoji, etc.
         document.getElementById('nickname-input').value = '';
-        document.getElementById('selected-emoji').textContent = '👤';
+        
+        // Restore saved emoji from localStorage (same logic as page load)
+        const savedEmoji = localStorage.getItem('userEmoji');
+        if (savedEmoji) {
+            // Set the emoji in the picker
+            const selectedEmojiElement = document.getElementById('selected-emoji');
+            if (selectedEmojiElement) {
+                selectedEmojiElement.textContent = savedEmoji;
+            }
+            
+            // Update emoji picker selection
+            document.querySelectorAll('.emoji-option').forEach(option => {
+                option.classList.remove('selected');
+                if (option.textContent === savedEmoji) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            window.currentEmoji = savedEmoji;
+        } else {
+            document.getElementById('selected-emoji').textContent = '👤';
+            window.currentEmoji = '👤'; // Default emoji
+        }
+        
         // Disconnect WebSocket if needed
         if (window.chatClient && window.chatClient.ws) {
             window.chatClient.ws.close();

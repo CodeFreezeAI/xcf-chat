@@ -32,6 +32,10 @@ let package = Package(
         .testTarget(
             name: "MultiPeerChatTests",
             dependencies: ["MultiPeerChatCore"]
+        ),
+        .testTarget(
+            name: "MultiPeerChatCoreTests",
+            dependencies: ["MultiPeerChatCore"]
         )
     ]
 ) 

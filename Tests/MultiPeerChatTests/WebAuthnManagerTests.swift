@@ -3,6 +3,27 @@ import Foundation
 import CryptoKit
 @testable import MultiPeerChatCore
 
+extension Data {
+    init?(hex: String) {
+        let hex = hex.replacingOccurrences(of: " ", with: "")
+        let len = hex.count
+        if len % 2 != 0 { return nil }
+        
+        var data = Data(capacity: len / 2)
+        var index = hex.startIndex
+        for _ in 0..<(len / 2) {
+            let nextIndex = hex.index(index, offsetBy: 2)
+            if let byte = UInt8(hex[index..<nextIndex], radix: 16) {
+                data.append(byte)
+            } else {
+                return nil
+            }
+            index = nextIndex
+        }
+        self = data
+    }
+}
+
 final class WebAuthnManagerTests: XCTestCase {
     
     var webAuthnManager: WebAuthnManager!
@@ -12,17 +33,38 @@ final class WebAuthnManagerTests: XCTestCase {
         super.setUp()
         webAuthnManager = WebAuthnManager(rpId: testRpId)
         
-        // Clean up any existing test credentials
-        let testCredentialsFile = "webauthn_credentials_fido2.json"
-        if FileManager.default.fileExists(atPath: testCredentialsFile) {
-            try? FileManager.default.removeItem(atPath: testCredentialsFile)
+        // Clean up any existing test credentials and data
+        let testCredentialsFiles = [
+            "webauthn_credentials_fido2.json",
+            "webauthn_credentials.json",
+            "test_webauthn_credentials.json"
+        ]
+        
+        for file in testCredentialsFiles {
+            if FileManager.default.fileExists(atPath: file) {
+                try? FileManager.default.removeItem(atPath: file)
+            }
         }
+        
+        // Clear persistence manager data
+        PersistenceManager.shared.clearAllData()
     }
     
     override func tearDown() {
         // Clean up test files
-        let testCredentialsFile = "webauthn_credentials_fido2.json"
-        try? FileManager.default.removeItem(atPath: testCredentialsFile)
+        let testCredentialsFiles = [
+            "webauthn_credentials_fido2.json",
+            "webauthn_credentials.json", 
+            "test_webauthn_credentials.json"
+        ]
+        
+        for file in testCredentialsFiles {
+            if FileManager.default.fileExists(atPath: file) {
+                try? FileManager.default.removeItem(atPath: file)
+            }
+        }
+        
+        PersistenceManager.shared.clearAllData()
         super.tearDown()
     }
     
@@ -198,7 +240,7 @@ final class WebAuthnManagerTests: XCTestCase {
     
     func testValidRegistration() throws {
         let username = "testuser"
-        let (privateKey, publicKeyData, coseKey) = createMockES256PublicKey()
+        let (_, _, coseKey) = createMockES256PublicKey()
         
         let attestationObjectData = createMockAttestationObject(coseKey: coseKey)
         let clientDataJSON = createMockClientDataJSON(
@@ -343,7 +385,7 @@ final class WebAuthnManagerTests: XCTestCase {
     
     func testValidAuthentication() throws {
         let username = "testuser"
-        let (privateKey, publicKeyData, coseKey) = createMockES256PublicKey()
+        let (privateKey, _, coseKey) = createMockES256PublicKey()
         
         // First register the user
         let attestationObjectData = createMockAttestationObject(coseKey: coseKey)
@@ -407,7 +449,7 @@ final class WebAuthnManagerTests: XCTestCase {
     
     func testAuthenticationWithInvalidSignature() throws {
         let username = "testuser"
-        let (privateKey, publicKeyData, coseKey) = createMockES256PublicKey()
+        let (_, _, coseKey) = createMockES256PublicKey()
         
         // First register the user
         let attestationObjectData = createMockAttestationObject(coseKey: coseKey)
@@ -738,5 +780,70 @@ final class WebAuthnManagerTests: XCTestCase {
         }
         
         print("✅ Sign count increment test completed successfully!")
+    }
+    
+    // MARK: - RS256 Tests
+    
+    func createMockRS256PublicKey() -> (n: Data, e: Data, coseKey: [String: Any]) {
+        // Create a mock RSA public key for testing
+        // Using standard RSA-2048 test values
+        let nHex = "00e0473e6b064c85e9493d70e8b8b4b3533bb5b9b44e7b9b3e46e7b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5e6b5"
+        let eHex = "010001"
+        
+        let nData = Data(hex: nHex) ?? Data(repeating: 0xe0, count: 256)
+        let eData = Data(hex: eHex) ?? Data([0x01, 0x00, 0x01])
+        
+        let coseKey: [String: Any] = [
+            "1": 3,     // kty: RSA
+            "3": -257,  // alg: RS256
+            "-1": nData, // n (modulus)
+            "-2": eData  // e (exponent)
+        ]
+        
+        return (n: nData, e: eData, coseKey: coseKey)
+    }
+    
+    func testRS256Registration() throws {
+        let username = "rs256user"
+        let (_, _, coseKey) = createMockRS256PublicKey()
+        
+        let attestationObjectData = createMockAttestationObject(coseKey: coseKey)
+        let clientDataJSON = createMockClientDataJSON(
+            type: "webauthn.create",
+            challenge: "test-challenge",
+            origin: "https://\(testRpId)"
+        )
+        
+        let credentialId = Data(repeating: 0x02, count: 16).base64EncodedString()
+        
+        let credential: [String: Any] = [
+            "id": credentialId,
+            "rawId": credentialId,
+            "response": [
+                "attestationObject": attestationObjectData.base64EncodedString(),
+                "clientDataJSON": clientDataJSON.base64EncodedString()
+            ],
+            "type": "public-key"
+        ]
+        
+        // This should not throw
+        try webAuthnManager.verifyRegistration(username: username, credential: credential)
+        
+        // Verify the user is now registered
+        XCTAssertTrue(webAuthnManager.isUsernameRegistered(username))
+    }
+    
+    func testRS256RegistrationOptionsIncludesRS256() {
+        let options = try! webAuthnManager.generateRegistrationOptions(username: "testuser")
+        
+        let publicKey = options["publicKey"] as! [String: Any]
+        let pubKeyCredParams = publicKey["pubKeyCredParams"] as! [[String: Any]]
+        
+        // Should include both ES256 and RS256
+        XCTAssertEqual(pubKeyCredParams.count, 4)
+        
+        let algorithms = pubKeyCredParams.map { $0["alg"] as! Int }
+        XCTAssertTrue(algorithms.contains(-7))   // ES256
+        XCTAssertTrue(algorithms.contains(-257)) // RS256
     }
 } 
