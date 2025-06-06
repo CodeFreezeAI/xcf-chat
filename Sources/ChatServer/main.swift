@@ -1,5 +1,6 @@
 import Foundation
 import MultiPeerChatCore
+import DogTagKit
 
 var globalRpId = "chat.xcf.ai"
 if let rpArgIndex = CommandLine.arguments.firstIndex(of: "--rp-id"), CommandLine.arguments.count > rpArgIndex + 1 {

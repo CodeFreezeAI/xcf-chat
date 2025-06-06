@@ -134,6 +134,75 @@ The client-server communication uses JSON messages over WebSocket:
 }
 ```
 
+## WebAuthn Storage Architecture
+
+This chat server uses **WebAuthn passkeys** for secure, passwordless authentication. Understanding how data is stored helps explain the security model:
+
+### 🔐 What the Passkey/Authenticator Stores (Your Device)
+- **🔑 Private Key** - Never leaves your device, used to sign challenges
+- **🆔 Credential ID** - Unique identifier to find the right key (e.g., `e8r9LGIiYjTdb7nJhpQHSCa7K6w=`)
+- **🌐 RP ID** - The domain this credential works for (e.g., `chat.xcf.ai`)
+- **👤 User handle** - Metadata about the user account
+
+### 🗄️ What the Server Stores (Database)
+- **🔓 Public Key** - Used to verify signatures from the passkey (e.g., `BGEbYTdiw1KgRZI7moQBMNnCqJEdMn18fbYDB+xp1Cfox0bGk2...`)
+- **🆔 Credential ID** - Same ID as stored on the passkey for matching
+- **👥 Username** - Human-readable identifier (e.g., `XCF Admin`)
+- **📊 Metadata** - Sign count, algorithm, protocol version, creation date
+
+### 🔄 How Authentication Works
+1. **Server** sends authentication challenge + **Credential ID**
+2. **Passkey** finds the matching **Private Key** using the **Credential ID**
+3. **Passkey** signs the challenge with **Private Key** 
+4. **Server** verifies signature using stored **Public Key**
+
+### 💾 Storage Location
+- **WebAuthn Database**: `~/webauthn/credentials.sqlite` (SwiftData/SQLite)
+- **User Data**: Managed by PersistenceManager (separate SwiftData container)
+- **Security**: Encrypted SQLite database with integrity checking
+
+### 🔍 Key Security Points
+- **Private keys never leave your device** - even the server can't access them
+- **Credential IDs are the "pointer"** that links passkey and server data
+- **Public/Private key cryptography** ensures only your device can authenticate
+- **No passwords stored anywhere** - just cryptographic keys
+
+This architecture provides **phishing-resistant, passwordless authentication** that's both secure and user-friendly.
+
+### 🚀 **DogTagKit WebAuthn Enhancements**
+
+While adhering to the **W3C WebAuthn standard**, DogTagKit adds practical enhancements for better user experience:
+
+#### **Standard WebAuthn Endpoints** (W3C Compliant)
+- `POST /webauthn/register/begin` ✅ Generate registration challenge
+- `POST /webauthn/register/complete` ✅ Verify registration response
+- `POST /webauthn/authenticate/begin` ✅ Generate authentication challenge  
+- `POST /webauthn/authenticate/complete` ✅ Verify authentication response
+
+#### **Custom Enhancement Endpoints** (DogTagKit Extensions)
+- `POST /webauthn/username/check` 🆕 **Username availability checking**
+
+**Example Username Check:**
+```javascript
+// Check before registration
+const response = await fetch('/webauthn/username/check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'john_doe' })
+});
+
+const result = await response.json();
+// { "available": false, "username": "john_doe", "error": "Username already registered" }
+```
+
+**Why This Enhancement Matters:**
+- ✅ **Better UX**: Immediate feedback on username availability
+- ✅ **Prevents Failed Registrations**: Check before starting WebAuthn ceremony  
+- ✅ **Still Secure**: Uses same credential storage for validation
+- ✅ **Standard Compliant**: Doesn't modify WebAuthn cryptographic flows
+
+**Note**: The `/webauthn/username/check` endpoint is **not part of the W3C WebAuthn specification** - it's a practical application-level enhancement that many WebAuthn implementations add for improved user experience.
+
 ## Deployment
 
 ### Local Network

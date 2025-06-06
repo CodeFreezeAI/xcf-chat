@@ -15,6 +15,10 @@ let package = Package(
         .library(
             name: "MultiPeerChatCore",
             targets: ["MultiPeerChatCore"]
+        ),
+        .library(
+            name: "DogTagKit",
+            targets: ["DogTagKit"]
         )
     ],
     dependencies: [],
@@ -27,11 +31,23 @@ let package = Package(
         ),
         .target(
             name: "MultiPeerChatCore",
+            dependencies: ["DogTagKit"]
+        ),
+        .target(
+            name: "DogTagKit",
             dependencies: []
         ),
         .testTarget(
             name: "MultiPeerChatTests",
             dependencies: ["MultiPeerChatCore"]
+        ),
+        .testTarget(
+            name: "MultiPeerChatCoreTests",
+            dependencies: ["MultiPeerChatCore"]
+        ),
+        .testTarget(
+            name: "DogTagKitTests",
+            dependencies: ["DogTagKit"]
         )
     ]
 ) 

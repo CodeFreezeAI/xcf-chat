@@ -1,6 +1,10 @@
 import Foundation
 import Network
 import CommonCrypto
+import CoreGraphics
+import CoreText
+import ImageIO
+import DogTagKit
 
 // MARK: - String Extension for Regex Matching
 extension String {
@@ -28,6 +32,7 @@ public class WebServer: ObservableObject {
     private let rpId: String
     private let adminUsername: String
     public let webAuthnManager: WebAuthnManager // Changed from private to public
+    private let webAuthnServer: WebAuthnServer
     private let port: UInt16?
     
     // Simple session storage for admin authentication
@@ -64,8 +69,10 @@ public class WebServer: ObservableObject {
             storageBackend: storageBackend,
             rpName: "Multi-Peer Chat",
             rpIcon: iconUrl,
-            defaultUserIcon: nil // Will use the automatic generation
+            defaultUserIcon: nil, // Will use the automatic generation
+            userManager: PersistenceManager.shared
         )
+        self.webAuthnServer = WebAuthnServer(manager: webAuthnManager)
     }
     
     public func start(on port: UInt16) {
@@ -273,10 +280,10 @@ public class WebServer: ObservableObject {
         case ("GET", "/"):
             response = generateIndexHTML()
             contentType = "text/html"
-        case ("GET", "/chatv007.js"):
+        case ("GET", "/chatv008.js"):
             response = generateChatJS(adminName: adminUsername)
             contentType = "application/javascript"
-        case ("GET", "/stylev007.css"):
+        case ("GET", "/stylev008.css"):
             response = generateCSS()
             contentType = "text/css"
         // Admin Routes - REQUIRES AUTHENTICATION
@@ -433,20 +440,11 @@ public class WebServer: ObservableObject {
             // Handle file uploads using WebAuthn-style processing 
             handleFileUploadSimple(connection, request: request)
             return
-        case ("POST", "/webauthn/register/begin"):
-            handleWebAuthnRegisterBegin(connection, request: request)
+        case ("POST", let path) where path.hasPrefix("/webauthn/"):
+            handleWebAuthnRequest(connection, request: request)
             return
-        case ("POST", "/webauthn/register/complete"):
-            handleWebAuthnRegisterComplete(connection, request: request)
-            return
-        case ("POST", "/webauthn/authenticate/begin"):
-            handleWebAuthnAuthenticateBegin(connection, request: request)
-            return
-        case ("POST", "/webauthn/authenticate/complete"):
-            handleWebAuthnAuthenticateComplete(connection, request: request)
-            return
-        case ("POST", "/webauthn/username/check"):
-            handleWebAuthnUsernameCheck(connection, request: request)
+        case ("POST", "/emoji/analyze"):
+            handleEmojiColorAnalysis(connection, request: request)
             return
         default:
             response = "404 Not Found"
@@ -471,39 +469,30 @@ public class WebServer: ObservableObject {
         })
     }
     
-    private func handleWebAuthnRegisterBegin(_ connection: NWConnection, request: String) {
-        print("[WebAuthn] RAW REQUEST:\n\(request)")
-        // Extract request body
-        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
-            print("[WebAuthn] Could not find header/body separator in request")
-            sendErrorResponse(connection, error: "Invalid request format")
-            return
-        }
-        let bodyString = String(request[bodyStart...])
-        print("[WebAuthn] BODY STRING:\n\(bodyString)")
-        guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
-              let username = json["username"] as? String else {
-            print("[WebAuthn] Could not parse JSON or missing username")
-            sendErrorResponse(connection, error: "Invalid request body")
+    // MARK: - WebAuthn Request Handler (using DogTagKit)
+    
+    private func handleWebAuthnRequest(_ connection: NWConnection, request: String) {
+        // Parse the raw HTTP request using DogTagKit
+        guard let httpRequest = WebAuthnServer.parseHTTPRequest(request, connection: connection) else {
+            sendErrorResponse(connection, error: "Invalid HTTP request format")
             return
         }
         
-        do {
-            let options = try webAuthnManager.generateRegistrationOptions(username: username)
-            let responseData = try JSONSerialization.data(withJSONObject: options)
-            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
-        } catch {
-            sendErrorResponse(connection, error: "Failed to generate registration options")
-        }
+        // Handle the request using DogTagKit WebAuthnServer
+        let httpResponse = webAuthnServer.handleRequest(httpRequest)
+        
+        // Send the response
+        let responseString = WebAuthnServer.formatHTTPResponse(httpResponse)
+        connection.send(content: responseString.data(using: .utf8), completion: .contentProcessed { _ in
+            connection.cancel()
+        })
     }
     
-    private func handleWebAuthnRegisterComplete(_ connection: NWConnection, request: String) {
-        // Extract client IP address
-        let clientIP = extractClientIP(request, connection: connection)
-        print("[WebServer] 📍 Registration IP: \(clientIP ?? "unknown")")
+
+    
+    private func handleEmojiColorAnalysis(_ connection: NWConnection, request: String) {
+        print("[EmojiColor] Processing emoji color analysis request")
         
-        // Extract request body
         guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
             sendErrorResponse(connection, error: "Invalid request format")
             return
@@ -512,113 +501,166 @@ public class WebServer: ObservableObject {
         let bodyString = String(request[bodyStart...])
         guard let bodyData = bodyString.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
-              let username = json["username"] as? String else {
-            sendErrorResponse(connection, error: "Invalid request body")
+              let emoji = json["emoji"] as? String else {
+            sendErrorResponse(connection, error: "Invalid request body or missing emoji")
             return
         }
         
+        print("[EmojiColor] Analyzing emoji: \(emoji)")
+        
+        // Analyze the emoji colors
         do {
-            try webAuthnManager.verifyRegistration(username: username, credential: json, clientIP: clientIP)
-            sendJSONResponse(connection, json: "{\"success\":true}")
-        } catch {
-            sendErrorResponse(connection, error: "Registration verification failed")
-        }
-    }
-    
-    private func handleWebAuthnAuthenticateBegin(_ connection: NWConnection, request: String) {
-        // Extract request body
-        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
-            sendErrorResponse(connection, error: "Invalid request format")
-            return
-        }
-        
-        let bodyString = String(request[bodyStart...])
-        guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any] else {
-            sendErrorResponse(connection, error: "Invalid request body")
-            return
-        }
-        
-        let username = json["username"] as? String
-        
-        do {
-            let options = try webAuthnManager.generateAuthenticationOptions(username: username)
-            let responseData = try JSONSerialization.data(withJSONObject: options)
-            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
-        } catch {
-            sendErrorResponse(connection, error: "Failed to generate authentication options")
-        }
-    }
-    
-    private func handleWebAuthnAuthenticateComplete(_ connection: NWConnection, request: String) {
-        print("[WebServer] 🔍 Received authentication completion request")
-        
-        // Extract client IP address
-        let clientIP = extractClientIP(request, connection: connection)
-        print("[WebServer] 📍 Client IP: \(clientIP ?? "unknown")")
-        
-        // Extract request body
-        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
-            print("[WebServer] ❌ Invalid request format - no body separator")
-            sendErrorResponse(connection, error: "Invalid request format")
-            return
-        }
-        
-        let bodyString = String(request[bodyStart...])
-        print("[WebServer] 📦 Request body length: \(bodyString.count)")
-        
-        guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
-              let username = json["username"] as? String else {
-            print("[WebServer] ❌ Failed to parse request body or missing username")
-            sendErrorResponse(connection, error: "Invalid request body")
-            return
-        }
-        
-        print("[WebServer] 🆔 Authentication request for username: '\(username)'")
-        print("[WebServer] 📋 Credential data: \(json)")
-        
-        do {
-            print("[WebServer] ✅ Calling WebAuthnManager.verifyAuthentication...")
-            let foundUsername = try webAuthnManager.verifyAuthentication(username: username, credential: json, clientIP: clientIP)
-            print("[WebServer] ✅ Authentication successful! Found username: \(foundUsername ?? "nil")")
+            let colors = try analyzeEmojiColors(emoji: emoji)
             
             let response: [String: Any] = [
                 "success": true,
-                "username": foundUsername ?? username
+                "emoji": emoji,
+                "averageColor": colors.averageColor,
+                "contrastColor": colors.contrastColor,
+                "textColor": colors.textColor
             ]
+            
             let responseData = try JSONSerialization.data(withJSONObject: response)
-            if let jsonString = String(data: responseData, encoding: .utf8) {
-                print("[WebServer] 📤 Sending success response: \(jsonString)")
-                sendJSONResponse(connection, json: jsonString)
-            } else {
-                print("[WebServer] ❌ Failed to create JSON response")
-                sendErrorResponse(connection, error: "Failed to create response")
-            }
+            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
+            
         } catch {
-            print("[WebServer] ❌ Authentication verification failed with error: \(error)")
-            print("[WebServer] ❌ Error type: \(type(of: error))")
-            sendErrorResponse(connection, error: "Authentication verification failed: \(error)")
+            print("[EmojiColor] Error analyzing emoji: \(error)")
+            sendErrorResponse(connection, error: "Failed to analyze emoji colors: \(error.localizedDescription)")
         }
     }
     
-    private func handleWebAuthnUsernameCheck(_ connection: NWConnection, request: String) {
-        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
-            sendErrorResponse(connection, error: "Invalid request format")
-            return
+    // MARK: - Emoji Color Analysis
+    
+    struct EmojiColors {
+        let averageColor: String
+        let contrastColor: String
+        let textColor: String
+    }
+    
+    enum EmojiColorError: Error {
+        case invalidEmoji
+        case renderingFailed
+        case colorAnalysisFailed
+    }
+    
+    private func analyzeEmojiColors(emoji: String) throws -> EmojiColors {
+        // Create a bitmap context to render the emoji
+        let size: CGFloat = 64
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        
+        guard let context = CGContext(
+            data: nil,
+            width: Int(size),
+            height: Int(size),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw EmojiColorError.renderingFailed
         }
-        let bodyString = String(request[bodyStart...])
-        guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
-              let username = json["username"] as? String else {
-            sendErrorResponse(connection, error: "Invalid request body")
-            return
+        
+        // Set up the context
+        context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 0)) // Transparent background
+        context.fill(CGRect(x: 0, y: 0, width: size, height: size))
+        
+        // Create attributed string for the emoji
+        let font = CTFontCreateWithName("Apple Color Emoji" as CFString, size * 0.7, nil)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: CGColor(red: 1, green: 1, blue: 1, alpha: 1)
+        ]
+        let attributedString = NSAttributedString(string: emoji, attributes: attributes)
+        
+        // Create a line and draw it
+        let line = CTLineCreateWithAttributedString(attributedString)
+        let bounds = CTLineGetBoundsWithOptions(line, .useOpticalBounds)
+        
+        // Center the emoji
+        let x = (size - bounds.width) / 2 - bounds.origin.x
+        let y = (size - bounds.height) / 2 - bounds.origin.y
+        
+        context.textPosition = CGPoint(x: x, y: y)
+        CTLineDraw(line, context)
+        
+        // Get the image data
+        guard let image = context.makeImage(),
+              let dataProvider = image.dataProvider,
+              let data = dataProvider.data else {
+            throw EmojiColorError.renderingFailed
         }
-        if webAuthnManager.isUsernameRegistered(username) == false {
-            sendJSONResponse(connection, json: "{\"available\":true}")
+        
+        // Analyze the colors
+        let pixelData = CFDataGetBytePtr(data)
+        let bytesPerPixel = 4
+        let totalPixels = Int(size * size)
+        
+        var totalRed: Int = 0
+        var totalGreen: Int = 0
+        var totalBlue: Int = 0
+        var validPixels = 0
+        
+        for i in 0..<totalPixels {
+            let pixelIndex = i * bytesPerPixel
+            let alpha = pixelData?[pixelIndex + 3] ?? 0
+            
+            // Only count non-transparent pixels
+            if alpha > 30 {
+                let red = pixelData?[pixelIndex] ?? 0
+                let green = pixelData?[pixelIndex + 1] ?? 0
+                let blue = pixelData?[pixelIndex + 2] ?? 0
+                
+                totalRed += Int(red)
+                totalGreen += Int(green)
+                totalBlue += Int(blue)
+                validPixels += 1
+            }
+        }
+        
+        guard validPixels > 0 else {
+            throw EmojiColorError.colorAnalysisFailed
+        }
+        
+        // Calculate average color
+        let avgRed = totalRed / validPixels
+        let avgGreen = totalGreen / validPixels
+        let avgBlue = totalBlue / validPixels
+        
+        // Calculate brightness
+        let brightness = (avgRed + avgGreen + avgBlue) / 3
+        
+        // Generate contrasting background color
+        let contrastRed: Int
+        let contrastGreen: Int
+        let contrastBlue: Int
+        
+        if brightness > 128 {
+            // Dark contrast for bright emojis
+            contrastRed = max(0, avgRed - 100)
+            contrastGreen = max(0, avgGreen - 100)
+            contrastBlue = max(0, avgBlue - 100)
         } else {
-            sendJSONResponse(connection, json: "{\"available\":false,\"error\":\"Username already registered\"}")
+            // Light contrast for dark emojis
+            contrastRed = min(255, avgRed + 100)
+            contrastGreen = min(255, avgGreen + 100)
+            contrastBlue = min(255, avgBlue + 100)
         }
+        
+        // Determine text color (black or white) based on contrast background
+        let contrastBrightness = (contrastRed + contrastGreen + contrastBlue) / 3
+        let textColor = contrastBrightness > 128 ? "#000000" : "#FFFFFF"
+        
+        // Convert to hex strings
+        let averageColor = String(format: "#%02X%02X%02X", avgRed, avgGreen, avgBlue)
+        let contrastColor = String(format: "#%02X%02X%02X", contrastRed, contrastGreen, contrastBlue)
+        
+        print("[EmojiColor] Average: \(averageColor), Contrast: \(contrastColor), Text: \(textColor)")
+        
+        return EmojiColors(
+            averageColor: averageColor,
+            contrastColor: contrastColor,
+            textColor: textColor
+        )
     }
     
     private func handleFileUploadRequest(_ connection: NWConnection, initialData: Data, request: String) {
@@ -1168,18 +1210,32 @@ public class WebServer: ObservableObject {
     }
     
     private func handleFileServing(_ connection: NWConnection, path: String) {
-        let fileName = String(path.dropFirst(7)) // Remove "/files/"
+        let pathComponents = path.components(separatedBy: "/").filter { !$0.isEmpty }
         
-        // Find the attachment by filename
+        // Support both old format (/files/uuid.ext) and new format (/files/id/filename.ext)
         let allAttachments = PersistenceManager.shared.getAllAttachments()
-        guard let attachment = allAttachments.first(where: { $0.fileName == fileName }) else {
+        let attachment: FileAttachment?
+        
+        if pathComponents.count == 2 {
+            // Old format: /files/filename
+            let fileName = pathComponents[1]
+            attachment = allAttachments.first(where: { $0.fileName == fileName })
+        } else if pathComponents.count == 3 {
+            // New format: /files/id/originalfilename
+            let fileId = pathComponents[1]
+            attachment = allAttachments.first(where: { $0.id.uuidString == fileId })
+        } else {
+            attachment = nil
+        }
+        
+        guard let foundAttachment = attachment else {
             sendErrorResponse(connection, error: "File not found", statusCode: "404 Not Found")
             return
         }
         
         do {
-            let fileData = try ChatFileManager.shared.getFileData(for: attachment)
-            sendFileResponse(connection, data: fileData, mimeType: attachment.mimeType, fileName: attachment.originalFileName)
+            let fileData = try ChatFileManager.shared.getFileData(for: foundAttachment)
+            sendFileResponse(connection, data: fileData, mimeType: foundAttachment.mimeType, fileName: foundAttachment.originalFileName)
         } catch {
             sendErrorResponse(connection, error: "Failed to read file", statusCode: "500 Internal Server Error")
         }

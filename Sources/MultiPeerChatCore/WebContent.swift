@@ -92,7 +92,7 @@ func generateIndexHTML() -> String {
         <!-- Preconnect for performance -->
         <link rel="preconnect" href="https://chat.xcf.ai">
         
-        <link rel="stylesheet" href="/stylev007.css">
+        <link rel="stylesheet" href="/stylev008.css">
     </head>
     <body>
         <div class="container">
@@ -213,7 +213,7 @@ func generateIndexHTML() -> String {
                             <div class="auth-options" id="login-buttons-anchor">
                                 <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
                                 <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
-                                <div id="login-status" class="status-message"></div>
+                                <div id="login-status" class="status-message mobile-error-space"></div>
                             </div>
                         </div>
                     </div>
@@ -226,7 +226,6 @@ func generateIndexHTML() -> String {
                             <div class="user-info">
                                 <div class="user-avatar" onclick="showUserEmojiPicker()">👤</div>
                                 <span id="current-username"></span>
-                                <button class="edit-emoji-btn" onclick="showUserEmojiPicker()" title="Change emoji">✏️</button>
                             </div>
                             
                             <div class="rooms-section-header" onclick="toggleRoomsList()">
@@ -433,7 +432,7 @@ func generateIndexHTML() -> String {
             </div>
         </div>
 
-        <script src="/chatv007.js"></script>
+        <script src="/chatv008.js"></script>
         <script>
         // Hide upload button and file input for now
         /*
@@ -444,6 +443,39 @@ func generateIndexHTML() -> String {
             if (fileInput) fileInput.style.display = 'none';
         });
         */
+
+                // Mobile emoji interaction sequence  
+        function onMobileEmojiSequence() {
+            if (window.innerWidth > 768) return;
+            
+            setTimeout(function() { 
+                const emojiOption = document.querySelector('.emoji-option');
+                if (emojiOption) emojiOption.dispatchEvent(new Event('click'));
+            }, 10);
+            
+            setTimeout(function() { 
+                const selectedEmoji = document.getElementById('selected-emoji');
+                if (selectedEmoji) selectedEmoji.focus();
+            }, 20);
+            
+            setTimeout(function() { 
+                document.activeElement.blur();
+            }, 30);
+            
+            setTimeout(function() { 
+                const selectedEmoji = document.getElementById('selected-emoji');
+                if (selectedEmoji) selectedEmoji.style.transform = 'scale(1.1)';
+            }, 40);
+            
+            setTimeout(function() { 
+                const selectedEmoji = document.getElementById('selected-emoji');
+                if (selectedEmoji) selectedEmoji.style.transform = 'scale(1.0)';
+            }, 50);
+            
+            setTimeout(function() { 
+                document.body.style.pointerEvents = 'auto';
+            }, 60);
+        }
 
         // WebAuthn Implementation
         async function registerWebAuthn() {
@@ -743,6 +775,72 @@ func generateIndexHTML() -> String {
             loginBtn.textContent = loginText;
         }
 
+        // Standalone emoji color analysis for when chatClient isn't available
+        async function analyzeEmojiColorsStandalone(emoji) {
+            try {
+                const response = await fetch('/emoji/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emoji })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        // Apply the contrasting background color to emoji elements
+                        applyEmojiStylingStandalone(emoji, result.contrastColor, result.textColor);
+                        
+                        // Save colors to localStorage for this emoji
+                        localStorage.setItem(`emojiColors_${emoji}`, JSON.stringify({
+                            contrastColor: result.contrastColor,
+                            textColor: result.textColor
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.log('Standalone emoji color analysis failed:', error);
+                // Fallback to default styling
+                applyEmojiStylingStandalone(emoji, '#f0f0f0', '#000000');
+            }
+        }
+        
+        function applyEmojiStylingStandalone(emoji, backgroundColor, textColor) {
+            // Apply styling to selected emoji in login form
+            const selectedEmoji = document.getElementById('selected-emoji');
+            if (selectedEmoji && selectedEmoji.textContent === emoji) {
+                selectedEmoji.style.backgroundColor = backgroundColor;
+                selectedEmoji.style.color = textColor;
+                selectedEmoji.style.border = `3px solid ${adjustColorBrightnessStandalone(backgroundColor, 30)}`;
+            }
+            
+            // Apply styling to user emoji picker modal
+            const selectedUserEmoji = document.getElementById('selected-user-emoji');
+            if (selectedUserEmoji && selectedUserEmoji.textContent === emoji) {
+                selectedUserEmoji.style.backgroundColor = backgroundColor;
+                selectedUserEmoji.style.color = textColor;
+                selectedUserEmoji.style.border = `3px solid ${adjustColorBrightnessStandalone(backgroundColor, 30)}`;
+            }
+        }
+        
+        // Helper function for standalone color adjustment
+        function adjustColorBrightnessStandalone(hex, percent) {
+            // Remove the hash if it exists
+            hex = hex.replace('#', '');
+            
+            // Parse r, g, b values
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            
+            // Calculate new values
+            const newR = Math.max(0, Math.min(255, r + percent));
+            const newG = Math.max(0, Math.min(255, g + percent));
+            const newB = Math.max(0, Math.min(255, b + percent));
+            
+            // Convert back to hex
+            return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+        }
+
         // Replace all ${rpId} with <span id="rp-id"></span>
         // At the top of the <script> section, add:
         document.addEventListener('DOMContentLoaded', function() {
@@ -758,8 +856,16 @@ func generateIndexHTML() -> String {
             // Clear any status message on page load
             clearLoginStatus();
             
-            // Load saved emoji from localStorage
-            const savedEmoji = localStorage.getItem('userEmoji');
+            // Load saved username from localStorage
+            const savedUsername = localStorage.getItem('lastUsername');
+            const usernameInput = document.getElementById('nickname-input');
+            if (savedUsername && usernameInput) {
+                usernameInput.value = savedUsername;
+                usernameInput.blur();
+            }
+            
+            // Load saved emoji for the current user from localStorage
+            const savedEmoji = savedUsername ? localStorage.getItem(`userEmoji_${savedUsername}`) : null;
             if (savedEmoji) {
                 // Set the emoji in the picker
                 const selectedEmojiElement = document.getElementById('selected-emoji');
@@ -776,8 +882,13 @@ func generateIndexHTML() -> String {
                 });
                 
                 window.currentEmoji = savedEmoji;
+                
+                // Apply saved emoji styling
+                analyzeEmojiColorsStandalone(savedEmoji);
             } else {
                 window.currentEmoji = '👤'; // Default emoji
+                // Apply default emoji styling
+                analyzeEmojiColorsStandalone('👤');
             }
         });
 
@@ -805,7 +916,12 @@ func generateIndexHTML() -> String {
             
             // Store the selected emoji
             window.currentEmoji = emoji;
-            localStorage.setItem('userEmoji', emoji);
+            
+            // Save to localStorage for current user
+            const inputElement = document.getElementById('nickname-input');
+            if (inputElement && inputElement.value.trim()) {
+                localStorage.setItem(`userEmoji_${inputElement.value.trim()}`, emoji);
+            }
             
             console.log('🎭 Selected emoji:', emoji);
         }
@@ -818,18 +934,23 @@ func generateIndexHTML() -> String {
         }
         
         function joinChat() {
-            const usernameInput = document.getElementById('nickname-input');
-            const username = usernameInput.value.trim();
+            const inputElement = document.getElementById('nickname-input');
+            const username = inputElement.value.trim();
             
             if (!username) {
                 alert('Please enter a username');
                 return;
             }
             
+            // Save username and emoji to localStorage
+            localStorage.setItem('lastUsername', username);
+            const currentEmoji = window.currentEmoji || '👤';
+            localStorage.setItem(`userEmoji_${username}`, currentEmoji);
+            
             // Create and initialize chat client
             window.chat = new ChatClient();
             chat.username = username;
-            chat.userEmoji = window.currentEmoji || '👤';
+            chat.userEmoji = currentEmoji;
             
             document.getElementById('current-username').textContent = username;
             
@@ -1085,6 +1206,13 @@ func generateCSS() -> String {
         height: 80px !important;
         margin-bottom: 1rem !important;
         flex-shrink: 0;
+        transition: all 0.3s ease;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        border-radius: 20px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
     .emoji-scroll-container {
@@ -1649,16 +1777,16 @@ func generateCSS() -> String {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 1rem;
-            gap: 1rem;
+            padding: 0.5rem;
+            gap: 0.3rem;
             justify-content: flex-start;
-            padding-top: 2rem;
+            padding-top: 1rem;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             height: 100%;
             box-sizing: border-box;
             /* Ensure content is accessible when keyboard appears */
-            padding-bottom: calc(2rem + env(keyboard-inset-height, 0px));
+            padding-bottom: calc(1rem + env(keyboard-inset-height, 0px));
             /* Make the background area more tappable on mobile */
             min-height: 100%;
             touch-action: manipulation;
@@ -1675,7 +1803,7 @@ func generateCSS() -> String {
 
         .login-form h2 {
             font-size: 1.5rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
             flex-shrink: 0;
             color: white;
             text-align: center;
@@ -1685,7 +1813,7 @@ func generateCSS() -> String {
         .login-input-container {
             width: 90% !important;
             max-width: 300px !important;
-            gap: 12px;
+            gap: 4px;
             /* Improve mobile stability */
             position: relative;
             will-change: transform;
@@ -1719,15 +1847,16 @@ func generateCSS() -> String {
             font-size: 4rem !important;
             width: 80px !important;
             height: 80px !important;
-            margin-bottom: 1rem !important;
+            margin-bottom: 0.15rem !important;
             flex-shrink: 0;
             align-self: center;
         }
 
         .emoji-scroll-container {
-            height: 150px;
+            height: 120px;
             width: 100%;
             flex-shrink: 0;
+            margin-bottom: 0;
         }
 
         .emoji-picker {
@@ -1738,12 +1867,22 @@ func generateCSS() -> String {
         }
 
         .auth-options {
-            gap: 12px;
-            margin-top: 15px;
-            margin-bottom: 2rem;
+            gap: 8px;
+            margin-top: 0;
+            margin-bottom: 1rem;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
+        }
+        
+        .mobile-error-space {
+            min-height: 48px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin-top: 4px;
+            padding: 12px 15px;
+            border: 2px solid transparent;
+            box-sizing: border-box;
         }
 
         /* MOBILE CHAT SCREEN - COMPLETE REDESIGN */
@@ -2063,6 +2202,14 @@ func generateCSS() -> String {
         font-size: 1.5rem;
         margin-right: 0.5rem;
         line-height: 1;
+        transition: all 0.3s ease;
+        border-radius: 50%;
+        padding: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        min-height: 28px;
     }
 
     .username {
@@ -2882,11 +3029,14 @@ func generateCSS() -> String {
         justify-content: center;
         font-size: 16px;
         cursor: pointer;
-        transition: transform 0.2s ease;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     
     .user-avatar:hover {
         transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
     
     .edit-emoji-btn {
@@ -3305,8 +3455,10 @@ func generateChatJS(adminName: String) -> String {
                     if (message.userEmoji) {
                         this.userEmoji = message.userEmoji;
                         this.updateEmojiDisplay(message.userEmoji);
-                        // Save to localStorage
-                        localStorage.setItem('userEmoji', message.userEmoji);
+                        // Save to localStorage for current user
+                        if (this.username) {
+                            localStorage.setItem(`userEmoji_${this.username}`, message.userEmoji);
+                        }
                     }
                     
                     // Handle room joining after receiving room list
@@ -3469,7 +3621,10 @@ func generateChatJS(adminName: String) -> String {
                     if (message.success) {
                         this.userEmoji = message.emoji;
                         this.updateEmojiDisplay(message.emoji);
-                        localStorage.setItem('userEmoji', message.emoji);
+                        // Save to localStorage for current user
+                        if (this.username) {
+                            localStorage.setItem(`userEmoji_${this.username}`, message.emoji);
+                        }
                         console.log('✅ Emoji updated to:', message.emoji);
                     } else {
                         console.error('❌ Failed to update emoji:', message.error);
@@ -4115,7 +4270,7 @@ func generateChatJS(adminName: String) -> String {
                     if (message.attachment) {
                         const attachment = message.attachment;
                         if (attachment.isImage) {
-                            const imageUrl = `/files/${attachment.fileName}`;
+                            const imageUrl = `/files/${attachment.id}/${encodeURIComponent(attachment.originalFileName)}`;
                             attachmentHTML = `
                                 <div class="message-attachment">
                                     <img src="${imageUrl}" 
@@ -4125,9 +4280,10 @@ func generateChatJS(adminName: String) -> String {
                                 </div>
                             `;
                         } else {
+                            const fileUrl = `/files/${attachment.id}/${encodeURIComponent(attachment.originalFileName)}`;
                             attachmentHTML = `
                                 <div class="message-attachment">
-                                    <a href="/files/${attachment.fileName}" 
+                                    <a href="${fileUrl}" 
                                        class="message-attachment-file" 
                                        target="_blank" 
                                        download="${attachment.originalFileName}">
@@ -4151,6 +4307,11 @@ func generateChatJS(adminName: String) -> String {
                         <div class="message-content">${this.escapeHtml(message.content)}</div>
                         ${attachmentHTML}
                     `;
+                    
+                    // Apply emoji styling to message emojis
+                    if (message.emoji) {
+                        this.loadEmojiStyling(message.emoji);
+                    }
                 }
                 
                 container.appendChild(messageEl);
@@ -4339,6 +4500,31 @@ func generateChatJS(adminName: String) -> String {
                     option.classList.add('selected');
                 }
             });
+            
+            // Save emoji to localStorage for current user
+            if (this.username) {
+                localStorage.setItem(`userEmoji_${this.username}`, emoji);
+            }
+            
+            // Apply cached or analyze emoji colors
+            this.loadEmojiStyling(emoji);
+        }
+        
+        loadEmojiStyling(emoji) {
+            // Check if we have cached colors for this emoji
+            const cachedColors = localStorage.getItem(`emojiColors_${emoji}`);
+            if (cachedColors) {
+                try {
+                    const colors = JSON.parse(cachedColors);
+                    this.applyEmojiStyling(emoji, colors.contrastColor, colors.textColor);
+                    return;
+                } catch (error) {
+                    console.log('Failed to parse cached emoji colors:', error);
+                }
+            }
+            
+            // If no cached colors, analyze them
+            this.analyzeEmojiColors(emoji);
         }
 
         updateUserEmoji(newEmoji) {
@@ -4346,6 +4532,92 @@ func generateChatJS(adminName: String) -> String {
                 type: 'updateEmoji',
                 emoji: newEmoji
             });
+            
+            // Analyze emoji colors for contrasting background
+            this.analyzeEmojiColors(newEmoji);
+        }
+        
+        async analyzeEmojiColors(emoji) {
+            try {
+                const response = await fetch('/emoji/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emoji })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        // Apply the contrasting background color to emoji elements
+                        this.applyEmojiStyling(emoji, result.contrastColor, result.textColor);
+                        
+                        // Save colors to localStorage for this emoji
+                        localStorage.setItem(`emojiColors_${emoji}`, JSON.stringify({
+                            contrastColor: result.contrastColor,
+                            textColor: result.textColor
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.log('Emoji color analysis failed:', error);
+                // Fallback to default styling
+                this.applyEmojiStyling(emoji, '#f0f0f0', '#000000');
+            }
+        }
+        
+        applyEmojiStyling(emoji, backgroundColor, textColor) {
+            // Apply styling to user avatar in sidebar
+            const userAvatar = document.querySelector('.user-avatar');
+            if (userAvatar && userAvatar.textContent === emoji) {
+                userAvatar.style.backgroundColor = backgroundColor;
+                userAvatar.style.color = textColor;
+                userAvatar.style.border = 'none';
+            }
+            
+            // Apply styling to selected emoji in login form
+            const selectedEmoji = document.getElementById('selected-emoji');
+            if (selectedEmoji && selectedEmoji.textContent === emoji) {
+                selectedEmoji.style.backgroundColor = backgroundColor;
+                selectedEmoji.style.color = textColor;
+                selectedEmoji.style.border = `3px solid ${this.adjustColorBrightness(backgroundColor, 30)}`;
+            }
+            
+            // Apply styling to user emoji picker modal
+            const selectedUserEmoji = document.getElementById('selected-user-emoji');
+            if (selectedUserEmoji && selectedUserEmoji.textContent === emoji) {
+                selectedUserEmoji.style.backgroundColor = backgroundColor;
+                selectedUserEmoji.style.color = textColor;
+                selectedUserEmoji.style.border = `3px solid ${this.adjustColorBrightness(backgroundColor, 30)}`;
+            }
+            
+            // Apply styling to message headers with this emoji
+            document.querySelectorAll('.user-emoji').forEach(emojiElement => {
+                if (emojiElement.textContent === emoji) {
+                    emojiElement.style.backgroundColor = backgroundColor;
+                    emojiElement.style.color = textColor;
+                    emojiElement.style.border = `2px solid ${this.adjustColorBrightness(backgroundColor, 15)}`;
+                    emojiElement.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
+                }
+            });
+        }
+        
+        // Helper function to adjust color brightness
+        adjustColorBrightness(hex, percent) {
+            // Remove the hash if it exists
+            hex = hex.replace('#', '');
+            
+            // Parse r, g, b values
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            
+            // Calculate new values
+            const newR = Math.max(0, Math.min(255, r + percent));
+            const newG = Math.max(0, Math.min(255, g + percent));
+            const newB = Math.max(0, Math.min(255, b + percent));
+            
+            // Convert back to hex
+            return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
         }
     }
     
@@ -4440,14 +4712,38 @@ func generateChatJS(adminName: String) -> String {
 
         chatClient = new ChatClient();
         
+        // Load saved username from localStorage
+        const savedUsername = localStorage.getItem('lastUsername');
+        const usernameInput = document.getElementById('nickname-input');
+        if (savedUsername && usernameInput) {
+            usernameInput.value = savedUsername;
+            usernameInput.blur();
+        }
+
         // Emoji picker setup
         const selectedEmoji = document.getElementById('selected-emoji');
         const emojiOptions = document.querySelectorAll('.emoji-option');
-        let currentEmoji = '👤';
+        
+        // Load saved emoji for the current user from localStorage or use default
+        const savedEmoji = savedUsername ? localStorage.getItem(`userEmoji_${savedUsername}`) : null;
+        let currentEmoji = savedEmoji || '👤';
 
         // Set initial selected emoji
         selectedEmoji.textContent = currentEmoji;
-        emojiOptions[0].classList.add('selected');
+        
+        // Update emoji picker selection based on saved emoji
+        emojiOptions.forEach((option, index) => {
+            option.classList.remove('selected');
+            if (option.textContent === currentEmoji) {
+                option.classList.add('selected');
+            } else if (index === 0 && !savedEmoji) {
+                // Select first option only if no saved emoji
+                option.classList.add('selected');
+            }
+        });
+        
+        // Apply emoji styling
+        analyzeEmojiColorsStandalone(currentEmoji);
 
         emojiOptions.forEach(option => {
             option.addEventListener('click', () => {
@@ -4460,18 +4756,37 @@ func generateChatJS(adminName: String) -> String {
                 // Update selected emoji
                 currentEmoji = option.textContent;
                 selectedEmoji.textContent = currentEmoji;
+                
+                // Save to localStorage for current user
+                const currentUsername = document.getElementById('nickname-input').value.trim();
+                if (currentUsername) {
+                    localStorage.setItem(`userEmoji_${currentUsername}`, currentEmoji);
+                }
+                window.currentEmoji = currentEmoji;
+                
+                // Analyze emoji colors for styling
+                if (chatClient) {
+                    chatClient.loadEmojiStyling(currentEmoji);
+                } else {
+                    // If chatClient doesn't exist yet, just analyze directly
+                    analyzeEmojiColorsStandalone(currentEmoji);
+                }
             });
         });
         
         // Modify joinChat to include emoji
         window.joinChat = function() {
-            const usernameInput = document.getElementById('nickname-input');
-            const username = usernameInput.value.trim();
+            const inputElement = document.getElementById('nickname-input');
+            const username = inputElement.value.trim();
             
             if (!username) {
                 alert('Please enter a username');
                 return;
             }
+            
+            // Save username and emoji to localStorage
+            localStorage.setItem('lastUsername', username);
+            localStorage.setItem(`userEmoji_${username}`, currentEmoji);
             
             chatClient.username = username;
             chatClient.userEmoji = currentEmoji;
@@ -4486,24 +4801,59 @@ func generateChatJS(adminName: String) -> String {
             chatClient.connect();
         }
         
-        // Focus username input
-        document.getElementById('nickname-input').focus();
+        // Focus username input and select text if present
+        const nicknameInput = document.getElementById('nickname-input');
+        if (nicknameInput) {
+            //nicknameInput.focus();
+            if (savedUsername) {
+                //nicknameInput.select();
+            }
+            inputElement.blur();
+
+            // Add event listener to load emoji when username changes
+            nicknameInput.addEventListener('blur', function() {
+                const username = this.value.trim();
+                if (username) {
+                    const userEmoji = localStorage.getItem(`userEmoji_${username}`);
+                    if (userEmoji) {
+                        // Update the emoji display
+                        const selectedEmojiElement = document.getElementById('selected-emoji');
+                        if (selectedEmojiElement) {
+                            selectedEmojiElement.textContent = userEmoji;
+                        }
+                        
+                        // Update emoji picker selection
+                        document.querySelectorAll('.emoji-option').forEach(option => {
+                            option.classList.remove('selected');
+                            if (option.textContent === userEmoji) {
+                                option.classList.add('selected');
+                            }
+                        });
+                        
+                        window.currentEmoji = userEmoji;
+                        currentEmoji = userEmoji;
+                    }
+                }
+            });
+        }
         
         // Mobile keyboard handling for login form - prevent duplicate listeners
-        const usernameInput = document.getElementById('nickname-input');
-        if (usernameInput && !usernameInput.hasEventListeners) {
-            usernameInput.hasEventListeners = true; // Mark to prevent duplicates
+        const mobileInput = document.getElementById('nickname-input');
+        if (mobileInput && !mobileInput.hasEventListeners) {
+            mobileInput.hasEventListeners = true; // Mark to prevent duplicates
             let isScrolling = false;
             
-            usernameInput.addEventListener('focus', (e) => {
+            mobileInput.addEventListener('focus', (e) => {
                 // On mobile, scroll to ensure the login input container is visible when keyboard appears
                 if (window.innerWidth <= 768 && !isScrolling) {
                     isScrolling = true;
                     
                     // Immediate re-focus to ensure input stays active
                     setTimeout(() => {
-                        usernameInput.focus();
-                    }, 10);
+                        //
+                        mobileInput.focus();
+                    }, 15);
+
                     
                     // Faster scroll timing for better responsiveness
                     setTimeout(() => {
@@ -4517,6 +4867,7 @@ func generateChatJS(adminName: String) -> String {
                         }
                         
                         // Reset scrolling flag after animation
+                    
                         setTimeout(() => {
                             isScrolling = false;
                         }, 500); // Reduced from 1000ms
@@ -4525,7 +4876,7 @@ func generateChatJS(adminName: String) -> String {
             });
             
             // Prevent multiple focus events from causing bouncing - make more responsive
-            usernameInput.addEventListener('touchstart', (e) => {
+            mobileInput.addEventListener('touchstart', (e) => {
                 if (window.innerWidth <= 768) {
                     // Ensure smooth transition on touch - faster transition
                     e.target.style.transition = 'none';
@@ -4536,6 +4887,8 @@ func generateChatJS(adminName: String) -> String {
             });
         }
         
+
+
         // Mobile background tap to deselect username input
         const loginForm = document.querySelector('.login-form');
         if (loginForm) {
@@ -4551,9 +4904,9 @@ func generateChatJS(adminName: String) -> String {
                         clickedElement.tagName === 'H2' ||
                         (clickedElement.closest && !clickedElement.closest('input, button, .emoji-picker, .auth-options, .login-input-container'))) {
                         
-                        const usernameInput = document.getElementById('nickname-input');
-                        if (usernameInput && document.activeElement === usernameInput) {
-                            usernameInput.blur();
+                        const inputEl = document.getElementById('nickname-input');
+                        if (inputEl && document.activeElement === inputEl) {
+                            inputEl.blur();
                         }
                     }
                 }
@@ -4586,6 +4939,13 @@ func generateChatJS(adminName: String) -> String {
         });
 
         // Note: Create room button already exists in HTML - no need to create duplicate
+        
+        // Trigger mobile emoji sequence on page load after DOM is ready
+        if (window.innerWidth <= 768) {
+            setTimeout(function() {
+                onMobileEmojiSequence();
+            }, 500);
+        }
     });
 
     // After the ChatClient class definition, add:
@@ -4600,14 +4960,62 @@ func generateChatJS(adminName: String) -> String {
             console.log('Chat client not available yet');
         }
     };
+    
+
 
     function logout() {
-        // Return to login screen, clear session
+        // Return to login screen, restore saved values
         document.getElementById('chat-screen').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
-        // Optionally clear username, emoji, etc.
-        document.getElementById('nickname-input').value = '';
-        document.getElementById('selected-emoji').textContent = '👤';
+        
+        // Restore saved username and emoji from localStorage
+        const savedUsername = localStorage.getItem('lastUsername');
+        const savedEmoji = savedUsername ? localStorage.getItem(`userEmoji_${savedUsername}`) : null;
+        
+        const inputElement = document.getElementById('nickname-input');
+        const selectedEmojiElement = document.getElementById('selected-emoji');
+        
+        // Restore username
+        if (savedUsername && inputElement) {
+            inputElement.value = savedUsername;
+            inputElement.blur();
+        }
+        
+        // Restore emoji
+        if (savedEmoji && selectedEmojiElement) {
+            selectedEmojiElement.textContent = savedEmoji;
+            window.currentEmoji = savedEmoji;
+            
+            // Update emoji picker selection
+            document.querySelectorAll('.emoji-option').forEach(option => {
+                option.classList.remove('selected');
+                if (option.textContent === savedEmoji) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            // Apply emoji styling
+            analyzeEmojiColorsStandalone(savedEmoji);
+        } else {
+            // Use defaults if no saved values
+            if (selectedEmojiElement) {
+                selectedEmojiElement.textContent = '👤';
+            }
+            window.currentEmoji = '👤';
+            
+            // Apply default emoji styling
+            analyzeEmojiColorsStandalone('👤');
+        }
+        
+        // Focus and select username input
+        if (inputElement) {
+            //inputElement.focus();
+            if (savedUsername) {
+                //inputElement.select();
+            }
+            inputElement.blur();
+        }
+        
         // Disconnect WebSocket if needed
         if (window.chatClient && window.chatClient.ws) {
             window.chatClient.ws.close();
@@ -4634,6 +5042,14 @@ func generateChatJS(adminName: String) -> String {
                     option.classList.add('selected');
                 }
             });
+            
+            // Apply color styling to the displayed emoji
+            if (chatClient) {
+                chatClient.loadEmojiStyling(currentEmoji);
+            } else {
+                // Fallback for when chatClient doesn't exist yet
+                analyzeEmojiColorsStandalone(currentEmoji);
+            }
             
             modal.classList.remove('hidden');
         }
@@ -4668,10 +5084,17 @@ func generateChatJS(adminName: String) -> String {
             
             // Send update to server
             chatClient.updateUserEmoji(emoji);
+            
+            // Save to localStorage for current user
+            if (chatClient.username) {
+                localStorage.setItem(`userEmoji_${chatClient.username}`, emoji);
+            }
+            
+            // Analyze emoji colors for styling
+            chatClient.loadEmojiStyling(emoji);
         }
         
         window.currentEmoji = emoji;
-        localStorage.setItem('userEmoji', emoji);
         
         console.log('🎭 Changed emoji to:', emoji);
         

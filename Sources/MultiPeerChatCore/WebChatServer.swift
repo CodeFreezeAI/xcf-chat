@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import Combine
+import DogTagKit
 
 public class WebChatServer: ObservableObject, WebServerDelegate {
     @Published public var isRunning = false
