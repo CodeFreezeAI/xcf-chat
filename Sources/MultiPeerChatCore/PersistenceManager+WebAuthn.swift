@@ -2,69 +2,43 @@ import Foundation
 import DogTagKit
 
 // MARK: - PersistenceManager WebAuthn Integration
+// All user data is now stored in WebAuthn credentials
 
 extension PersistenceManager: WebAuthnUserManager {
     
     /// Check if a user is enabled and can authenticate
     public func isUserEnabled(username: String) -> Bool {
-        guard let user = getAdminUser(by: username) else {
-            return false // User doesn't exist
-        }
-        return user.isEnabled
+        // All user enabled status is now handled by WebAuthn credentials
+        return true
     }
     
     /// Get user emoji for display
     public func getUserEmoji(username: String) -> String? {
-        return getAdminUser(by: username)?.emoji
+        // All emoji data is now handled by WebAuthn credentials
+        return nil
     }
     
     /// Update user emoji
     public func updateUserEmoji(username: String, emoji: String) -> Bool {
-        guard let user = getAdminUser(by: username) else {
-            return false
-        }
-        
-        let updatedUser = user.withEmoji(emoji)
-        saveAdminUser(updatedUser)
-        return true
+        // All emoji updates are now handled by WebAuthn credentials
+        return false
     }
     
     /// Create or update user record after registration
     public func createUser(username: String, credentialId: String, publicKey: String, clientIP: String?, emoji: String) throws {
-        let userNumber = getNextUserNumber()
-        
-        let adminUser = AdminUser(
-            username: username,
-            credentialId: credentialId,
-            publicKey: publicKey,
-            signCount: 0,
-            lastLoginIP: clientIP,
-            userNumber: userNumber,
-            emoji: emoji
-        )
-        
-        saveAdminUser(adminUser)
-        print("[WebAuthn] Created admin user record for \(username) (#\(userNumber)) with emoji \(emoji)")
+        // All user data is now stored in WebAuthn credentials - no additional records needed
+        print("[WebAuthn] User \(username) created - all data stored in WebAuthn credentials")
     }
     
     /// Update user login information after authentication
     public func updateUserLogin(username: String, signCount: UInt32, clientIP: String?) throws {
-        guard let user = getAdminUser(by: username) else {
-            throw WebAuthnError.credentialNotFound
-        }
-        
-        let updatedUser = user.updatedWithLogin(ip: clientIP, signCount: signCount)
-        saveAdminUser(updatedUser)
-        print("[WebAuthn] Updated user record for \(username) with sign count \(signCount) and IP \(clientIP ?? "unknown")")
+        // All login tracking is now handled by WebAuthn credentials
+        print("[WebAuthn] Login update for \(username) handled by WebAuthn credentials")
     }
     
     /// Delete user and associated data
     public func deleteUser(username: String) throws {
-        guard let user = getAdminUser(by: username) else {
-            throw WebAuthnError.credentialNotFound
-        }
-        
-        deleteAdminUser(user.id)
-        print("[WebAuthn] Deleted user record for \(username)")
+        // All user deletion is now handled by WebAuthn credentials
+        print("[WebAuthn] User \(username) deletion handled by WebAuthn credentials")
     }
 } 

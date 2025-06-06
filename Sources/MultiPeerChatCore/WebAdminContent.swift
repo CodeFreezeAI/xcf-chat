@@ -50,12 +50,14 @@ public enum WebAdminContent {
 
                     <div class="filters">
                         <h3>Filters</h3>
-                        <select id="status-filter" onchange="filterUsers()">
-                            <option value="all">All Users</option>
-                            <option value="enabled">Enabled</option>
-                            <option value="disabled">Disabled</option>
-                        </select>
-                        <input type="text" id="search-input" placeholder="Search username..." onkeyup="filterUsers()">
+                        <div class="filter-controls">
+                            <select id="status-filter" onchange="filterUsers()">
+                                <option value="all">All Users</option>
+                                <option value="enabled">Enabled</option>
+                                <option value="disabled">Disabled</option>
+                            </select>
+                            <input type="text" id="search-input" placeholder="Search username..." onkeyup="filterUsers()">
+                        </div>
                     </div>
                 </div>
 
@@ -117,6 +119,13 @@ public enum WebAdminContent {
                                 <div class="detail-item">
                                     <label>Status</label>
                                     <span id="detail-status"></span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Admin Role</label>
+                                    <div class="admin-toggle-container">
+                                        <span id="detail-is-admin"></span>
+                                        <button id="toggle-admin-btn" class="toggle-admin-btn" onclick="toggleAdminRole()">Toggle</button>
+                                    </div>
                                 </div>
                                 <div class="detail-item">
                                     <label>Created</label>
@@ -418,6 +427,8 @@ public enum WebAdminContent {
         .bulk-actions,
         .filters {
             margin-bottom: 0;
+            display: flex;
+            flex-direction: column;
         }
 
         .bulk-actions:last-child,
@@ -433,13 +444,16 @@ public enum WebAdminContent {
             color: var(--text-primary);
         }
 
-        .bulk-controls {
+        .bulk-controls,
+        .filter-controls {
             display: flex;
             gap: 8px;
             align-items: stretch;
         }
 
-        .bulk-controls input {
+        .bulk-controls input,
+        .filter-controls input,
+        .filter-controls select {
             flex: 1;
             padding: 8px 12px;
             border: 1px solid var(--border-color);
@@ -450,7 +464,9 @@ public enum WebAdminContent {
             min-height: 36px;
         }
 
-        .bulk-controls input:focus {
+        .bulk-controls input:focus,
+        .filter-controls input:focus,
+        .filter-controls select:focus {
             outline: none;
             border-color: var(--accent-color);
             box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
@@ -476,29 +492,16 @@ public enum WebAdminContent {
 
         .filters {
             display: flex;
-            flex-direction: row;
-            gap: 10px;
-            align-items: flex-end;
+            flex-direction: column;
         }
 
-        .filters select,
-        .filters input {
-            padding: 8px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background: var(--input-bg);
-            color: var(--input-text);
-            font-size: 13px;
-            min-height: 36px;
-            flex: 1;
+        .filter-controls {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
         }
 
-        .filters select:focus,
-        .filters input:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
-        }
+
 
         /* Users Section - Professional Table */
         .users-section {
@@ -1131,6 +1134,28 @@ public enum WebAdminContent {
         .edit-emoji-btn:hover {
             background: var(--accent-color-hover);
         }
+
+        /* Admin Toggle Styles */
+        .admin-toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-admin-btn {
+            padding: 4px 8px;
+            background: var(--orange-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .toggle-admin-btn:hover {
+            background: #E6840A;
+        }
         
         .emoji-picker-grid {
             display: grid;
@@ -1421,6 +1446,7 @@ public enum WebAdminContent {
                 document.getElementById('detail-username').textContent = user.username;
                 document.getElementById('detail-emoji').textContent = user.emoji || '👤';
                 document.getElementById('detail-status').textContent = user.isEnabled ? 'Enabled' : 'Disabled';
+                document.getElementById('detail-is-admin').textContent = user.isAdmin ? 'Yes' : 'No';
                 document.getElementById('detail-created').textContent = this.formatDate(user.createdAt);
                 document.getElementById('detail-last-login').textContent = user.lastLoginAt ? this.formatDate(user.lastLoginAt) : 'Never';
                 document.getElementById('detail-ip').textContent = user.lastLoginIP || 'Unknown';
@@ -1579,8 +1605,50 @@ public enum WebAdminContent {
                 console.error('Error updating emoji:', error);
                 alert('Failed to update emoji');
             });
+                }
+        
+        function toggleAdminRole() {
+            if (!window.currentEditUser) return;
+            
+            const userId = window.currentEditUser.id;
+            const currentIsAdmin = window.currentEditUser.isAdmin;
+            const newIsAdmin = !currentIsAdmin;
+            
+            if (!confirm(`Are you sure you want to ${newIsAdmin ? 'grant' : 'revoke'} admin privileges for "${window.currentEditUser.username}"?`)) {
+                return;
+            }
+            
+            fetch(`/admin/api/users/${userId}/admin`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ isAdmin: newIsAdmin })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update admin role');
+                }
+                return response.json();
+            })
+            .then(() => {
+                // Update local data
+                window.currentEditUser.isAdmin = newIsAdmin;
+                
+                // Update UI
+                document.getElementById('detail-is-admin').textContent = newIsAdmin ? 'Yes' : 'No';
+                
+                // Refresh the users table
+                refreshUsers();
+                
+                alert(`Admin role ${newIsAdmin ? 'granted' : 'revoked'} successfully`);
+            })
+            .catch(error => {
+                console.error('Error updating admin role:', error);
+                alert('Failed to update admin role');
+            });
         }
-
+        
         // Initialize the admin panel when the page loads
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Admin panel initializing...');

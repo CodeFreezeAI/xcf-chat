@@ -84,6 +84,8 @@ func generateIndexHTML() -> String {
         <meta name="format-detection" content="date=no">
         <meta name="format-detection" content="address=no">
         <meta name="format-detection" content="email=no">
+
+
         
         <!-- Security -->
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -209,7 +211,7 @@ func generateIndexHTML() -> String {
                             </div>
                         </div>
                         <div class="login-input-container" id="login-input-container">
-                            <input type="text" id="nickname-input" placeholder="Enter your username" maxlength="20" autocomplete="username" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+                            <input type="text" id="nickname-input" placeholder="Enter your username" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
                             <div class="auth-options" id="login-buttons-anchor">
                                 <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
                                 <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
@@ -271,7 +273,7 @@ func generateIndexHTML() -> String {
                                 <input type="file" id="file-input" style="display:none;" accept="image/*,.pdf,.doc,.docx,.txt,.zip" multiple>
                                 <button id="file-btn" class="circle-attachment-btn" onclick="selectFiles()" title="Attach files" disabled>🔗</button>
                             </div>
-                            <input type="text" id="message-input" placeholder="Type a message..." disabled>
+                            <input type="text" id="message-input" placeholder="Type a message..." disabled autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" inputmode="text">
                             <button id="send-btn" onclick="sendMessage()" disabled>Send</button>
                         </div>
                     </div>
@@ -1072,38 +1074,53 @@ func generateCSS() -> String {
         transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    /* PROPER MOBILE VIEWPORT HANDLING */
+    /* PROPER MOBILE VIEWPORT HANDLING - UPDATED FOR iPhone */
     html {
         height: 100%;
-        /* Modern viewport units for mobile */
+        /* Use dynamic viewport height for iPhone compatibility */
         height: 100dvh;
-        height: -webkit-fill-available;
+        min-height: 100dvh;
         overflow: hidden;
+        /* Prevent zoom on iOS */
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        /* Support older browsers */
+        height: 100vh;
     }
 
     body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%), var(--bg-primary);
         height: 100%;
+        /* Use dynamic viewport height for iPhone compatibility */
         height: 100dvh;
-        height: -webkit-fill-available;
+        min-height: 100dvh;
         color: var(--text-primary);
         line-height: 1.6;
         overflow: hidden;
-        position: fixed;
+        position: relative;
         width: 100%;
         overscroll-behavior: none;
         -webkit-overflow-scrolling: touch;
+        /* Ensure consistent background on all devices */
+        background-attachment: fixed;
+        /* Support older browsers */
+        height: 100vh;
+        min-height: 100vh;
     }
 
     .container {
         width: 100%;
         height: 100%;
+        /* Use dynamic viewport height for iPhone compatibility */
         height: 100dvh;
-        height: -webkit-fill-available;
+        min-height: 100dvh;
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        /* Support older browsers */
+        height: 100vh;
+        min-height: 100vh;
     }
 
     /* DESKTOP-FIRST HEADER */
@@ -1552,6 +1569,10 @@ func generateCSS() -> String {
         flex-direction: column;
         overflow: hidden;
         min-height: 0;
+        max-height: calc(100dvh - 80px);
+        position: relative;
+        /* Support older browsers */
+        max-height: calc(100vh - 80px);
     }
 
     .chat-header {
@@ -1645,6 +1666,9 @@ func generateCSS() -> String {
         gap: 0.75rem;
         -webkit-overflow-scrolling: touch;
         min-height: 0;
+        max-height: calc(100dvh - 200px);
+        /* Support older browsers */
+        max-height: calc(100vh - 200px);
     }
 
     .welcome-message {
@@ -1734,33 +1758,64 @@ func generateCSS() -> String {
 
     /* MOBILE COMPLETE OVERHAUL */
     @media (max-width: 768px) {
-        /* ENSURE PROPER MOBILE VIEWPORT */
+        /* ENSURE PROPER MOBILE VIEWPORT - iPhone Compatible */
         html {
             height: 100%;
+            /* Use dynamic viewport height for iPhone compatibility */
             height: 100dvh;
-            height: -webkit-fill-available;
+            min-height: 100dvh;
+            /* Allow scrolling on smaller devices */
+            overflow-x: hidden;
+            overflow-y: auto;
+            /* Support older browsers */
+            height: 100vh;
+            min-height: 100vh;
         }
 
         body {
             height: 100%;
+            /* Use dynamic viewport height for iPhone compatibility */
             height: 100dvh;
-            height: -webkit-fill-available;
-            overflow: hidden;
-            position: fixed;
+            min-height: 100dvh;
+            overflow: hidden;  /* Prevent body scrolling on mobile */
+            position: fixed;   /* Keep fixed for mobile to prevent scroll issues */
             width: 100%;
+            /* Ensure full background coverage on all mobile devices */
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%), var(--bg-primary);
+            background-attachment: fixed;
+            /* Support older browsers */
+            height: 100vh;
+            min-height: 100vh;
+            /* Add safe area support for iPhone */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .container {
             height: 100%;
+            /* Use dynamic viewport height for iPhone compatibility */
             height: 100dvh;
-            height: -webkit-fill-available;
+            min-height: 100dvh;
+            /* Prevent container scrolling on mobile */
+            overflow: hidden;
+            /* Support older browsers */
+            height: 100vh;
+            min-height: 100vh;
         }
 
-        /* MOBILE HEADER - COMPACT */
+        /* MOBILE HEADER - COMPACT - iPhone Compatible */
         .header {
             padding: 0.5rem 1rem;
             min-height: 60px;
             flex-shrink: 0;
+            /* iPhone sticky fixes */
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            will-change: transform;
         }
 
         .header h1 {
@@ -1788,11 +1843,23 @@ func generateCSS() -> String {
             /* Ensure content is accessible when keyboard appears */
             padding-bottom: calc(1rem + env(keyboard-inset-height, 0px));
             /* Make the background area more tappable on mobile */
-            min-height: 100%;
-            touch-action: manipulation;
+            min-height: 100dvh;
+            touch-action: pan-y;  /* Allow vertical scrolling */
             /* Prevent bouncing during keyboard transitions */
             scroll-behavior: smooth;
             -webkit-scroll-behavior: smooth;
+            /* Ensure proper background coverage on all mobile devices */
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%), var(--bg-primary);
+            background-attachment: fixed;
+            /* Remove any potential dark overlays */
+            position: relative;
+            z-index: 1;
+            /* Enable scrolling on smaller devices like iPhone SE */
+            max-height: 100dvh;
+            overflow-x: hidden;
+            /* Support older browsers */
+            min-height: 100vh;
+            max-height: 100vh;
         }
 
         /* Create a form content container to constrain all elements to same width */
@@ -1814,11 +1881,14 @@ func generateCSS() -> String {
             width: 90% !important;
             max-width: 300px !important;
             gap: 4px;
-            /* Improve mobile stability */
+            /* Improve mobile stability and ensure visibility */
             position: relative;
             will-change: transform;
             backface-visibility: hidden;
             -webkit-backface-visibility: hidden;
+            z-index: 10;
+            /* Ensure no dark overlays */
+            background: transparent;
         }
 
         .login-input-container input {
@@ -1835,12 +1905,22 @@ func generateCSS() -> String {
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
             box-sizing: border-box;
             width: 100% !important;
+            /* Ensure input is always selectable */
+            user-select: text;
+            -webkit-user-select: text;
+            pointer-events: auto;
+            touch-action: manipulation;
+            /* Prevent any overlay issues */
+            position: relative;
+            z-index: 11;
         }
 
         .login-input-container input:focus {
             border: 2px solid var(--accent-color);
             box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
             outline: none;
+            /* Ensure focus state is visible */
+            z-index: 12;
         }
 
         .selected-emoji {
@@ -1864,6 +1944,10 @@ func generateCSS() -> String {
             display: flex;
             flex-direction: column;
             align-items: center;
+            /* Ensure visibility above any overlays */
+            position: relative;
+            z-index: 5;
+            background: transparent;
         }
 
         .auth-options {
@@ -1873,6 +1957,10 @@ func generateCSS() -> String {
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
+            /* Ensure buttons are always clickable */
+            position: relative;
+            z-index: 8;
+            background: transparent;
         }
         
         .mobile-error-space {
@@ -1989,7 +2077,11 @@ func generateCSS() -> String {
             display: flex;
             flex-direction: column;
             min-height: 0;
+            max-height: calc(100dvh - 120px);
             overflow: hidden;
+            position: relative;
+            /* Support older browsers */
+            max-height: calc(100vh - 120px);
         }
 
         /* MOBILE CHAT HEADER - STATIC */
@@ -2021,28 +2113,38 @@ func generateCSS() -> String {
             border-radius: 4px;
         }
 
-        /* MOBILE MESSAGES - SCROLLABLE MIDDLE SECTION */
+        /* MOBILE MESSAGES - SCROLLABLE MIDDLE SECTION - iPhone Compatible */
         .messages-container {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 1rem;
-            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+            padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
             -webkit-overflow-scrolling: touch;
             min-height: 0;
+            max-height: calc(100dvh - 250px);
+            /* iPhone scroll fixes */
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            will-change: scroll-position;
+            /* Support older browsers */
+            max-height: calc(100vh - 250px);
+            /* Force scroll container */
+            position: relative;
+            contain: layout;
         }
 
-        /* MOBILE MESSAGE INPUT - FIXED TO BOTTOM */
+        /* MOBILE MESSAGE INPUT - FIXED TO BOTTOM - iPhone Compatible */
         .message-input-container {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 90px;
+            height: auto;
             min-height: 90px;
-            max-height: 90px;
             padding: 1rem;
             padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
             background: var(--bg-secondary);
@@ -2054,6 +2156,16 @@ func generateCSS() -> String {
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
+            /* iPhone fixes */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            will-change: transform;
+            /* Ensure proper positioning on iPhone */
+            bottom: env(safe-area-inset-bottom, 0px);
+            /* Prevent iOS focus issues */
+            -webkit-user-select: none;
+            user-select: none;
+            pointer-events: auto;
         }
 
         .message-input-container input {
@@ -2067,9 +2179,19 @@ func generateCSS() -> String {
             min-height: 44px;
             max-height: 44px;
             height: 44px;
-            width: 44px;
             box-sizing: border-box;
             outline: none;
+            /* iOS focus fixes */
+            -webkit-appearance: none;
+            appearance: none;
+            -webkit-user-select: text;
+            user-select: text;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+            /* Ensure input stays focusable */
+            pointer-events: auto;
+            z-index: 1001;
+            position: relative;
         }
 
         .message-input-container input:focus {
@@ -2139,7 +2261,10 @@ func generateCSS() -> String {
         }
 
         .messages-container {
-            padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+            padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+            max-height: calc(100dvh - 280px);
+            /* Support older browsers */
+            max-height: calc(100vh - 280px);
         }
 
         .room-actions button {
@@ -2210,6 +2335,10 @@ func generateCSS() -> String {
         justify-content: center;
         min-width: 28px;
         min-height: 28px;
+        background-color: rgba(255, 255, 255, 0.9);
+        color: #333333;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     }
 
     .username {
@@ -2452,6 +2581,12 @@ func generateCSS() -> String {
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
+        /* Ensure buttons are always clickable and visible */
+        position: relative;
+        z-index: 9;
+        user-select: none;
+        -webkit-user-select: none;
+        pointer-events: auto;
     }
 
     .auth-options button:hover {
@@ -2896,6 +3031,127 @@ func generateCSS() -> String {
         .login-form .auth-options button {
             width: 100% !important;
             max-width: 100% !important;
+        }
+    }
+
+    /* VERY SMALL MOBILE DEVICES - iPhone SE and similar */
+    @media (max-width: 480px), (max-height: 600px) {
+        /* Ensure login form is fully scrollable on iPhone SE */
+        .login-form {
+            justify-content: flex-start !important;
+            min-height: 100dvh !important;
+            max-height: none !important;
+            padding: 0.5rem 0.5rem 3rem 0.5rem !important;
+            gap: 0.4rem !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            touch-action: pan-y !important;
+            /* Support older browsers */
+            min-height: 100vh !important;
+        }
+        
+        .login-form h2 {
+            font-size: 1.3rem !important;
+            margin-bottom: 0.3rem !important;
+        }
+        
+        .selected-emoji {
+            font-size: 3rem !important;
+            width: 60px !important;
+            height: 60px !important;
+            margin-bottom: 0.3rem !important;
+        }
+        
+        .emoji-scroll-container {
+            height: 100px !important;
+            margin-bottom: 0.3rem !important;
+        }
+        
+        .login-input-container {
+            gap: 0.3rem !important;
+            margin-bottom: 0.3rem !important;
+        }
+        
+        .auth-options {
+            gap: 0.3rem !important;
+            margin-top: 0.3rem !important;
+            margin-bottom: 1.5rem !important;
+        }
+        
+        /* Ensure scrolling works properly */
+        html, body {
+            overflow-y: auto !important;
+            position: relative !important;
+        }
+        
+        .container {
+            overflow-y: auto !important;
+        }
+    }
+
+    /* DYNAMIC VIEWPORT HEIGHT SUPPORT FOR OLDER BROWSERS */
+    @supports not (height: 100dvh) {
+        html {
+            height: 100vh !important;
+            min-height: 100vh !important;
+        }
+        
+        body {
+            height: 100vh !important;
+            min-height: 100vh !important;
+        }
+        
+        .container {
+            height: 100vh !important;
+            min-height: 100vh !important;
+        }
+        
+        .chat-area {
+            max-height: calc(100vh - 80px) !important;
+        }
+        
+        .messages-container {
+            max-height: calc(100vh - 200px) !important;
+        }
+        
+        @media (max-width: 768px) {
+            html {
+                height: 100vh !important;
+                min-height: 100vh !important;
+            }
+            
+            body {
+                height: 100vh !important;
+                min-height: 100vh !important;
+            }
+            
+            .container {
+                height: 100vh !important;
+                min-height: 100vh !important;
+            }
+            
+            .login-form {
+                min-height: 100vh !important;
+                max-height: 100vh !important;
+            }
+            
+            .chat-area {
+                max-height: calc(100vh - 120px) !important;
+            }
+            
+            .messages-container {
+                max-height: calc(100vh - 250px) !important;
+            }
+        }
+        
+        @media (max-width: 480px), (max-height: 600px) {
+            .login-form {
+                min-height: 100vh !important;
+            }
+            
+            .messages-container {
+                max-height: calc(100vh - 280px) !important;
+            }
         }
     }
 
@@ -4308,7 +4564,7 @@ func generateChatJS(adminName: String) -> String {
                         ${attachmentHTML}
                     `;
                     
-                    // Apply emoji styling to message emojis
+                    // Apply emoji styling to message emojis immediately
                     if (message.emoji) {
                         this.loadEmojiStyling(message.emoji);
                     }
@@ -4316,6 +4572,9 @@ func generateChatJS(adminName: String) -> String {
                 
                 container.appendChild(messageEl);
             });
+            
+            // Ensure all unique emojis in messages get their styling applied
+            this.applyAllMessageEmojiStyling();
             
             // Scroll to bottom
             container.scrollTop = container.scrollHeight;
@@ -4525,6 +4784,35 @@ func generateChatJS(adminName: String) -> String {
             
             // If no cached colors, analyze them
             this.analyzeEmojiColors(emoji);
+        }
+
+        applyAllMessageEmojiStyling() {
+            // Find all unique emojis currently displayed in messages
+            const uniqueEmojis = new Set();
+            document.querySelectorAll('.user-emoji').forEach(emojiElement => {
+                const emoji = emojiElement.textContent;
+                if (emoji && emoji !== '👤') { // Skip default emoji
+                    uniqueEmojis.add(emoji);
+                    
+                    // Apply immediate fallback styling if no styling is already applied
+                    if (!emojiElement.style.backgroundColor) {
+                        this.applyFallbackEmojiStyling(emojiElement);
+                    }
+                }
+            });
+            
+            // Apply styling to each unique emoji
+            uniqueEmojis.forEach(emoji => {
+                this.loadEmojiStyling(emoji);
+            });
+        }
+
+        applyFallbackEmojiStyling(emojiElement) {
+            // Apply a default contrasting background immediately
+            emojiElement.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+            emojiElement.style.color = '#333333';
+            emojiElement.style.border = '2px solid rgba(255, 255, 255, 0.7)';
+            emojiElement.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
         }
 
         updateUserEmoji(newEmoji) {
@@ -4841,74 +5129,101 @@ func generateChatJS(adminName: String) -> String {
         const mobileInput = document.getElementById('nickname-input');
         if (mobileInput && !mobileInput.hasEventListeners) {
             mobileInput.hasEventListeners = true; // Mark to prevent duplicates
-            let isScrolling = false;
             
+            // Simplified focus handling - remove complex scrolling that can cause issues
             mobileInput.addEventListener('focus', (e) => {
-                // On mobile, scroll to ensure the login input container is visible when keyboard appears
-                if (window.innerWidth <= 768 && !isScrolling) {
-                    isScrolling = true;
-                    
-                    // Immediate re-focus to ensure input stays active
+                // Ensure input stays focused and selectable
+                e.target.style.userSelect = 'text';
+                e.target.style.webkitUserSelect = 'text';
+                e.target.style.pointerEvents = 'auto';
+                e.target.style.touchAction = 'manipulation';
+            });
+            
+            // Ensure input is always clickable and selectable
+            mobileInput.addEventListener('touchstart', (e) => {
+                // Prevent any interference with input selection
+                e.target.style.userSelect = 'text';
+                e.target.style.webkitUserSelect = 'text';
+                e.target.style.pointerEvents = 'auto';
+                e.target.style.touchAction = 'manipulation';
+            });
+            
+            // Fix for iPhone keyboard issues
+            mobileInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.target.focus();
+            });
+        }
+        
+        // iOS Chat Input Focus Management
+        const chatInput = document.getElementById('message-input');
+        if (chatInput) {
+            // Prevent focus jumping to address bar on iOS
+            chatInput.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Force focus on the input
+                setTimeout(() => {
+                    e.target.focus();
+                    e.target.click();
+                }, 10);
+            });
+            
+            chatInput.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.target.focus();
+            });
+            
+            // Handle iOS keyboard appearance/disappearance
+            chatInput.addEventListener('focus', (e) => {
+                // Scroll input into view on iOS
+                if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
                     setTimeout(() => {
-                        //
-                        mobileInput.focus();
-                    }, 15);
-
-                    
-                    // Faster scroll timing for better responsiveness
-                    setTimeout(() => {
-                        const loginContainer = document.getElementById('login-input-container');
-                        if (loginContainer) {
-                            loginContainer.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'end',
-                                inline: 'nearest'
-                            });
-                        }
-                        
-                        // Reset scrolling flag after animation
-                    
-                        setTimeout(() => {
-                            isScrolling = false;
-                        }, 500); // Reduced from 1000ms
-                    }, 150); // Reduced from 300ms
+                        e.target.scrollIntoView({ 
+                            behavior: 'smooth',
+                            block: 'center',
+                            inline: 'nearest'
+                        });
+                    }, 300);
                 }
             });
             
-            // Prevent multiple focus events from causing bouncing - make more responsive
-            mobileInput.addEventListener('touchstart', (e) => {
-                if (window.innerWidth <= 768) {
-                    // Ensure smooth transition on touch - faster transition
-                    e.target.style.transition = 'none';
-                    setTimeout(() => {
-                        e.target.style.transition = '';
-                    }, 50); // Reduced from 100ms
+            // Prevent iOS from scrolling page when input loses focus
+            chatInput.addEventListener('blur', (e) => {
+                if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                    window.scrollTo(0, 0);
+                }
+            });
+            
+            // Handle iOS keyboard done button
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendMessage();
                 }
             });
         }
         
 
 
-        // Mobile background tap to deselect username input
+        // Simplified mobile background tap handling - only for form elements that should blur
         const loginForm = document.querySelector('.login-form');
         if (loginForm) {
             loginForm.addEventListener('click', (e) => {
-                // Check if we're on mobile and the tap is on the background (not on input fields or buttons)
+                // Only blur if clicking on the title or empty form areas, not on interactive elements
                 if (window.innerWidth <= 768) {
                     const clickedElement = e.target;
                     
-                    // If the clicked element is the login form container itself (background)
-                    // or other non-interactive elements, blur the username input
-                    if (clickedElement === loginForm || 
-                        clickedElement.classList.contains('login-form') ||
-                        clickedElement.tagName === 'H2' ||
-                        (clickedElement.closest && !clickedElement.closest('input, button, .emoji-picker, .auth-options, .login-input-container'))) {
-                        
+                    // Only blur for very specific non-interactive elements
+                    if (clickedElement.tagName === 'H2' && clickedElement.textContent.includes('Welcome')) {
                         const inputEl = document.getElementById('nickname-input');
                         if (inputEl && document.activeElement === inputEl) {
                             inputEl.blur();
                         }
                     }
+                    // Don't interfere with any other clicks - let them work normally
                 }
             });
         }
@@ -4945,6 +5260,35 @@ func generateChatJS(adminName: String) -> String {
             setTimeout(function() {
                 onMobileEmojiSequence();
             }, 500);
+        }
+        
+        // Global iOS Input Focus Fix
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            // Prevent iOS from jumping to address bar
+            document.addEventListener('touchstart', (e) => {
+                // Only handle input elements
+                if (e.target.tagName === 'INPUT' && e.target.type === 'text') {
+                    e.stopPropagation();
+                }
+            }, { passive: false });
+            
+            // Force focus on input clicks
+            document.addEventListener('click', (e) => {
+                if (e.target.tagName === 'INPUT' && e.target.type === 'text') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setTimeout(() => {
+                        e.target.focus();
+                    }, 10);
+                }
+            });
+            
+            // Prevent viewport jumping on focus
+            window.addEventListener('resize', () => {
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                }, 100);
+            });
         }
     });
 

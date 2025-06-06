@@ -56,6 +56,12 @@ public struct WebAuthnCredential: Codable, Sendable {
     public let isDiscoverable: Bool
     public let backupEligible: Bool?
     public let backupState: Bool?
+    public let emoji: String?
+    public let lastLoginIP: String?
+    public let lastLoginAt: Date?
+    public let createdAt: Date?
+    public let isEnabled: Bool
+    public let isAdmin: Bool
     
     /// Legacy initializer for backward compatibility
     public init(id: String, publicKey: String, signCount: UInt32, username: String, algorithm: Int, protocolVersion: String) {
@@ -70,6 +76,12 @@ public struct WebAuthnCredential: Codable, Sendable {
         self.isDiscoverable = false
         self.backupEligible = nil
         self.backupState = nil
+        self.emoji = nil
+        self.lastLoginIP = nil
+        self.lastLoginAt = nil
+        self.createdAt = Date()
+        self.isEnabled = true
+        self.isAdmin = false
     }
     
     /// Enhanced initializer with full metadata
@@ -84,7 +96,13 @@ public struct WebAuthnCredential: Codable, Sendable {
         aaguid: String?,
         isDiscoverable: Bool,
         backupEligible: Bool?,
-        backupState: Bool?
+        backupState: Bool?,
+        emoji: String? = nil,
+        lastLoginIP: String? = nil,
+        lastLoginAt: Date? = nil,
+        createdAt: Date? = nil,
+        isEnabled: Bool = true,
+        isAdmin: Bool = false
     ) {
         self.id = id
         self.publicKey = publicKey
@@ -97,6 +115,12 @@ public struct WebAuthnCredential: Codable, Sendable {
         self.isDiscoverable = isDiscoverable
         self.backupEligible = backupEligible
         self.backupState = backupState
+        self.emoji = emoji
+        self.lastLoginIP = lastLoginIP
+        self.lastLoginAt = lastLoginAt
+        self.createdAt = createdAt ?? Date()
+        self.isEnabled = isEnabled
+        self.isAdmin = isAdmin
     }
 }
 
@@ -114,7 +138,12 @@ public class WebAuthnCredentialModel {
     public var isDiscoverable: Bool?
     public var backupEligible: Bool?
     public var backupState: Bool?
+    public var emoji: String?
+    public var lastLoginIP: String?
+    public var lastLoginAt: Date?
     public var createdAt: Date
+    public var isEnabled: Bool
+    public var isAdmin: Bool
     
     public init(
         id: String,
@@ -127,7 +156,12 @@ public class WebAuthnCredentialModel {
         aaguid: String? = nil,
         isDiscoverable: Bool? = false,
         backupEligible: Bool? = nil,
-        backupState: Bool? = nil
+        backupState: Bool? = nil,
+        emoji: String? = nil,
+        lastLoginIP: String? = nil,
+        lastLoginAt: Date? = nil,
+        isEnabled: Bool = true,
+        isAdmin: Bool = false
     ) {
         self.id = id
         self.publicKey = publicKey
@@ -140,7 +174,12 @@ public class WebAuthnCredentialModel {
         self.isDiscoverable = isDiscoverable
         self.backupEligible = backupEligible
         self.backupState = backupState
+        self.emoji = emoji
+        self.lastLoginIP = lastLoginIP
+        self.lastLoginAt = lastLoginAt
         self.createdAt = Date()
+        self.isEnabled = isEnabled
+        self.isAdmin = isAdmin
     }
     
     /// Convert to WebAuthnCredential for API compatibility
@@ -156,7 +195,13 @@ public class WebAuthnCredentialModel {
             aaguid: aaguid,
             isDiscoverable: isDiscoverable ?? false,
             backupEligible: backupEligible,
-            backupState: backupState
+            backupState: backupState,
+            emoji: emoji,
+            lastLoginIP: lastLoginIP,
+            lastLoginAt: lastLoginAt,
+            createdAt: createdAt,
+            isEnabled: isEnabled,
+            isAdmin: isAdmin
         )
     }
 }

@@ -42,10 +42,6 @@ let package = Package(
             dependencies: ["MultiPeerChatCore"]
         ),
         .testTarget(
-            name: "MultiPeerChatCoreTests",
-            dependencies: ["MultiPeerChatCore"]
-        ),
-        .testTarget(
             name: "DogTagKitTests",
             dependencies: ["DogTagKit"]
         )

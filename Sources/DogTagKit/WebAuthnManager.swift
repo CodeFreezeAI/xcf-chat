@@ -1,3 +1,5 @@
+
+
 import Foundation
 import CryptoKit
 import SwiftData
@@ -38,6 +40,7 @@ public class WebAuthnManager {
     private let rpName: String?
     private let rpIcon: String?
     private let defaultUserIcon: String?
+    private let adminUsername: String?
     
     public init(
         rpId: String, 
@@ -46,6 +49,7 @@ public class WebAuthnManager {
         rpName: String? = nil, 
         rpIcon: String? = nil, 
         defaultUserIcon: String? = nil,
+        adminUsername: String? = nil,
         userManager: WebAuthnUserManager = InMemoryUserManager()
     ) {
         self.rpId = rpId
@@ -53,11 +57,14 @@ public class WebAuthnManager {
         self.storageBackend = storageBackend
         self.rpName = rpName
         self.rpIcon = rpIcon
+        
         self.defaultUserIcon = defaultUserIcon
+        self.adminUsername = adminUsername
         self.userManager = userManager
         
         setupStorage()
         loadCredentials()
+        migrateExistingCredentials()
     }
     
     private func setupStorage() {
@@ -837,7 +844,7 @@ public class WebAuthnManager {
         return base64
     }
     
-    public func verifyRegistration(username: String, credential: [String: Any], clientIP: String? = nil) throws {
+    public func verifyRegistration(username: String, credential: [String: Any], clientIP: String? = nil, isAdmin: Bool = false) throws {
         print("[WebAuthn] 🔍 verifyRegistration called for username: \(username)")
         print("[WebAuthn] 📍 Client IP: \(clientIP ?? "unknown")")
         
@@ -847,8 +854,15 @@ public class WebAuthnManager {
             throw WebAuthnError.duplicateUsername
         }
         
+        // Check if this user should be an admin based on configured admin username
+        let shouldBeAdmin = isAdmin || (adminUsername != nil && username == adminUsername)
+        if shouldBeAdmin && adminUsername == username {
+            print("[WebAuthn] 🔧 Auto-promoting '\(username)' to admin (matches configured admin username)")
+        }
+        
         // Extract emoji from credential data, default to 👤 if not provided
         let emoji = credential["emoji"] as? String ?? "👤"
+        print("[WebAuthn] 🎭 Registration emoji captured: '\(emoji)' (from credential data: \(credential["emoji"] ?? "nil"))")
         
         guard let idRaw = credential["id"] as? String else {
             print("[WebAuthn] MISSING id")
@@ -864,12 +878,58 @@ public class WebAuthnManager {
         // Try FIDO2 format first, then fall back to U2F
         do {
             print("[WebAuthn] 🔍 Attempting FIDO2 registration verification...")
-            try verifyFIDO2Registration(username: username, id: id, response: response, clientIP: clientIP, emoji: emoji)
+            let fido2Result = try verifyFIDO2Registration(username: username, id: id, response: response, clientIP: clientIP)
+            
+            // Store the credential with enhanced metadata
+            let newCredential = WebAuthnCredential(
+                id: id,
+                publicKey: fido2Result.publicKey,
+                signCount: 0,
+                username: username,
+                algorithm: fido2Result.algorithm,
+                protocolVersion: "fido2CBOR",
+                attestationFormat: fido2Result.attestationFormat.rawValue,
+                aaguid: fido2Result.aaguid,
+                isDiscoverable: fido2Result.isDiscoverable,
+                backupEligible: fido2Result.backupEligible,
+                backupState: fido2Result.backupState,
+                emoji: emoji,
+                lastLoginIP: clientIP,
+                createdAt: Date(),
+                isEnabled: true,
+                isAdmin: shouldBeAdmin
+            )
+            credentials[username] = newCredential
+            credentialIdToUsername[id] = username
+            saveCredentials()
             print("[WebAuthn] ✅ FIDO2 registration successful")
         } catch {
             print("[WebAuthn] ⚠️ FIDO2 verification failed: \(error), trying U2F...")
             do {
-                try verifyU2FRegistration(username: username, id: id, response: response, clientIP: clientIP, emoji: emoji)
+                let u2fPublicKey = try verifyU2FRegistration(username: username, id: id, response: response, clientIP: clientIP)
+                
+                // Store the credential
+                let newCredential = WebAuthnCredential(
+                    id: id,
+                    publicKey: u2fPublicKey,
+                    signCount: 0,
+                    username: username,
+                    algorithm: -7, // ES256 for U2F
+                    protocolVersion: "u2fV1A",
+                    attestationFormat: "none",
+                    aaguid: nil,
+                    isDiscoverable: false,
+                    backupEligible: nil,
+                    backupState: nil,
+                    emoji: emoji,
+                    lastLoginIP: clientIP,
+                    createdAt: Date(),
+                    isEnabled: true,
+                    isAdmin: shouldBeAdmin
+                )
+                credentials[username] = newCredential
+                credentialIdToUsername[id] = username
+                saveCredentials()
                 print("[WebAuthn] ✅ U2F registration successful")
             } catch {
                 print("[WebAuthn] ❌ Both FIDO2 and U2F verification failed")
@@ -878,7 +938,7 @@ public class WebAuthnManager {
         }
     }
     
-    private func verifyFIDO2Registration(username: String, id: String, response: [String: Any], clientIP: String?, emoji: String) throws {
+    private func verifyFIDO2Registration(username: String, id: String, response: [String: Any], clientIP: String?) throws -> (publicKey: String, algorithm: Int, aaguid: String?, attestationFormat: AttestationFormat, isDiscoverable: Bool, backupEligible: Bool?, backupState: Bool?) {
         guard let attestationObjectString = response["attestationObject"] as? String else {
             print("[WebAuthn] MISSING attestationObject")
             throw WebAuthnError.invalidCredential
@@ -911,30 +971,11 @@ public class WebAuthnManager {
         print("[WebAuthn] AAGUID: \(aaguid ?? "unknown"), Format: \(attestationFormat.rawValue)")
         print("[WebAuthn] Backup Eligible: \(backupEligible ?? false), Backup State: \(backupState ?? false)")
         
-        // Store the credential with enhanced metadata
-        let newCredential = WebAuthnCredential(
-            id: id,
-            publicKey: publicKey,
-            signCount: 0,
-            username: username,
-            algorithm: algorithm,
-            protocolVersion: "fido2CBOR",
-            attestationFormat: attestationFormat.rawValue,
-            aaguid: aaguid,
-            isDiscoverable: isDiscoverable,
-            backupEligible: backupEligible,
-            backupState: backupState
-        )
-        credentials[username] = newCredential
-        credentialIdToUsername[id] = username
-        saveCredentials()
-        
-        // Create admin user record for tracking with emoji
-        let userNumber = 1
-        print("[WebAuthn] Created admin user record for \(username) (#\(userNumber)) with emoji \(emoji)")
+        print("[WebAuthn] ✅ FIDO2 registration verification completed successfully")
+        return (publicKey: publicKey, algorithm: algorithm, aaguid: aaguid, attestationFormat: attestationFormat, isDiscoverable: isDiscoverable, backupEligible: backupEligible, backupState: backupState)
     }
     
-    private func verifyU2FRegistration(username: String, id: String, response: [String: Any], clientIP: String?, emoji: String) throws {
+    private func verifyU2FRegistration(username: String, id: String, response: [String: Any], clientIP: String?) throws -> String {
         // U2F V1A registration format
         guard let registrationData = response["registrationData"] as? String,
               let _ = response["clientData"] as? String else {
@@ -967,24 +1008,8 @@ public class WebAuthnManager {
         let publicKeyData = regData.subdata(in: 1..<66)
         let publicKey = publicKeyData.base64EncodedString()
         
-        // Store the credential
-        let newCredential = WebAuthnCredential(
-            id: id,
-            publicKey: publicKey,
-            signCount: 0,
-            username: username,
-            algorithm: -7, // ES256 for U2F
-            protocolVersion: "u2fV1A"
-        )
-        credentials[username] = newCredential
-        credentialIdToUsername[id] = username
-        saveCredentials()
-        
-        // Create admin user record for tracking with emoji
-        let userNumber = 1
-        print("[WebAuthn] Created admin user record for \(username) (#\(userNumber)) with emoji \(emoji)")
-        
-        print("[WebAuthn] Successfully registered U2F credential for \(username)")
+        print("[WebAuthn] ✅ U2F registration verification completed successfully")
+        return publicKey
     }
     
     public func verifyAuthentication(username: String?, credential: [String: Any], clientIP: String? = nil) throws -> String? {
@@ -1165,14 +1190,25 @@ public class WebAuthnManager {
         print("[WebAuthn] 📊 Old sign count: \(credential.signCount), New sign count: \(newSignCount)")
         print("[WebAuthn] 📍 Client IP: \(clientIP ?? "unknown")")
         
-        // Update the credential with new sign count
+        // Update the credential with new sign count, IP, and login time
         let updatedCredential = WebAuthnCredential(
             id: credential.id,
             publicKey: credential.publicKey,
             signCount: newSignCount,
             username: credential.username,
             algorithm: credential.algorithm,
-            protocolVersion: credential.protocolVersion
+            protocolVersion: credential.protocolVersion,
+            attestationFormat: credential.attestationFormat,
+            aaguid: credential.aaguid,
+            isDiscoverable: credential.isDiscoverable,
+            backupEligible: credential.backupEligible,
+            backupState: credential.backupState,
+            emoji: credential.emoji,
+            lastLoginIP: clientIP,
+            lastLoginAt: Date(),
+            createdAt: credential.createdAt,
+            isEnabled: credential.isEnabled,
+            isAdmin: credential.isAdmin
         )
         
         credentials[credential.username] = updatedCredential
@@ -1616,8 +1652,11 @@ public class WebAuthnManager {
     
     // Check if user exists and is enabled
     public func isUserEnabled(username: String) -> Bool {
-        // Just check user manager - credential existence is validated separately in auth flow
-        return userManager.isUserEnabled(username: username)
+        // Check if user exists in WebAuthn credentials and is enabled
+        if let credential = credentials[username] {
+            return credential.isEnabled
+        }
+        return false
     }
     
     // Check if user exists and is enabled by credential ID
@@ -1632,12 +1671,120 @@ public class WebAuthnManager {
     
     // Update user emoji
     public func updateUserEmoji(username: String, emoji: String) -> Bool {
-        return userManager.updateUserEmoji(username: username, emoji: emoji)
+        // Update the WebAuthn credential directly
+        guard let credential = credentials[username] else {
+            return false
+        }
+        
+        // Create updated credential with new emoji
+        let updatedCredential = WebAuthnCredential(
+            id: credential.id,
+            publicKey: credential.publicKey,
+            signCount: credential.signCount,
+            username: credential.username,
+            algorithm: credential.algorithm,
+            protocolVersion: credential.protocolVersion,
+            attestationFormat: credential.attestationFormat,
+            aaguid: credential.aaguid,
+            isDiscoverable: credential.isDiscoverable,
+            backupEligible: credential.backupEligible,
+            backupState: credential.backupState,
+            emoji: emoji,
+            lastLoginIP: credential.lastLoginIP,
+            lastLoginAt: credential.lastLoginAt,
+            createdAt: credential.createdAt,
+            isEnabled: credential.isEnabled,
+            isAdmin: credential.isAdmin
+        )
+        
+        // Update in memory and save
+        credentials[username] = updatedCredential
+        saveCredentials()
+        
+        print("[WebAuthn] Updated emoji for user \(username) to \(emoji)")
+        return true
+    }
+    
+    // Update user admin status
+    public func updateUserAdminStatus(username: String, isAdmin: Bool) -> Bool {
+        // Update the WebAuthn credential directly
+        guard let credential = credentials[username] else {
+            return false
+        }
+        
+        // Create updated credential with new admin status
+        let updatedCredential = WebAuthnCredential(
+            id: credential.id,
+            publicKey: credential.publicKey,
+            signCount: credential.signCount,
+            username: credential.username,
+            algorithm: credential.algorithm,
+            protocolVersion: credential.protocolVersion,
+            attestationFormat: credential.attestationFormat,
+            aaguid: credential.aaguid,
+            isDiscoverable: credential.isDiscoverable,
+            backupEligible: credential.backupEligible,
+            backupState: credential.backupState,
+            emoji: credential.emoji,
+            lastLoginIP: credential.lastLoginIP,
+            lastLoginAt: credential.lastLoginAt,
+            createdAt: credential.createdAt,
+            isEnabled: credential.isEnabled,
+            isAdmin: isAdmin
+        )
+        
+        // Update in memory and save
+        credentials[username] = updatedCredential
+        saveCredentials()
+        
+        print("[WebAuthn] Updated admin status for user \(username) to \(isAdmin)")
+        return true
+    }
+    
+    // Update user enabled status
+    public func updateUserEnabledStatus(username: String, isEnabled: Bool) -> Bool {
+        // Update the WebAuthn credential directly
+        guard let credential = credentials[username] else {
+            return false
+        }
+        
+        // Create updated credential with new enabled status
+        let updatedCredential = WebAuthnCredential(
+            id: credential.id,
+            publicKey: credential.publicKey,
+            signCount: credential.signCount,
+            username: credential.username,
+            algorithm: credential.algorithm,
+            protocolVersion: credential.protocolVersion,
+            attestationFormat: credential.attestationFormat,
+            aaguid: credential.aaguid,
+            isDiscoverable: credential.isDiscoverable,
+            backupEligible: credential.backupEligible,
+            backupState: credential.backupState,
+            emoji: credential.emoji,
+            lastLoginIP: credential.lastLoginIP,
+            lastLoginAt: credential.lastLoginAt,
+            createdAt: credential.createdAt,
+            isEnabled: isEnabled,
+            isAdmin: credential.isAdmin
+        )
+        
+        // Update in memory and save
+        credentials[username] = updatedCredential
+        saveCredentials()
+        
+        print("[WebAuthn] Updated enabled status for user \(username) to \(isEnabled)")
+        return true
     }
     
     // Get user emoji
     public func getUserEmoji(username: String) -> String? {
-        return userManager.getUserEmoji(username: username)
+        // Get emoji from WebAuthn credential
+        if let credential = credentials[username] {
+            return credential.emoji ?? "👤"
+        }
+        
+        return "👤"
     }
     
     // Delete user credentials and release username
@@ -1657,6 +1804,107 @@ public class WebAuthnManager {
         saveCredentials()
         
         print("[WebAuthn] ✅ Successfully deleted credentials for user: \(username)")
+    }
+    
+    /// Migrate existing credentials to ensure they have all required fields
+    private func migrateExistingCredentials() {
+        var needsSaving = false
+        
+        for (username, credential) in credentials {
+            var shouldUpdate = false
+            var updatedCredential = credential
+            
+            // Check if lastLoginAt field exists (new field)
+            if updatedCredential.lastLoginAt == nil {
+                // Set to nil to indicate never logged in after registration
+                updatedCredential = WebAuthnCredential(
+                    id: credential.id,
+                    publicKey: credential.publicKey,
+                    signCount: credential.signCount,
+                    username: credential.username,
+                    algorithm: credential.algorithm,
+                    protocolVersion: credential.protocolVersion,
+                    attestationFormat: credential.attestationFormat,
+                    aaguid: credential.aaguid,
+                    isDiscoverable: credential.isDiscoverable,
+                    backupEligible: credential.backupEligible,
+                    backupState: credential.backupState,
+                    emoji: credential.emoji ?? "👤",
+                    lastLoginIP: credential.lastLoginIP,
+                    lastLoginAt: nil, // Explicitly set to nil for existing users
+                    createdAt: credential.createdAt ?? Date(),
+                    isEnabled: credential.isEnabled,
+                    isAdmin: credential.isAdmin
+                )
+                shouldUpdate = true
+            }
+            
+            // Check if emoji is missing (default to 👤)
+            if updatedCredential.emoji == nil {
+                updatedCredential = WebAuthnCredential(
+                    id: updatedCredential.id,
+                    publicKey: updatedCredential.publicKey,
+                    signCount: updatedCredential.signCount,
+                    username: updatedCredential.username,
+                    algorithm: updatedCredential.algorithm,
+                    protocolVersion: updatedCredential.protocolVersion,
+                    attestationFormat: updatedCredential.attestationFormat,
+                    aaguid: updatedCredential.aaguid,
+                    isDiscoverable: updatedCredential.isDiscoverable,
+                    backupEligible: updatedCredential.backupEligible,
+                    backupState: updatedCredential.backupState,
+                    emoji: "👤",
+                    lastLoginIP: updatedCredential.lastLoginIP,
+                    lastLoginAt: updatedCredential.lastLoginAt,
+                    createdAt: updatedCredential.createdAt,
+                    isEnabled: updatedCredential.isEnabled,
+                    isAdmin: updatedCredential.isAdmin
+                )
+                shouldUpdate = true
+            }
+            
+            // Check if createdAt is missing
+            if updatedCredential.createdAt == nil {
+                updatedCredential = WebAuthnCredential(
+                    id: updatedCredential.id,
+                    publicKey: updatedCredential.publicKey,
+                    signCount: updatedCredential.signCount,
+                    username: updatedCredential.username,
+                    algorithm: updatedCredential.algorithm,
+                    protocolVersion: updatedCredential.protocolVersion,
+                    attestationFormat: updatedCredential.attestationFormat,
+                    aaguid: updatedCredential.aaguid,
+                    isDiscoverable: updatedCredential.isDiscoverable,
+                    backupEligible: updatedCredential.backupEligible,
+                    backupState: updatedCredential.backupState,
+                    emoji: updatedCredential.emoji,
+                    lastLoginIP: updatedCredential.lastLoginIP,
+                    lastLoginAt: updatedCredential.lastLoginAt,
+                    createdAt: Date(),
+                    isEnabled: updatedCredential.isEnabled,
+                    isAdmin: updatedCredential.isAdmin
+                )
+                shouldUpdate = true
+            }
+            
+            if shouldUpdate {
+                credentials[username] = updatedCredential
+                needsSaving = true
+                print("[WebAuthn] ✅ Migrated credential for user: \(username)")
+            }
+        }
+        
+        if needsSaving {
+            saveCredentials()
+            print("[WebAuthn] ✅ Migration completed and saved")
+        } else {
+            print("[WebAuthn] ✅ No migration needed - all credentials up to date")
+        }
+    }
+    
+    /// Get all registered users for admin panel management
+    public func getAllUsers() -> [WebAuthnCredential] {
+        return Array(credentials.values)
     }
 }
 

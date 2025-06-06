@@ -199,6 +199,8 @@ public class PersistenceManager {
     public func saveAdminUser(_ adminUser: AdminUser) {
         var adminUsers = loadAdminUsers()
         
+        print("[Persistence] 💾 Saving user '\(adminUser.username)' with enabled status: \(adminUser.isEnabled)")
+        
         // Remove existing user with same ID or username if it exists
         adminUsers.removeAll { $0.id == adminUser.id || $0.username == adminUser.username }
         
@@ -206,6 +208,14 @@ public class PersistenceManager {
         adminUsers.append(adminUser)
         
         saveAdminUsers(adminUsers)
+        
+        // Verify the user was saved correctly by reloading
+        let reloadedUsers = loadAdminUsers()
+        if let savedUser = reloadedUsers.first(where: { $0.username == adminUser.username }) {
+            print("[Persistence] ✅ Verified saved user '\(adminUser.username)' enabled status: \(savedUser.isEnabled)")
+        } else {
+            print("[Persistence] ❌ Failed to verify saved user '\(adminUser.username)'")
+        }
     }
     
     public func loadAdminUsers() -> [AdminUser] {
