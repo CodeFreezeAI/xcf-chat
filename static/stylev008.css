@@ -104,6 +104,8 @@ html {
     /* Modern viewport units for mobile */
     height: 100dvh;
     height: -webkit-fill-available;
+    /* Fallback using custom property set by JS for iOS */
+    height: calc(var(--vh, 1vh) * 100);
     overflow: hidden;
 }
 
@@ -113,6 +115,8 @@ body {
     height: 100%;
     height: 100dvh;
     height: -webkit-fill-available;
+    /* Fallback using custom property set by JS for iOS */
+    height: calc(var(--vh, 1vh) * 100);
     color: var(--text-primary);
     line-height: 1.6;
     overflow: hidden;
@@ -127,6 +131,8 @@ body {
     height: 100%;
     height: 100dvh;
     height: -webkit-fill-available;
+    /* Fallback using custom property set by JS for iOS */
+    height: calc(var(--vh, 1vh) * 100);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -168,12 +174,20 @@ body {
     font-weight: 500;
 }
 
-.main-content {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    min-height: 0;
-}
+    .main-content {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        min-height: 0;
+    }
+    
+    /* Make login screen scrollable on mobile */
+    #login-screen {
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
 
 .screen {
     position: absolute;
@@ -765,12 +779,16 @@ body {
         height: 100%;
         height: 100dvh;
         height: -webkit-fill-available;
+        /* Fallback using custom property set by JS for iOS */
+        height: calc(var(--vh, 1vh) * 100);
     }
 
     body {
         height: 100%;
         height: 100dvh;
         height: -webkit-fill-available;
+        /* Fallback using custom property set by JS for iOS */
+        height: calc(var(--vh, 1vh) * 100);
         overflow: hidden;
         position: fixed;
         width: 100%;
@@ -780,6 +798,8 @@ body {
         height: 100%;
         height: 100dvh;
         height: -webkit-fill-available;
+        /* Fallback using custom property set by JS for iOS */
+        height: calc(var(--vh, 1vh) * 100);
     }
 
     /* MOBILE HEADER - COMPACT */
@@ -808,23 +828,33 @@ body {
         justify-content: flex-start;
         padding-top: 2rem;
         overflow-y: auto;
+        overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
         height: 100%;
+        max-height: 100%;
         box-sizing: border-box;
         /* Ensure content is accessible when keyboard appears */
-        padding-bottom: calc(2rem + env(keyboard-inset-height, 0px));
+        padding-bottom: calc(4rem + env(keyboard-inset-height, 0px));
         /* Make the background area more tappable on mobile */
         min-height: 100%;
         touch-action: manipulation;
         /* Prevent bouncing during keyboard transitions */
         scroll-behavior: smooth;
         -webkit-scroll-behavior: smooth;
+        /* Enable scrolling with momentum */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        will-change: scroll-position;
+        /* Ensure form can scroll when content overflows */
+        position: relative;
     }
 
     /* Create a form content container to constrain all elements to same width */
     .login-form > * {
         width: 90% !important;
         max-width: 300px !important;
+        flex-shrink: 0; /* Prevent form elements from shrinking */
     }
 
     .login-form h2 {
@@ -1040,13 +1070,23 @@ body {
     .messages-container {
         flex: 1;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 1rem;
         padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        -webkit-scroll-behavior: smooth;
+        scroll-behavior: smooth;
         min-height: 0;
+        /* Improve mobile scrolling performance */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        will-change: scroll-position;
+        /* Ensure consistent viewport */
+        position: relative;
     }
 
     /* MOBILE MESSAGE INPUT - FIXED TO BOTTOM */
@@ -1069,6 +1109,12 @@ body {
         box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
+        /* Improve mobile performance and prevent scroll interference */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        /* Ensure input container doesn't interfere with scrolling */
+        pointer-events: auto;
+        touch-action: none;
     }
 
     .message-input-container input {
@@ -1160,6 +1206,33 @@ body {
     .room-actions button {
         padding: 0.3rem 0.6rem;
         font-size: 0.75rem;
+    }
+    
+    /* Extra small screen login adjustments */
+    .login-form {
+        padding-top: 1rem;
+        padding-bottom: calc(6rem + env(keyboard-inset-height, 0px));
+        gap: 0.75rem;
+    }
+    
+    .login-form h2 {
+        font-size: 1.3rem;
+    }
+    
+    .auth-options {
+        gap: 10px;
+        margin-top: 10px;
+        margin-bottom: 3rem;
+    }
+    
+    .selected-emoji {
+        font-size: 3rem !important;
+        width: 70px !important;
+        height: 70px !important;
+    }
+    
+    .emoji-scroll-container {
+        height: 120px;
     }
 }
 
@@ -1513,6 +1586,10 @@ body {
     text-overflow: ellipsis;
     opacity: 1;
     transition: opacity 0.1s ease-in-out;
+    /* Ensure status message doesn't interfere with scrolling */
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
 }
 
 .status-message.fading {
@@ -1911,6 +1988,80 @@ body.admin #remove-room-btn {
     .login-form .auth-options button {
         width: 100% !important;
         max-width: 100% !important;
+    }
+    
+    /* Ensure login screen scrolls properly on mobile */
+    #login-screen {
+        -webkit-overflow-scrolling: touch;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    /* Additional spacing for mobile scrolling */
+    .mobile-error-space {
+        margin-bottom: 2rem;
+    }
+}
+
+/* EXTRA SMALL MOBILE SCREENS - ENHANCED SCROLLING */
+@media (max-width: 375px) and (max-height: 667px) {
+    .login-form {
+        padding-top: 0.5rem;
+        padding-bottom: calc(8rem + env(keyboard-inset-height, 0px));
+        min-height: auto;
+    }
+    
+    .login-form h2 {
+        margin-bottom: 0.3rem;
+    }
+    
+    .emoji-picker {
+        margin-bottom: 0.5rem;
+    }
+    
+    .selected-emoji {
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .emoji-scroll-container {
+        height: 100px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .auth-options {
+        margin-top: 0.5rem;
+        margin-bottom: 4rem;
+    }
+}
+
+/* LANDSCAPE MOBILE PHONES */
+@media (max-width: 768px) and (max-height: 450px) and (orientation: landscape) {
+    .login-form {
+        padding-top: 0.5rem;
+        padding-bottom: calc(10rem + env(keyboard-inset-height, 0px));
+        gap: 0.5rem;
+    }
+    
+    .login-form h2 {
+        font-size: 1.2rem;
+        margin-bottom: 0.2rem;
+    }
+    
+    .selected-emoji {
+        font-size: 2.5rem !important;
+        width: 60px !important;
+        height: 60px !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .emoji-scroll-container {
+        height: 80px;
+    }
+    
+    .auth-options {
+        gap: 8px;
+        margin-top: 0.5rem;
+        margin-bottom: 6rem;
     }
 }
 

@@ -620,6 +620,16 @@ class ChatClient {
         });
         
         messageInput.value = '';
+        
+        // Ensure messages scroll to bottom after sending on mobile
+        if (window.innerWidth <= 768) {
+            setTimeout(() => {
+                const container = document.getElementById('messages-container');
+                if (container) {
+                    this.scrollToBottom(container);
+                }
+            }, 100);
+        }
     }
     
     showConnectionError(message) {
@@ -924,6 +934,9 @@ class ChatClient {
         });
         
         if (!isDuplicate) {
+            const container = document.getElementById('messages-container');
+            const wasScrolledToBottom = this.isScrolledToBottom(container);
+            
             this.messages.push(message);
             
             // Save to room-specific storage immediately
@@ -932,6 +945,11 @@ class ChatClient {
             }
             
             this.updateMessagesDisplay();
+            
+            // Always scroll to bottom for new messages if user was already at bottom
+            if (wasScrolledToBottom) {
+                this.scrollToBottom(container);
+            }
         }
     }
     
@@ -1019,6 +1037,9 @@ class ChatClient {
             return;
         }
         
+        // Store scroll position before updating
+        const wasScrolledToBottom = this.isScrolledToBottom(container);
+        
         container.innerHTML = '';
         
         this.messages.forEach(message => {
@@ -1102,8 +1123,10 @@ class ChatClient {
             this.applyAllMessageEmojiStyling();
         }, 10); // Very short delay to ensure DOM is fully updated
         
-        // Scroll to bottom
-        container.scrollTop = container.scrollHeight;
+        // Enhanced mobile-friendly scroll to bottom
+        if (wasScrolledToBottom || this.messages.length === 1) {
+            this.scrollToBottom(container);
+        }
     }
     
     updateRoomsList() {
@@ -1213,6 +1236,73 @@ class ChatClient {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    // Check if container is scrolled to bottom (with tolerance for mobile)
+    isScrolledToBottom(container) {
+        const threshold = 100; // 100px tolerance for mobile scrolling
+        return container.scrollTop + container.clientHeight >= container.scrollHeight - threshold;
+    }
+    
+    // Enhanced scroll to bottom that works reliably on mobile
+    scrollToBottom(container) {
+        // Multiple approaches for maximum mobile compatibility
+        
+        // Method 1: Direct scroll
+        container.scrollTop = container.scrollHeight;
+        
+        // Method 2: Smooth scroll for modern browsers
+        if (container.scrollTo) {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: 'auto' // Use 'auto' instead of 'smooth' for immediate effect
+            });
+        }
+        
+        // Method 3: Mobile-specific handling with slight delay
+        if (window.innerWidth <= 768) {
+            // On mobile, ensure scroll happens after any keyboard/viewport changes
+            requestAnimationFrame(() => {
+                container.scrollTop = container.scrollHeight;
+                
+                // Additional mobile scroll attempt after layout is stable
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 50);
+            });
+        }
+        
+        // Method 4: Force scroll for stubborn browsers
+        setTimeout(() => {
+            if (!this.isScrolledToBottom(container)) {
+                container.scrollTop = container.scrollHeight;
+                
+                // Final attempt with scrollIntoView if still not at bottom
+                const lastMessage = container.lastElementChild;
+                if (lastMessage) {
+                    lastMessage.scrollIntoView({ 
+                        behavior: 'auto', 
+                        block: 'end',
+                        inline: 'nearest'
+                    });
+                }
+            }
+        }, 100);
+        
+        // Method 5: Mobile-specific additional scroll handling
+        if (window.innerWidth <= 768) {
+            // Use requestAnimationFrame for smooth mobile scrolling
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    container.scrollTop = container.scrollHeight;
+                    
+                    // Force repaint to ensure scroll position is applied
+                    container.style.display = 'none';
+                    container.offsetHeight; // Trigger reflow
+                    container.style.display = 'flex';
+                });
+            });
+        }
     }
 
     showTemporarySystemMessage(content, durationMs) {
@@ -1515,6 +1605,75 @@ function toggleRoomsList() {
 
 // Ensure initial state is correct on page load
 document.addEventListener('DOMContentLoaded', () => {
+    // Mobile viewport fix for iOS Safari
+    if (window.innerWidth <= 768) {
+        // Fix iOS viewport height issues
+        const setVhProperty = () => {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        };
+        
+        setVhProperty();
+        window.addEventListener('resize', () => {
+            setVhProperty();
+            // Ensure messages scroll to bottom after viewport changes
+            if (chatClient) {
+                setTimeout(() => {
+                    const container = document.getElementById('messages-container');
+                    if (container) {
+                        chatClient.scrollToBottom(container);
+                    }
+                }, 200);
+            }
+        });
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                setVhProperty();
+                // Ensure messages scroll to bottom after orientation change
+                if (chatClient) {
+                    setTimeout(() => {
+                        const container = document.getElementById('messages-container');
+                        if (container) {
+                            chatClient.scrollToBottom(container);
+                        }
+                    }, 300);
+                }
+            }, 100);
+        });
+        
+        // Prevent body scroll on mobile when typing
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+        
+        // Ensure login form is scrollable when keyboard appears
+        const nicknameInput = document.getElementById('nickname-input');
+        if (nicknameInput) {
+            nicknameInput.addEventListener('focus', () => {
+                // Scroll login form to show input when keyboard appears
+                setTimeout(() => {
+                    const loginForm = document.querySelector('.login-form');
+                    const authOptions = document.querySelector('.auth-options');
+                    if (loginForm && authOptions) {
+                        authOptions.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'end',
+                            inline: 'nearest'
+                        });
+                    }
+                }, 300); // Wait for keyboard animation
+            });
+        }
+        
+        // Handle viewport changes on mobile
+        window.addEventListener('visualViewport', () => {
+            if (window.visualViewport) {
+                setVhProperty();
+            }
+        });
+    }
+    
     const roomsListContainer = document.getElementById('rooms-list-container');
     const toggleIcon = document.querySelector('.rooms-section-header .toggle-icon');
     
@@ -1733,6 +1892,34 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(function() {
             onMobileEmojiSequence();
         }, 500);
+        
+        // Mobile keyboard handling for message input
+        const messageInput = document.getElementById('message-input');
+        if (messageInput) {
+            messageInput.addEventListener('focus', () => {
+                // When keyboard opens, scroll messages to bottom after a delay
+                setTimeout(() => {
+                    if (chatClient) {
+                        const container = document.getElementById('messages-container');
+                        if (container) {
+                            chatClient.scrollToBottom(container);
+                        }
+                    }
+                }, 300);
+            });
+            
+            messageInput.addEventListener('blur', () => {
+                // When keyboard closes, ensure proper scrolling
+                setTimeout(() => {
+                    if (chatClient) {
+                        const container = document.getElementById('messages-container');
+                        if (container) {
+                            chatClient.scrollToBottom(container);
+                        }
+                    }
+                }, 300);
+            });
+        }
     }
 });
 
