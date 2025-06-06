@@ -4,6 +4,7 @@ import CommonCrypto
 import CoreGraphics
 import CoreText
 import ImageIO
+import DogTagKit
 
 // MARK: - String Extension for Regex Matching
 extension String {
@@ -31,6 +32,7 @@ public class WebServer: ObservableObject {
     private let rpId: String
     private let adminUsername: String
     public let webAuthnManager: WebAuthnManager // Changed from private to public
+    private let webAuthnServer: WebAuthnServer
     private let port: UInt16?
     
     // Simple session storage for admin authentication
@@ -67,8 +69,10 @@ public class WebServer: ObservableObject {
             storageBackend: storageBackend,
             rpName: "Multi-Peer Chat",
             rpIcon: iconUrl,
-            defaultUserIcon: nil // Will use the automatic generation
+            defaultUserIcon: nil, // Will use the automatic generation
+            userManager: PersistenceManager.shared
         )
+        self.webAuthnServer = WebAuthnServer(manager: webAuthnManager)
     }
     
     public func start(on port: UInt16) {
@@ -436,20 +440,8 @@ public class WebServer: ObservableObject {
             // Handle file uploads using WebAuthn-style processing 
             handleFileUploadSimple(connection, request: request)
             return
-        case ("POST", "/webauthn/register/begin"):
-            handleWebAuthnRegisterBegin(connection, request: request)
-            return
-        case ("POST", "/webauthn/register/complete"):
-            handleWebAuthnRegisterComplete(connection, request: request)
-            return
-        case ("POST", "/webauthn/authenticate/begin"):
-            handleWebAuthnAuthenticateBegin(connection, request: request)
-            return
-        case ("POST", "/webauthn/authenticate/complete"):
-            handleWebAuthnAuthenticateComplete(connection, request: request)
-            return
-        case ("POST", "/webauthn/username/check"):
-            handleWebAuthnUsernameCheck(connection, request: request)
+        case ("POST", let path) where path.hasPrefix("/webauthn/"):
+            handleWebAuthnRequest(connection, request: request)
             return
         case ("POST", "/emoji/analyze"):
             handleEmojiColorAnalysis(connection, request: request)
@@ -477,155 +469,26 @@ public class WebServer: ObservableObject {
         })
     }
     
-    private func handleWebAuthnRegisterBegin(_ connection: NWConnection, request: String) {
-        print("[WebAuthn] RAW REQUEST:\n\(request)")
-        // Extract request body
-        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
-            print("[WebAuthn] Could not find header/body separator in request")
-            sendErrorResponse(connection, error: "Invalid request format")
-            return
-        }
-        let bodyString = String(request[bodyStart...])
-        print("[WebAuthn] BODY STRING:\n\(bodyString)")
-        guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
-              let username = json["username"] as? String else {
-            print("[WebAuthn] Could not parse JSON or missing username")
-            sendErrorResponse(connection, error: "Invalid request body")
+    // MARK: - WebAuthn Request Handler (using DogTagKit)
+    
+    private func handleWebAuthnRequest(_ connection: NWConnection, request: String) {
+        // Parse the raw HTTP request using DogTagKit
+        guard let httpRequest = WebAuthnServer.parseHTTPRequest(request, connection: connection) else {
+            sendErrorResponse(connection, error: "Invalid HTTP request format")
             return
         }
         
-        do {
-            let options = try webAuthnManager.generateRegistrationOptions(username: username)
-            let responseData = try JSONSerialization.data(withJSONObject: options)
-            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
-        } catch {
-            sendErrorResponse(connection, error: "Failed to generate registration options")
-        }
+        // Handle the request using DogTagKit WebAuthnServer
+        let httpResponse = webAuthnServer.handleRequest(httpRequest)
+        
+        // Send the response
+        let responseString = WebAuthnServer.formatHTTPResponse(httpResponse)
+        connection.send(content: responseString.data(using: .utf8), completion: .contentProcessed { _ in
+            connection.cancel()
+        })
     }
     
-    private func handleWebAuthnRegisterComplete(_ connection: NWConnection, request: String) {
-        // Extract client IP address
-        let clientIP = extractClientIP(request, connection: connection)
-        print("[WebServer] 📍 Registration IP: \(clientIP ?? "unknown")")
-        
-        // Extract request body
-        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
-            sendErrorResponse(connection, error: "Invalid request format")
-            return
-        }
-        
-        let bodyString = String(request[bodyStart...])
-        guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
-              let username = json["username"] as? String else {
-            sendErrorResponse(connection, error: "Invalid request body")
-            return
-        }
-        
-        do {
-            try webAuthnManager.verifyRegistration(username: username, credential: json, clientIP: clientIP)
-            sendJSONResponse(connection, json: "{\"success\":true}")
-        } catch {
-            sendErrorResponse(connection, error: "Registration verification failed")
-        }
-    }
-    
-    private func handleWebAuthnAuthenticateBegin(_ connection: NWConnection, request: String) {
-        // Extract request body
-        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
-            sendErrorResponse(connection, error: "Invalid request format")
-            return
-        }
-        
-        let bodyString = String(request[bodyStart...])
-        guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any] else {
-            sendErrorResponse(connection, error: "Invalid request body")
-            return
-        }
-        
-        let username = json["username"] as? String
-        
-        do {
-            let options = try webAuthnManager.generateAuthenticationOptions(username: username)
-            let responseData = try JSONSerialization.data(withJSONObject: options)
-            sendJSONResponse(connection, json: String(data: responseData, encoding: .utf8) ?? "{}")
-        } catch {
-            sendErrorResponse(connection, error: "Failed to generate authentication options")
-        }
-    }
-    
-    private func handleWebAuthnAuthenticateComplete(_ connection: NWConnection, request: String) {
-        print("[WebServer] 🔍 Received authentication completion request")
-        
-        // Extract client IP address
-        let clientIP = extractClientIP(request, connection: connection)
-        print("[WebServer] 📍 Client IP: \(clientIP ?? "unknown")")
-        
-        // Extract request body
-        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
-            print("[WebServer] ❌ Invalid request format - no body separator")
-            sendErrorResponse(connection, error: "Invalid request format")
-            return
-        }
-        
-        let bodyString = String(request[bodyStart...])
-        print("[WebServer] 📦 Request body length: \(bodyString.count)")
-        
-        guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
-              let username = json["username"] as? String else {
-            print("[WebServer] ❌ Failed to parse request body or missing username")
-            sendErrorResponse(connection, error: "Invalid request body")
-            return
-        }
-        
-        print("[WebServer] 🆔 Authentication request for username: '\(username)'")
-        print("[WebServer] 📋 Credential data: \(json)")
-        
-        do {
-            print("[WebServer] ✅ Calling WebAuthnManager.verifyAuthentication...")
-            let foundUsername = try webAuthnManager.verifyAuthentication(username: username, credential: json, clientIP: clientIP)
-            print("[WebServer] ✅ Authentication successful! Found username: \(foundUsername ?? "nil")")
-            
-            let response: [String: Any] = [
-                "success": true,
-                "username": foundUsername ?? username
-            ]
-            let responseData = try JSONSerialization.data(withJSONObject: response)
-            if let jsonString = String(data: responseData, encoding: .utf8) {
-                print("[WebServer] 📤 Sending success response: \(jsonString)")
-                sendJSONResponse(connection, json: jsonString)
-            } else {
-                print("[WebServer] ❌ Failed to create JSON response")
-                sendErrorResponse(connection, error: "Failed to create response")
-            }
-        } catch {
-            print("[WebServer] ❌ Authentication verification failed with error: \(error)")
-            print("[WebServer] ❌ Error type: \(type(of: error))")
-            sendErrorResponse(connection, error: "Authentication verification failed: \(error)")
-        }
-    }
-    
-    private func handleWebAuthnUsernameCheck(_ connection: NWConnection, request: String) {
-        guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
-            sendErrorResponse(connection, error: "Invalid request format")
-            return
-        }
-        let bodyString = String(request[bodyStart...])
-        guard let bodyData = bodyString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
-              let username = json["username"] as? String else {
-            sendErrorResponse(connection, error: "Invalid request body")
-            return
-        }
-        if webAuthnManager.isUsernameRegistered(username) == false {
-            sendJSONResponse(connection, json: "{\"available\":true}")
-        } else {
-            sendJSONResponse(connection, json: "{\"available\":false,\"error\":\"Username already registered\"}")
-        }
-    }
+
     
     private func handleEmojiColorAnalysis(_ connection: NWConnection, request: String) {
         print("[EmojiColor] Processing emoji color analysis request")
@@ -1347,18 +1210,32 @@ public class WebServer: ObservableObject {
     }
     
     private func handleFileServing(_ connection: NWConnection, path: String) {
-        let fileName = String(path.dropFirst(7)) // Remove "/files/"
+        let pathComponents = path.components(separatedBy: "/").filter { !$0.isEmpty }
         
-        // Find the attachment by filename
+        // Support both old format (/files/uuid.ext) and new format (/files/id/filename.ext)
         let allAttachments = PersistenceManager.shared.getAllAttachments()
-        guard let attachment = allAttachments.first(where: { $0.fileName == fileName }) else {
+        let attachment: FileAttachment?
+        
+        if pathComponents.count == 2 {
+            // Old format: /files/filename
+            let fileName = pathComponents[1]
+            attachment = allAttachments.first(where: { $0.fileName == fileName })
+        } else if pathComponents.count == 3 {
+            // New format: /files/id/originalfilename
+            let fileId = pathComponents[1]
+            attachment = allAttachments.first(where: { $0.id.uuidString == fileId })
+        } else {
+            attachment = nil
+        }
+        
+        guard let foundAttachment = attachment else {
             sendErrorResponse(connection, error: "File not found", statusCode: "404 Not Found")
             return
         }
         
         do {
-            let fileData = try ChatFileManager.shared.getFileData(for: attachment)
-            sendFileResponse(connection, data: fileData, mimeType: attachment.mimeType, fileName: attachment.originalFileName)
+            let fileData = try ChatFileManager.shared.getFileData(for: foundAttachment)
+            sendFileResponse(connection, data: fileData, mimeType: foundAttachment.mimeType, fileName: foundAttachment.originalFileName)
         } catch {
             sendErrorResponse(connection, error: "Failed to read file", statusCode: "500 Internal Server Error")
         }

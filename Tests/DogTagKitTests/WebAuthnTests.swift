@@ -1,7 +1,7 @@
 import XCTest
 import Foundation
 import CryptoKit
-@testable import MultiPeerChatCore
+@testable import DogTagKit
 
 final class WebAuthnTests: XCTestCase {
     var webAuthnManager: WebAuthnManager!
@@ -24,8 +24,7 @@ final class WebAuthnTests: XCTestCase {
             }
         }
         
-        // Clear persistence manager data
-        PersistenceManager.shared.clearAllData()
+        // WebAuthnKit uses its own storage, no external persistence cleanup needed
     }
     
     override func tearDown() {
@@ -42,7 +41,7 @@ final class WebAuthnTests: XCTestCase {
             }
         }
         
-        PersistenceManager.shared.clearAllData()
+        // WebAuthnKit cleans up its own storage
         webAuthnManager = nil
         super.tearDown()
     }

@@ -1,7 +1,7 @@
 import XCTest
 import Foundation
 import CryptoKit
-@testable import MultiPeerChatCore
+@testable import DogTagKit
 
 extension Data {
     init?(hex: String) {
@@ -31,7 +31,10 @@ final class WebAuthnManagerTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
-        webAuthnManager = WebAuthnManager(rpId: testRpId)
+        
+        // Create a test user manager that always considers users enabled
+        let testUserManager = TestUserManager()
+        webAuthnManager = WebAuthnManager(rpId: testRpId, userManager: testUserManager)
         
         // Clean up any existing test credentials and data
         let testCredentialsFiles = [
@@ -46,8 +49,7 @@ final class WebAuthnManagerTests: XCTestCase {
             }
         }
         
-        // Clear persistence manager data
-        PersistenceManager.shared.clearAllData()
+        // WebAuthnKit manages its own storage
     }
     
     override func tearDown() {
@@ -64,7 +66,7 @@ final class WebAuthnManagerTests: XCTestCase {
             }
         }
         
-        PersistenceManager.shared.clearAllData()
+        // WebAuthnKit cleans up its own storage
         super.tearDown()
     }
     
@@ -846,4 +848,35 @@ final class WebAuthnManagerTests: XCTestCase {
         XCTAssertTrue(algorithms.contains(-7))   // ES256
         XCTAssertTrue(algorithms.contains(-257)) // RS256
     }
-} 
+}
+
+// MARK: - Test User Manager
+
+private class TestUserManager: WebAuthnUserManager {
+    private var users: [String: String] = [:] // username -> emoji
+    
+    func isUserEnabled(username: String) -> Bool {
+        return true // Always enabled for tests
+    }
+    
+    func getUserEmoji(username: String) -> String? {
+        return users[username] ?? "👤"
+    }
+    
+    func updateUserEmoji(username: String, emoji: String) -> Bool {
+        users[username] = emoji
+        return true
+    }
+    
+    func createUser(username: String, credentialId: String, publicKey: String, clientIP: String?, emoji: String) throws {
+        users[username] = emoji
+    }
+    
+    func updateUserLogin(username: String, signCount: UInt32, clientIP: String?) throws {
+        // No-op for tests
+    }
+    
+    func deleteUser(username: String) throws {
+        users.removeValue(forKey: username)
+    }
+}

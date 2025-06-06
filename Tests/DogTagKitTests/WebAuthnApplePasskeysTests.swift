@@ -1,7 +1,7 @@
 import XCTest
 import Foundation
 import CryptoKit
-@testable import MultiPeerChatCore
+@testable import DogTagKit
 
 class WebAuthnApplePasskeysTests: XCTestCase {
     

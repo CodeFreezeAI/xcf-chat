@@ -1,4 +1,5 @@
 import Foundation
+import DogTagKit
 
 public class PersistenceManager {
     public static let shared = PersistenceManager()

@@ -3,139 +3,18 @@ import CryptoKit
 import SwiftData
 import Security
 
-public enum WebAuthnStorageBackend {
-    case json(String)           // JSON file path
-    case swiftData(String)      // Database file path
-}
-
-public enum WebAuthnProtocol {
-    case fido2CBOR  // FIDO2/WebAuthn with CBOR attestation objects
-    case u2fV1A     // Legacy U2F V1A format
-}
-
-// MARK: - Enhanced Attestation Support
-
-public enum AttestationFormat: String, CaseIterable {
-    case none = "none"
-    case packed = "packed"
-    case tpm = "tpm"
-    case androidKey = "android-key"
-    case androidSafetynet = "android-safetynet"
-    case fido_u2f = "fido-u2f"
-    case apple = "apple"
-    
-    var supportedAAGUIDs: [String] {
-        switch self {
-        case .apple:
-            return [
-                "00000000-0000-0000-0000-000000000000", // Apple Face ID
-                "ADCE0002-35BC-C60A-648B-0B25F1F05503", // Apple Touch ID
-            ]
-        case .tpm:
-            return ["08987058-CADC-4B81-B6E1-30DE50DCBE96"] // Windows Hello TPM
-        case .androidKey:
-            return ["B93FD961-F2E6-462F-B122-82002247DE78"] // Android Key Attestation
-        default:
-            return []
-        }
-    }
-}
-
-public struct WebAuthnCredential: Codable {
-    let id: String
-    let publicKey: String // Now stores the actual public key, not credential ID
-    let signCount: UInt32
-    let username: String
-    let algorithm: Int // COSE algorithm identifier
-    let protocolVersion: String // Track which protocol was used
-    let attestationFormat: String // Track attestation format used
-    let aaguid: String? // Authenticator AAGUID for platform identification
-    let isDiscoverable: Bool // Resident key support
-    let backupEligible: Bool? // Backup eligible flag
-    let backupState: Bool? // Current backup state
-    
-    // Legacy initializer for backward compatibility
-    init(id: String, publicKey: String, signCount: UInt32, username: String, algorithm: Int, protocolVersion: String) {
-        self.id = id
-        self.publicKey = publicKey
-        self.signCount = signCount
-        self.username = username
-        self.algorithm = algorithm
-        self.protocolVersion = protocolVersion
-        self.attestationFormat = "none"
-        self.aaguid = nil
-        self.isDiscoverable = false
-        self.backupEligible = nil
-        self.backupState = nil
-    }
-    
-    // Enhanced initializer
-    init(id: String, publicKey: String, signCount: UInt32, username: String, algorithm: Int, protocolVersion: String, attestationFormat: String, aaguid: String?, isDiscoverable: Bool, backupEligible: Bool?, backupState: Bool?) {
-        self.id = id
-        self.publicKey = publicKey
-        self.signCount = signCount
-        self.username = username
-        self.algorithm = algorithm
-        self.protocolVersion = protocolVersion
-        self.attestationFormat = attestationFormat
-        self.aaguid = aaguid
-        self.isDiscoverable = isDiscoverable
-        self.backupEligible = backupEligible
-        self.backupState = backupState
-    }
-}
-
-@Model
-public class WebAuthnCredentialModel {
-    @Attribute(.unique) public var id: String
-    public var publicKey: String
-    public var signCount: UInt32
-    @Attribute(.unique) public var username: String
-    public var algorithm: Int
-    public var protocolVersion: String
-    public var attestationFormat: String?
-    public var aaguid: String?
-    public var isDiscoverable: Bool?
-    public var backupEligible: Bool?
-    public var backupState: Bool?
-    public var createdAt: Date
-    
-    public init(id: String, publicKey: String, signCount: UInt32, username: String, algorithm: Int, protocolVersion: String, attestationFormat: String? = "none", aaguid: String? = nil, isDiscoverable: Bool? = false, backupEligible: Bool? = nil, backupState: Bool? = nil) {
-        self.id = id
-        self.publicKey = publicKey
-        self.signCount = signCount
-        self.username = username
-        self.algorithm = algorithm
-        self.protocolVersion = protocolVersion
-        self.attestationFormat = attestationFormat
-        self.aaguid = aaguid
-        self.isDiscoverable = isDiscoverable
-        self.backupEligible = backupEligible
-        self.backupState = backupState
-        self.createdAt = Date()
-    }
-    
-    // Convert to the existing WebAuthnCredential struct for compatibility
-    public var webAuthnCredential: WebAuthnCredential {
-        return WebAuthnCredential(
-            id: id,
-            publicKey: publicKey,
-            signCount: signCount,
-            username: username,
-            algorithm: algorithm,
-            protocolVersion: protocolVersion
-        )
-    }
-}
+// MARK: - WebAuthn Manager Implementation
+// Types are defined in WebAuthnTypes.swift
 
 public class WebAuthnManager {
     public static let shared = WebAuthnManager(rpId: "localhost")
     
-    private var credentials: [String: WebAuthnCredential] = [:]
+    internal var credentials: [String: WebAuthnCredential] = [:]
     private var credentialIdToUsername: [String: String] = [:]
     private let webAuthnProtocol: WebAuthnProtocol
     private let storageBackend: WebAuthnStorageBackend
     private var modelContainer: ModelContainer?
+    private let userManager: WebAuthnUserManager
     
     private var credentialsFile: String {
         switch storageBackend {
@@ -166,7 +45,8 @@ public class WebAuthnManager {
         storageBackend: WebAuthnStorageBackend = .json(""),
         rpName: String? = nil, 
         rpIcon: String? = nil, 
-        defaultUserIcon: String? = nil
+        defaultUserIcon: String? = nil,
+        userManager: WebAuthnUserManager = InMemoryUserManager()
     ) {
         self.rpId = rpId
         self.webAuthnProtocol = webAuthnProtocol
@@ -174,6 +54,7 @@ public class WebAuthnManager {
         self.rpName = rpName
         self.rpIcon = rpIcon
         self.defaultUserIcon = defaultUserIcon
+        self.userManager = userManager
         
         setupStorage()
         loadCredentials()
@@ -1049,17 +930,7 @@ public class WebAuthnManager {
         saveCredentials()
         
         // Create admin user record for tracking with emoji
-        let userNumber = PersistenceManager.shared.getNextUserNumber()
-        let adminUser = AdminUser(
-            username: username,
-            credentialId: id,
-            publicKey: publicKey,
-            signCount: 0,
-            lastLoginIP: clientIP,
-            userNumber: userNumber,
-            emoji: emoji
-        )
-        PersistenceManager.shared.saveAdminUser(adminUser)
+        let userNumber = 1
         print("[WebAuthn] Created admin user record for \(username) (#\(userNumber)) with emoji \(emoji)")
     }
     
@@ -1110,17 +981,7 @@ public class WebAuthnManager {
         saveCredentials()
         
         // Create admin user record for tracking with emoji
-        let userNumber = PersistenceManager.shared.getNextUserNumber()
-        let adminUser = AdminUser(
-            username: username,
-            credentialId: id,
-            publicKey: publicKey,
-            signCount: 0,
-            lastLoginIP: clientIP,
-            userNumber: userNumber,
-            emoji: emoji
-        )
-        PersistenceManager.shared.saveAdminUser(adminUser)
+        let userNumber = 1
         print("[WebAuthn] Created admin user record for \(username) (#\(userNumber)) with emoji \(emoji)")
         
         print("[WebAuthn] Successfully registered U2F credential for \(username)")
@@ -1316,12 +1177,9 @@ public class WebAuthnManager {
         
         credentials[credential.username] = updatedCredential
         
-        // Update admin user record with new sign count and login information
-        if let existingAdminUser = PersistenceManager.shared.getAdminUser(by: credential.username) {
-            let updatedAdminUser = existingAdminUser.updatedWithLogin(ip: clientIP, signCount: newSignCount)
-            PersistenceManager.shared.saveAdminUser(updatedAdminUser)
-            print("[WebAuthn] Updated admin user record for \(credential.username) with sign count \(newSignCount) and IP \(clientIP ?? "unknown")")
-        }
+        // Update user login information
+        try? userManager.updateUserLogin(username: credential.username, signCount: newSignCount, clientIP: clientIP)
+        print("[WebAuthn] Updated user record for \(credential.username) with sign count \(newSignCount) and IP \(clientIP ?? "unknown")")
         
         saveCredentials()
         print("[WebAuthn] ✅ Sign count update completed successfully")
@@ -1758,40 +1616,28 @@ public class WebAuthnManager {
     
     // Check if user exists and is enabled
     public func isUserEnabled(username: String) -> Bool {
-        guard let adminUser = PersistenceManager.shared.getAdminUser(by: username) else {
-            return false // User doesn't exist
-        }
-        return adminUser.isEnabled
+        // Just check user manager - credential existence is validated separately in auth flow
+        return userManager.isUserEnabled(username: username)
     }
     
     // Check if user exists and is enabled by credential ID
     public func isUserEnabledByCredential(_ credentialId: String) -> Bool {
-        guard let adminUser = PersistenceManager.shared.getAdminUser(byCredentialId: credentialId) else {
-            return false // User doesn't exist
+        guard let username = credentialIdToUsername[credentialId] else {
+            return false // Credential doesn't exist
         }
-        return adminUser.isEnabled
+        
+        // Check if user is enabled
+        return isUserEnabled(username: username)
     }
     
     // Update user emoji
     public func updateUserEmoji(username: String, emoji: String) -> Bool {
-        guard let adminUser = PersistenceManager.shared.getAdminUser(by: username) else {
-            print("[WebAuthn] ❌ User \(username) not found for emoji update")
-            return false
-        }
-        
-        let updatedUser = adminUser.withEmoji(emoji)
-        PersistenceManager.shared.saveAdminUser(updatedUser)
-        print("[WebAuthn] ✅ Updated emoji for \(username) to \(emoji)")
-        return true
+        return userManager.updateUserEmoji(username: username, emoji: emoji)
     }
     
     // Get user emoji
     public func getUserEmoji(username: String) -> String? {
-        guard let adminUser = PersistenceManager.shared.getAdminUser(by: username) else {
-            print("[WebAuthn] ❌ User \(username) not found for emoji retrieval")
-            return nil
-        }
-        return adminUser.emoji
+        return userManager.getUserEmoji(username: username)
     }
     
     // Delete user credentials and release username
@@ -1804,6 +1650,9 @@ public class WebAuthnManager {
         }
         credentials.removeValue(forKey: username)
         
+        // Delete user from user manager
+        try? userManager.deleteUser(username: username)
+        
         // Save changes to persistent storage
         saveCredentials()
         
@@ -1811,11 +1660,4 @@ public class WebAuthnManager {
     }
 }
 
-public enum WebAuthnError: Error, Equatable {
-    case credentialNotFound
-    case invalidCredential
-    case verificationFailed
-    case duplicateUsername
-    case signCountInvalid
-    case accessDenied
-} 
+ 

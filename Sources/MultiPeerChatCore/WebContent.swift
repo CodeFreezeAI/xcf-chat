@@ -812,6 +812,14 @@ func generateIndexHTML() -> String {
                 selectedEmoji.style.color = textColor;
                 selectedEmoji.style.border = `3px solid ${adjustColorBrightnessStandalone(backgroundColor, 30)}`;
             }
+            
+            // Apply styling to user emoji picker modal
+            const selectedUserEmoji = document.getElementById('selected-user-emoji');
+            if (selectedUserEmoji && selectedUserEmoji.textContent === emoji) {
+                selectedUserEmoji.style.backgroundColor = backgroundColor;
+                selectedUserEmoji.style.color = textColor;
+                selectedUserEmoji.style.border = `3px solid ${adjustColorBrightnessStandalone(backgroundColor, 30)}`;
+            }
         }
         
         // Helper function for standalone color adjustment
@@ -4262,7 +4270,7 @@ func generateChatJS(adminName: String) -> String {
                     if (message.attachment) {
                         const attachment = message.attachment;
                         if (attachment.isImage) {
-                            const imageUrl = `/files/${attachment.fileName}`;
+                            const imageUrl = `/files/${attachment.id}/${encodeURIComponent(attachment.originalFileName)}`;
                             attachmentHTML = `
                                 <div class="message-attachment">
                                     <img src="${imageUrl}" 
@@ -4272,9 +4280,10 @@ func generateChatJS(adminName: String) -> String {
                                 </div>
                             `;
                         } else {
+                            const fileUrl = `/files/${attachment.id}/${encodeURIComponent(attachment.originalFileName)}`;
                             attachmentHTML = `
                                 <div class="message-attachment">
-                                    <a href="/files/${attachment.fileName}" 
+                                    <a href="${fileUrl}" 
                                        class="message-attachment-file" 
                                        target="_blank" 
                                        download="${attachment.originalFileName}">
@@ -5033,6 +5042,14 @@ func generateChatJS(adminName: String) -> String {
                     option.classList.add('selected');
                 }
             });
+            
+            // Apply color styling to the displayed emoji
+            if (chatClient) {
+                chatClient.loadEmojiStyling(currentEmoji);
+            } else {
+                // Fallback for when chatClient doesn't exist yet
+                analyzeEmojiColorsStandalone(currentEmoji);
+            }
             
             modal.classList.remove('hidden');
         }
