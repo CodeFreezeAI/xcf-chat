@@ -5,16 +5,16 @@ This directory contains the external HTML, CSS, and JavaScript files that are se
 ## Files
 
 - **`index.html`** - Main HTML structure for the chat application
-- **`stylev008.css`** - Complete CSS styling including mobile-responsive design
-- **`chatv008.js`** - JavaScript functionality for chat client, WebAuthn, and UI interactions
+- **`stylev009.css`** - Complete CSS styling including mobile-responsive design
+- **`chatv009.js`** - JavaScript functionality for chat client, WebAuthn, and UI interactions
 
 ## How It Works
 
 The Swift files in `Sources/MultiPeerChatCore/` have been refactored to read from these external files:
 
 1. **WebContentHTML.swift** - Attempts to read `static/index.html`, falls back to basic HTML if not found
-2. **WebContentCSS.swift** - Attempts to read `static/stylev008.css`, falls back to basic CSS if not found  
-3. **WebContentJS.swift** - Attempts to read `static/chatv008.js`, falls back to basic JS if not found
+2. **WebContentCSS.swift** - Attempts to read `static/stylev009.css`, falls back to basic CSS if not found  
+3. **WebContentJS.swift** - Attempts to read `static/chatv009.js`, falls back to basic JS if not found
 
 ## Benefits
 

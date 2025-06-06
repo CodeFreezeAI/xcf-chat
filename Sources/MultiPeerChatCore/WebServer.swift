@@ -310,10 +310,10 @@ public class WebServer: ObservableObject {
         case ("GET", "/"):
             response = generateIndexHTML()
             contentType = "text/html"
-        case ("GET", "/chatv008.js"):
+        case ("GET", "/chatv009.js"):
             response = generateChatJS()
             contentType = "application/javascript"
-        case ("GET", "/stylev008.css"):
+        case ("GET", "/stylev009.css"):
             response = generateCSS()
             contentType = "text/css"
         // Admin Routes - REQUIRES AUTHENTICATION

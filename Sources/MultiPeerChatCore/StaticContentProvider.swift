@@ -1,3 +1,4 @@
+
 import Foundation
 
 // MARK: - Static Content Provider
@@ -17,6 +18,7 @@ public func generateIndexHTML() -> String {
             print("📄 Loaded HTML from: \(staticHTMLPath)")
             return htmlContent
         }
+
     }
     
     print("⚠️ Static HTML file not found, using fallback")
@@ -56,7 +58,7 @@ private func generateFallbackHTML() -> String {
         <link rel="manifest" href="/manifest.json">
         
         <!-- Stylesheets -->
-        <link rel="stylesheet" href="/stylev008.css">
+        <link rel="stylesheet" href="/stylev009.css">
     </head>
     <body>
         <div class="container">
@@ -85,7 +87,7 @@ private func generateFallbackHTML() -> String {
                 </div>
             </div>
         </div>
-        <script src="/chatv008.js"></script>
+        <script src="/chatv009.js"></script>
     </body>
     </html>
     """
@@ -94,10 +96,10 @@ private func generateFallbackHTML() -> String {
 public func generateCSS() -> String {
     // Try to read from external file first, fallback to default if not found
     let possiblePaths = [
-        "static/stylev008.css",
-        "./static/stylev008.css",
-        "../../static/stylev008.css",
-        FileManager.default.currentDirectoryPath + "/static/stylev008.css"
+        "static/stylev009.css",
+        "./static/stylev009.css",
+        "../../static/stylev009.css",
+        FileManager.default.currentDirectoryPath + "/static/stylev009.css"
     ]
     
     for staticCSSPath in possiblePaths {
@@ -232,10 +234,10 @@ private func generateFallbackCSS() -> String {
 public func generateChatJS() -> String {
     // Try to read from external file first, fallback to default if not found
     let possiblePaths = [
-        "static/chatv008.js",
-        "./static/chatv008.js",
-        "../../static/chatv008.js",
-        FileManager.default.currentDirectoryPath + "/static/chatv008.js"
+        "static/chatv009.js",
+        "./static/chatv009.js",
+        "../../static/chatv009.js",
+        FileManager.default.currentDirectoryPath + "/static/chatv009.js"
     ]
     
     for staticJSPath in possiblePaths {

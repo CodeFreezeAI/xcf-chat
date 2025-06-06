@@ -1779,7 +1779,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedUsername) {
             //nicknameInput.select();
         }
-        inputElement.blur();
+        nicknameInput.blur();
 
         // Add event listener to load emoji when username changes
         nicknameInput.addEventListener('blur', function() {
