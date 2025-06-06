@@ -142,8 +142,8 @@ public class WebAuthnCredentialModel {
     public var lastLoginIP: String?
     public var lastLoginAt: Date?
     public var createdAt: Date
-    public var isEnabled: Bool
-    public var isAdmin: Bool
+    public var isEnabled: Bool?
+    public var isAdmin: Bool?
     
     public init(
         id: String,
@@ -160,8 +160,8 @@ public class WebAuthnCredentialModel {
         emoji: String? = nil,
         lastLoginIP: String? = nil,
         lastLoginAt: Date? = nil,
-        isEnabled: Bool = true,
-        isAdmin: Bool = false
+        isEnabled: Bool? = true,
+        isAdmin: Bool? = false
     ) {
         self.id = id
         self.publicKey = publicKey
@@ -200,8 +200,8 @@ public class WebAuthnCredentialModel {
             lastLoginIP: lastLoginIP,
             lastLoginAt: lastLoginAt,
             createdAt: createdAt,
-            isEnabled: isEnabled,
-            isAdmin: isAdmin
+            isEnabled: isEnabled ?? true,
+            isAdmin: isAdmin ?? false
         )
     }
 }

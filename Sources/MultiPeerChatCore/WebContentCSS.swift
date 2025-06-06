@@ -1,6 +1,13 @@
-
 // MARK: - CSS Content
 func generateCSS() -> String {
+    // Try to read from external file first, fallback to default if not found
+    let staticCSSPath = "static/stylev008.css"
+    
+    if let cssContent = try? String(contentsOfFile: staticCSSPath) {
+        return cssContent
+    }
+    
+    // Fallback: return basic CSS
     return """
     /* COMPLETELY REVAMPED MOBILE-FIRST CSS - 2024-12-19 */
     #clear-history-btn { display: none !important; }
@@ -103,53 +110,38 @@ func generateCSS() -> String {
         transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    /* PROPER MOBILE VIEWPORT HANDLING - UPDATED FOR iPhone */
+    /* PROPER MOBILE VIEWPORT HANDLING */
     html {
         height: 100%;
-        /* Use dynamic viewport height for iPhone compatibility */
+        /* Modern viewport units for mobile */
         height: 100dvh;
-        min-height: 100dvh;
+        height: -webkit-fill-available;
         overflow: hidden;
-        /* Prevent zoom on iOS */
-        -webkit-text-size-adjust: 100%;
-        text-size-adjust: 100%;
-        /* Support older browsers */
-        height: 100vh;
     }
 
     body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%), var(--bg-primary);
         height: 100%;
-        /* Use dynamic viewport height for iPhone compatibility */
         height: 100dvh;
-        min-height: 100dvh;
+        height: -webkit-fill-available;
         color: var(--text-primary);
         line-height: 1.6;
         overflow: hidden;
-        position: relative;
+        position: fixed;
         width: 100%;
         overscroll-behavior: none;
         -webkit-overflow-scrolling: touch;
-        /* Ensure consistent background on all devices */
-        background-attachment: fixed;
-        /* Support older browsers */
-        height: 100vh;
-        min-height: 100vh;
     }
 
     .container {
         width: 100%;
         height: 100%;
-        /* Use dynamic viewport height for iPhone compatibility */
         height: 100dvh;
-        min-height: 100dvh;
+        height: -webkit-fill-available;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        /* Support older browsers */
-        height: 100vh;
-        min-height: 100vh;
     }
 
     /* DESKTOP-FIRST HEADER */
@@ -598,10 +590,6 @@ func generateCSS() -> String {
         flex-direction: column;
         overflow: hidden;
         min-height: 0;
-        max-height: calc(100dvh - 80px);
-        position: relative;
-        /* Support older browsers */
-        max-height: calc(100vh - 80px);
     }
 
     .chat-header {
@@ -695,9 +683,6 @@ func generateCSS() -> String {
         gap: 0.75rem;
         -webkit-overflow-scrolling: touch;
         min-height: 0;
-        max-height: calc(100dvh - 200px);
-        /* Support older browsers */
-        max-height: calc(100vh - 200px);
     }
 
     .welcome-message {
@@ -787,64 +772,33 @@ func generateCSS() -> String {
 
     /* MOBILE COMPLETE OVERHAUL */
     @media (max-width: 768px) {
-        /* ENSURE PROPER MOBILE VIEWPORT - iPhone Compatible */
+        /* ENSURE PROPER MOBILE VIEWPORT */
         html {
             height: 100%;
-            /* Use dynamic viewport height for iPhone compatibility */
             height: 100dvh;
-            min-height: 100dvh;
-            /* Allow scrolling on smaller devices */
-            overflow-x: hidden;
-            overflow-y: auto;
-            /* Support older browsers */
-            height: 100vh;
-            min-height: 100vh;
+            height: -webkit-fill-available;
         }
 
         body {
             height: 100%;
-            /* Use dynamic viewport height for iPhone compatibility */
             height: 100dvh;
-            min-height: 100dvh;
-            overflow: hidden;  /* Prevent body scrolling on mobile */
-            position: fixed;   /* Keep fixed for mobile to prevent scroll issues */
+            height: -webkit-fill-available;
+            overflow: hidden;
+            position: fixed;
             width: 100%;
-            /* Ensure full background coverage on all mobile devices */
-            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%), var(--bg-primary);
-            background-attachment: fixed;
-            /* Support older browsers */
-            height: 100vh;
-            min-height: 100vh;
-            /* Add safe area support for iPhone */
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .container {
             height: 100%;
-            /* Use dynamic viewport height for iPhone compatibility */
             height: 100dvh;
-            min-height: 100dvh;
-            /* Prevent container scrolling on mobile */
-            overflow: hidden;
-            /* Support older browsers */
-            height: 100vh;
-            min-height: 100vh;
+            height: -webkit-fill-available;
         }
 
-        /* MOBILE HEADER - COMPACT - iPhone Compatible */
+        /* MOBILE HEADER - COMPACT */
         .header {
             padding: 0.5rem 1rem;
             min-height: 60px;
             flex-shrink: 0;
-            /* iPhone sticky fixes */
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            will-change: transform;
         }
 
         .header h1 {
@@ -861,34 +815,22 @@ func generateCSS() -> String {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 0.5rem;
-            gap: 0.3rem;
+            padding: 1rem;
+            gap: 1rem;
             justify-content: flex-start;
-            padding-top: 1rem;
+            padding-top: 2rem;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             height: 100%;
             box-sizing: border-box;
             /* Ensure content is accessible when keyboard appears */
-            padding-bottom: calc(1rem + env(keyboard-inset-height, 0px));
+            padding-bottom: calc(2rem + env(keyboard-inset-height, 0px));
             /* Make the background area more tappable on mobile */
-            min-height: 100dvh;
-            touch-action: pan-y;  /* Allow vertical scrolling */
+            min-height: 100%;
+            touch-action: manipulation;
             /* Prevent bouncing during keyboard transitions */
             scroll-behavior: smooth;
             -webkit-scroll-behavior: smooth;
-            /* Ensure proper background coverage on all mobile devices */
-            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%), var(--bg-primary);
-            background-attachment: fixed;
-            /* Remove any potential dark overlays */
-            position: relative;
-            z-index: 1;
-            /* Enable scrolling on smaller devices like iPhone SE */
-            max-height: 100dvh;
-            overflow-x: hidden;
-            /* Support older browsers */
-            min-height: 100vh;
-            max-height: 100vh;
         }
 
         /* Create a form content container to constrain all elements to same width */
@@ -899,7 +841,7 @@ func generateCSS() -> String {
 
         .login-form h2 {
             font-size: 1.5rem;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.5rem;
             flex-shrink: 0;
             color: white;
             text-align: center;
@@ -909,15 +851,12 @@ func generateCSS() -> String {
         .login-input-container {
             width: 90% !important;
             max-width: 300px !important;
-            gap: 4px;
-            /* Improve mobile stability and ensure visibility */
+            gap: 12px;
+            /* Improve mobile stability */
             position: relative;
             will-change: transform;
             backface-visibility: hidden;
             -webkit-backface-visibility: hidden;
-            z-index: 10;
-            /* Ensure no dark overlays */
-            background: transparent;
         }
 
         .login-input-container input {
@@ -934,38 +873,27 @@ func generateCSS() -> String {
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
             box-sizing: border-box;
             width: 100% !important;
-            /* Ensure input is always selectable */
-            user-select: text;
-            -webkit-user-select: text;
-            pointer-events: auto;
-            touch-action: manipulation;
-            /* Prevent any overlay issues */
-            position: relative;
-            z-index: 11;
         }
 
         .login-input-container input:focus {
             border: 2px solid var(--accent-color);
             box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
             outline: none;
-            /* Ensure focus state is visible */
-            z-index: 12;
         }
 
         .selected-emoji {
             font-size: 4rem !important;
             width: 80px !important;
             height: 80px !important;
-            margin-bottom: 0.15rem !important;
+            margin-bottom: 1rem !important;
             flex-shrink: 0;
             align-self: center;
         }
 
         .emoji-scroll-container {
-            height: 120px;
+            height: 150px;
             width: 100%;
             flex-shrink: 0;
-            margin-bottom: 0;
         }
 
         .emoji-picker {
@@ -973,33 +901,15 @@ func generateCSS() -> String {
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* Ensure visibility above any overlays */
-            position: relative;
-            z-index: 5;
-            background: transparent;
         }
 
         .auth-options {
-            gap: 8px;
-            margin-top: 0;
-            margin-bottom: 1rem;
+            gap: 12px;
+            margin-top: 15px;
+            margin-bottom: 2rem;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
-            /* Ensure buttons are always clickable */
-            position: relative;
-            z-index: 8;
-            background: transparent;
-        }
-        
-        .mobile-error-space {
-            min-height: 48px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            margin-top: 4px;
-            padding: 12px 15px;
-            border: 2px solid transparent;
-            box-sizing: border-box;
         }
 
         /* MOBILE CHAT SCREEN - COMPLETE REDESIGN */
@@ -1106,11 +1016,7 @@ func generateCSS() -> String {
             display: flex;
             flex-direction: column;
             min-height: 0;
-            max-height: calc(100dvh - 120px);
             overflow: hidden;
-            position: relative;
-            /* Support older browsers */
-            max-height: calc(100vh - 120px);
         }
 
         /* MOBILE CHAT HEADER - STATIC */
@@ -1142,38 +1048,28 @@ func generateCSS() -> String {
             border-radius: 4px;
         }
 
-        /* MOBILE MESSAGES - SCROLLABLE MIDDLE SECTION - iPhone Compatible */
+        /* MOBILE MESSAGES - SCROLLABLE MIDDLE SECTION */
         .messages-container {
             flex: 1;
             overflow-y: auto;
-            overflow-x: hidden;
             padding: 1rem;
-            padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
             -webkit-overflow-scrolling: touch;
             min-height: 0;
-            max-height: calc(100dvh - 250px);
-            /* iPhone scroll fixes */
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
-            will-change: scroll-position;
-            /* Support older browsers */
-            max-height: calc(100vh - 250px);
-            /* Force scroll container */
-            position: relative;
-            contain: layout;
         }
 
-        /* MOBILE MESSAGE INPUT - FIXED TO BOTTOM - iPhone Compatible */
+        /* MOBILE MESSAGE INPUT - FIXED TO BOTTOM */
         .message-input-container {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            height: auto;
+            height: 90px;
             min-height: 90px;
+            max-height: 90px;
             padding: 1rem;
             padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
             background: var(--bg-secondary);
@@ -1185,12 +1081,6 @@ func generateCSS() -> String {
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            /* iPhone fixes */
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            will-change: transform;
-            /* Ensure proper positioning on iPhone */
-            bottom: env(safe-area-inset-bottom, 0px);
         }
 
         .message-input-container input {
@@ -1276,10 +1166,7 @@ func generateCSS() -> String {
         }
 
         .messages-container {
-            padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px));
-            max-height: calc(100dvh - 280px);
-            /* Support older browsers */
-            max-height: calc(100vh - 280px);
+            padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
         }
 
         .room-actions button {
@@ -1350,10 +1237,6 @@ func generateCSS() -> String {
         justify-content: center;
         min-width: 28px;
         min-height: 28px;
-        background-color: rgba(255, 255, 255, 0.9);
-        color: #333333;
-        border: 2px solid rgba(255, 255, 255, 0.7);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     }
 
     .username {
@@ -1596,12 +1479,6 @@ func generateCSS() -> String {
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
-        /* Ensure buttons are always clickable and visible */
-        position: relative;
-        z-index: 9;
-        user-select: none;
-        -webkit-user-select: none;
-        pointer-events: auto;
     }
 
     .auth-options button:hover {
@@ -2046,127 +1923,6 @@ func generateCSS() -> String {
         .login-form .auth-options button {
             width: 100% !important;
             max-width: 100% !important;
-        }
-    }
-
-    /* VERY SMALL MOBILE DEVICES - iPhone SE and similar */
-    @media (max-width: 480px), (max-height: 600px) {
-        /* Ensure login form is fully scrollable on iPhone SE */
-        .login-form {
-            justify-content: flex-start !important;
-            min-height: 100dvh !important;
-            max-height: none !important;
-            padding: 0.5rem 0.5rem 3rem 0.5rem !important;
-            gap: 0.4rem !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-            touch-action: pan-y !important;
-            /* Support older browsers */
-            min-height: 100vh !important;
-        }
-        
-        .login-form h2 {
-            font-size: 1.3rem !important;
-            margin-bottom: 0.3rem !important;
-        }
-        
-        .selected-emoji {
-            font-size: 3rem !important;
-            width: 60px !important;
-            height: 60px !important;
-            margin-bottom: 0.3rem !important;
-        }
-        
-        .emoji-scroll-container {
-            height: 100px !important;
-            margin-bottom: 0.3rem !important;
-        }
-        
-        .login-input-container {
-            gap: 0.3rem !important;
-            margin-bottom: 0.3rem !important;
-        }
-        
-        .auth-options {
-            gap: 0.3rem !important;
-            margin-top: 0.3rem !important;
-            margin-bottom: 1.5rem !important;
-        }
-        
-        /* Ensure scrolling works properly */
-        html, body {
-            overflow-y: auto !important;
-            position: relative !important;
-        }
-        
-        .container {
-            overflow-y: auto !important;
-        }
-    }
-
-    /* DYNAMIC VIEWPORT HEIGHT SUPPORT FOR OLDER BROWSERS */
-    @supports not (height: 100dvh) {
-        html {
-            height: 100vh !important;
-            min-height: 100vh !important;
-        }
-        
-        body {
-            height: 100vh !important;
-            min-height: 100vh !important;
-        }
-        
-        .container {
-            height: 100vh !important;
-            min-height: 100vh !important;
-        }
-        
-        .chat-area {
-            max-height: calc(100vh - 80px) !important;
-        }
-        
-        .messages-container {
-            max-height: calc(100vh - 200px) !important;
-        }
-        
-        @media (max-width: 768px) {
-            html {
-                height: 100vh !important;
-                min-height: 100vh !important;
-            }
-            
-            body {
-                height: 100vh !important;
-                min-height: 100vh !important;
-            }
-            
-            .container {
-                height: 100vh !important;
-                min-height: 100vh !important;
-            }
-            
-            .login-form {
-                min-height: 100vh !important;
-                max-height: 100vh !important;
-            }
-            
-            .chat-area {
-                max-height: calc(100vh - 120px) !important;
-            }
-            
-            .messages-container {
-                max-height: calc(100vh - 250px) !important;
-            }
-        }
-        
-        @media (max-width: 480px), (max-height: 600px) {
-            .login-form {
-                min-height: 100vh !important;
-            }
-            
-            .messages-container {
-                max-height: calc(100vh - 280px) !important;
-            }
         }
     }
 

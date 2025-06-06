@@ -311,7 +311,7 @@ public class WebServer: ObservableObject {
             response = generateIndexHTML()
             contentType = "text/html"
         case ("GET", "/chatv008.js"):
-            response = generateChatJS(adminName: adminUsername)
+            response = generateChatJS()
             contentType = "application/javascript"
         case ("GET", "/stylev008.css"):
             response = generateCSS()

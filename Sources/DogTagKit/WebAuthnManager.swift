@@ -62,9 +62,22 @@ public class WebAuthnManager {
         self.adminUsername = adminUsername
         self.userManager = userManager
         
+        print("[WebAuthn] 🚀 Initializing WebAuthnManager...")
+        print("[WebAuthn] 🚀 RP ID: \(rpId)")
+        print("[WebAuthn] 🚀 Protocol: \(webAuthnProtocol)")
+        print("[WebAuthn] 🚀 Storage Backend: \(storageBackend)")
+        print("[WebAuthn] 🚀 Admin Username: \(adminUsername ?? "none")")
+        
         setupStorage()
         loadCredentials()
         migrateExistingCredentials()
+        cleanupLegacyJSONFiles()
+        
+        print("[WebAuthn] 🚀 WebAuthnManager initialization complete")
+        print("[WebAuthn] 🚀 Total credentials loaded: \(credentials.count)")
+        if !credentials.isEmpty {
+            print("[WebAuthn] 🚀 Loaded users: \(Array(credentials.keys))")
+        }
     }
     
     private func setupStorage() {
@@ -73,29 +86,100 @@ public class WebAuthnManager {
             // No setup needed for JSON
             break
         case .swiftData(let dbPath):
+            print("[WebAuthn] 🔧 Setting up SwiftData storage...")
+            print("[WebAuthn] 🔧 Database path: '\(dbPath)'")
+            
             do {
                 let schema = Schema([WebAuthnCredentialModel.self])
                 let modelConfiguration: ModelConfiguration
                 
                 if dbPath.isEmpty {
                     // Use default location
+                    print("[WebAuthn] 🔧 Using default SwiftData location")
                     modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
                 } else {
                     // Use specified database file path
                     let dbURL = URL(fileURLWithPath: dbPath)
+                    print("[WebAuthn] 🔧 Using specific database file: \(dbURL.path)")
+                    
+                    // Ensure directory exists
+                    let dbDirectory = dbURL.deletingLastPathComponent()
+                    if !FileManager.default.fileExists(atPath: dbDirectory.path) {
+                        try FileManager.default.createDirectory(at: dbDirectory, withIntermediateDirectories: true)
+                        print("[WebAuthn] ✅ Created database directory: \(dbDirectory.path)")
+                    }
+                    
+                    // Check if database file exists
+                    if FileManager.default.fileExists(atPath: dbURL.path) {
+                        print("[WebAuthn] ✅ Database file exists: \(dbURL.path)")
+                        let fileSize = try FileManager.default.attributesOfItem(atPath: dbURL.path)[.size] as? Int64 ?? 0
+                        print("[WebAuthn] ✅ Database file size: \(fileSize) bytes")
+                    } else {
+                        print("[WebAuthn] ⚠️ Database file does not exist yet: \(dbURL.path)")
+                    }
+                    
                     modelConfiguration = ModelConfiguration(schema: schema, url: dbURL)
                 }
                 
-                // Enable encryption for sensitive credential data
+                // Initialize the model container
                 modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
-                print("[WebAuthn] ✅ Swift Data container initialized at: \(dbPath.isEmpty ? "default location" : dbPath)")
+                print("[WebAuthn] ✅ Swift Data container initialized successfully")
+                
+                // Test the container by creating a context
+                let testContext = ModelContext(modelContainer!)
+                print("[WebAuthn] ✅ Test context created successfully")
+                
+                // Try a simple fetch to verify the database is working
+                let testFetch = FetchDescriptor<WebAuthnCredentialModel>()
+                let existingModels = try testContext.fetch(testFetch)
+                print("[WebAuthn] ✅ Database is accessible, found \(existingModels.count) existing credentials")
+                
             } catch {
-                print("[WebAuthn] ❌ Failed to initialize Swift Data container: \(error)")
-                print("[WebAuthn] ⚠️ Falling back to in-memory storage")
-                // Fallback to in-memory storage if database setup fails
-                let schema = Schema([WebAuthnCredentialModel.self])
-                let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-                modelContainer = try? ModelContainer(for: schema, configurations: [memoryConfig])
+                print("[WebAuthn] ❌ CRITICAL: Failed to initialize Swift Data container: \(error)")
+                print("[WebAuthn] ❌ Error type: \(type(of: error))")
+                
+                // Check if this is a migration error
+                let errorString = "\(error)"
+                if errorString.contains("migration") || errorString.contains("attribute") {
+                    print("[WebAuthn] 🔄 Detected database migration issue - attempting recovery...")
+                    
+                    if !dbPath.isEmpty {
+                        // Try to backup and recreate the database
+                        let dbURL = URL(fileURLWithPath: dbPath)
+                        let backupPath = dbPath + ".backup.\(Int(Date().timeIntervalSince1970))"
+                        
+                        do {
+                            // Backup the old database
+                            try FileManager.default.copyItem(atPath: dbPath, toPath: backupPath)
+                            print("[WebAuthn] ✅ Backed up existing database to: \(backupPath)")
+                            
+                            // Remove the old database
+                            try FileManager.default.removeItem(at: dbURL)
+                            print("[WebAuthn] ✅ Removed old database file")
+                            
+                            // Try to recreate with new schema
+                            let schema = Schema([WebAuthnCredentialModel.self])
+                            let modelConfiguration = ModelConfiguration(schema: schema, url: dbURL)
+                            modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
+                            print("[WebAuthn] ✅ Successfully created new database with updated schema")
+                            print("[WebAuthn] ⚠️ NOTE: You will need to re-register all users")
+                            print("[WebAuthn] ⚠️ Previous database backed up to: \(backupPath)")
+                            
+                        } catch {
+                            print("[WebAuthn] ❌ Failed to recover from migration error: \(error)")
+                            print("[WebAuthn] ❌ Manual intervention required!")
+                            print("[WebAuthn] ❌ Backup your database and delete: \(dbPath)")
+                            fatalError("WebAuthn database migration failed and recovery failed. Manual intervention required.")
+                        }
+                    } else {
+                        print("[WebAuthn] ❌ Cannot recover from migration with default database location")
+                        fatalError("WebAuthn database migration failed. Cannot auto-recover with default location.")
+                    }
+                } else {
+                    print("[WebAuthn] ❌ Database initialization failed for non-migration reasons")
+                    print("[WebAuthn] ❌ Check database path permissions and disk space")
+                    fatalError("WebAuthn database initialization failed: \(error). Check database path and permissions.")
+                }
             }
         }
     }
@@ -559,24 +643,44 @@ public class WebAuthnManager {
     }
     
     private func loadCredentialsFromSwiftData() {
+        print("[WebAuthn] 🔍 Loading credentials from SwiftData...")
+        
         guard let container = modelContainer else {
-            print("[WebAuthn] ❌ No model container available")
+            print("[WebAuthn] ❌ CRITICAL: No model container available for loading credentials!")
+            print("[WebAuthn] ❌ This means the database initialization failed during setup")
             return
         }
         
         do {
             let context = ModelContext(container)
-            let request = FetchDescriptor<WebAuthnCredentialModel>()
-            let models = try context.fetch(request)
+            print("[WebAuthn] ✅ Created context for credential loading")
             
+            let request = FetchDescriptor<WebAuthnCredentialModel>()
+            print("[WebAuthn] 🔍 Executing fetch request...")
+            
+            let models = try context.fetch(request)
+            print("[WebAuthn] ✅ Fetch completed, found \(models.count) credential models")
+            
+            // Clear existing in-memory credentials before loading
+            credentials.removeAll()
+            credentialIdToUsername.removeAll()
+            
+            var loadedCount = 0
             for model in models {
                 let cred = model.webAuthnCredential
                 credentials[cred.username] = cred
                 credentialIdToUsername[cred.id] = cred.username
+                loadedCount += 1
+                print("[WebAuthn] ✅ Loaded credential for user: \(cred.username)")
             }
-            print("[WebAuthn] Loaded \(models.count) credentials from Swift Data.")
+            
+            print("[WebAuthn] ✅ Successfully loaded \(loadedCount) credentials from Swift Data")
+            print("[WebAuthn] ✅ Current credentials in memory: \(Array(credentials.keys))")
+            
         } catch {
-            print("[WebAuthn] Failed to load credentials from Swift Data: \(error)")
+            print("[WebAuthn] ❌ CRITICAL: Failed to load credentials from Swift Data: \(error)")
+            print("[WebAuthn] ❌ Error type: \(type(of: error))")
+            print("[WebAuthn] ❌ This means users will not be able to authenticate!")
         }
     }
     
@@ -616,18 +720,25 @@ public class WebAuthnManager {
     }
     
     private func saveCredentialsToSwiftData() {
+        print("[WebAuthn] 💾 Saving \(credentials.count) credentials to SwiftData...")
+        
         guard let container = modelContainer else {
-            print("[WebAuthn] ❌ No model container available for saving")
+            print("[WebAuthn] ❌ CRITICAL: No model container available for saving credentials!")
+            print("[WebAuthn] ❌ This means credentials will be lost after server restart!")
             return
         }
         
         do {
             let context = ModelContext(container)
+            print("[WebAuthn] ✅ Created context for saving credentials")
             
             // Clear existing credentials and rebuild from memory
+            print("[WebAuthn] 🔄 Clearing existing stored credentials...")
             try context.delete(model: WebAuthnCredentialModel.self)
+            print("[WebAuthn] ✅ Cleared existing stored credentials")
             
             // Insert current credentials
+            var savedCount = 0
             for cred in credentials.values {
                 let model = WebAuthnCredentialModel(
                     id: cred.id,
@@ -635,15 +746,36 @@ public class WebAuthnManager {
                     signCount: cred.signCount,
                     username: cred.username,
                     algorithm: cred.algorithm,
-                    protocolVersion: cred.protocolVersion
+                    protocolVersion: cred.protocolVersion,
+                    attestationFormat: cred.attestationFormat,
+                    aaguid: cred.aaguid,
+                    isDiscoverable: cred.isDiscoverable,
+                    backupEligible: cred.backupEligible,
+                    backupState: cred.backupState,
+                    emoji: cred.emoji,
+                    lastLoginIP: cred.lastLoginIP,
+                    lastLoginAt: cred.lastLoginAt,
+                    isEnabled: cred.isEnabled,
+                    isAdmin: cred.isAdmin
                 )
                 context.insert(model)
+                savedCount += 1
+                print("[WebAuthn] ✅ Prepared credential for user: \(cred.username)")
             }
             
+            print("[WebAuthn] 💾 Saving \(savedCount) credentials to database...")
             try context.save()
-            print("[WebAuthn] ✅ Successfully saved \(credentials.count) credentials to Swift Data.")
+            print("[WebAuthn] ✅ Successfully saved \(savedCount) credentials to Swift Data")
+            
+            // Verify the save by doing a quick count
+            let verifyFetch = FetchDescriptor<WebAuthnCredentialModel>()
+            let savedModels = try context.fetch(verifyFetch)
+            print("[WebAuthn] ✅ Verification: \(savedModels.count) credentials confirmed in database")
+            
         } catch {
-            print("[WebAuthn] ❌ Failed to save credentials to Swift Data: \(error)")
+            print("[WebAuthn] ❌ CRITICAL: Failed to save credentials to Swift Data: \(error)")
+            print("[WebAuthn] ❌ Error type: \(type(of: error))")
+            print("[WebAuthn] ❌ Credentials may be lost after server restart!")
         }
     }
     
@@ -684,10 +816,15 @@ public class WebAuthnManager {
             
             print("[WebAuthn] ✅ Migration completed: \(migratedCount) credentials migrated")
             
-            // Optionally backup the JSON file
-            let backupPath = jsonPath + ".backup"
-            try? FileManager.default.copyItem(atPath: jsonPath, toPath: backupPath)
+            // Backup and remove the JSON file to prevent repeated migration
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyyMMdd_HHmmss"
+            let timestamp = formatter.string(from: Date())
+            let backupPath = "\(jsonPath).migrated_backup_\(timestamp)"
+            try FileManager.default.copyItem(atPath: jsonPath, toPath: backupPath)
+            try FileManager.default.removeItem(atPath: jsonPath)
             print("[WebAuthn] 📦 JSON file backed up to: \(backupPath)")
+            print("[WebAuthn] 🗑️ Original JSON file removed to prevent repeated migration")
             
         } catch {
             print("[WebAuthn] ❌ Migration failed: \(error)")
@@ -1807,37 +1944,32 @@ public class WebAuthnManager {
     }
     
     /// Migrate existing credentials to ensure they have all required fields
+    /// This runs only once per database to avoid repeated migrations
     private func migrateExistingCredentials() {
+        // Check if migration has already been completed for this database
+        switch storageBackend {
+        case .json(let path):
+            let migrationFile = path.isEmpty ? "webauthn_migration_v2.flag" : "\(path).migration_v2.flag"
+            if FileManager.default.fileExists(atPath: migrationFile) {
+                print("[WebAuthn] ✅ Field migration already completed for JSON storage")
+                return
+            }
+        case .swiftData(let dbPath):
+            let migrationFile = dbPath.isEmpty ? "webauthn_swiftdata_migration_v2.flag" : "\(dbPath).migration_v2.flag"
+            if FileManager.default.fileExists(atPath: migrationFile) {
+                print("[WebAuthn] ✅ Field migration already completed for SwiftData storage")
+                return
+            }
+        }
+        
+        print("[WebAuthn] 🔄 Starting one-time field migration...")
         var needsSaving = false
+        var migrationCount = 0
         
         for (username, credential) in credentials {
             var shouldUpdate = false
             var updatedCredential = credential
-            
-            // Check if lastLoginAt field exists (new field)
-            if updatedCredential.lastLoginAt == nil {
-                // Set to nil to indicate never logged in after registration
-                updatedCredential = WebAuthnCredential(
-                    id: credential.id,
-                    publicKey: credential.publicKey,
-                    signCount: credential.signCount,
-                    username: credential.username,
-                    algorithm: credential.algorithm,
-                    protocolVersion: credential.protocolVersion,
-                    attestationFormat: credential.attestationFormat,
-                    aaguid: credential.aaguid,
-                    isDiscoverable: credential.isDiscoverable,
-                    backupEligible: credential.backupEligible,
-                    backupState: credential.backupState,
-                    emoji: credential.emoji ?? "👤",
-                    lastLoginIP: credential.lastLoginIP,
-                    lastLoginAt: nil, // Explicitly set to nil for existing users
-                    createdAt: credential.createdAt ?? Date(),
-                    isEnabled: credential.isEnabled,
-                    isAdmin: credential.isAdmin
-                )
-                shouldUpdate = true
-            }
+            var updateReasons: [String] = []
             
             // Check if emoji is missing (default to 👤)
             if updatedCredential.emoji == nil {
@@ -1861,6 +1993,7 @@ public class WebAuthnManager {
                     isAdmin: updatedCredential.isAdmin
                 )
                 shouldUpdate = true
+                updateReasons.append("emoji")
             }
             
             // Check if createdAt is missing
@@ -1885,20 +2018,80 @@ public class WebAuthnManager {
                     isAdmin: updatedCredential.isAdmin
                 )
                 shouldUpdate = true
+                updateReasons.append("createdAt")
             }
             
             if shouldUpdate {
                 credentials[username] = updatedCredential
                 needsSaving = true
-                print("[WebAuthn] ✅ Migrated credential for user: \(username)")
+                migrationCount += 1
+                print("[WebAuthn] ✅ Migrated credential for user: \(username) (updated: \(updateReasons.joined(separator: ", ")))")
             }
         }
         
         if needsSaving {
             saveCredentials()
-            print("[WebAuthn] ✅ Migration completed and saved")
+            print("[WebAuthn] ✅ Field migration completed: \(migrationCount) credentials updated")
         } else {
-            print("[WebAuthn] ✅ No migration needed - all credentials up to date")
+            print("[WebAuthn] ✅ No field migration needed - all credentials up to date")
+        }
+        
+        // Mark migration as completed
+        switch storageBackend {
+        case .json(let path):
+            let migrationFile = path.isEmpty ? "webauthn_migration_v2.flag" : "\(path).migration_v2.flag"
+            try? "completed".write(toFile: migrationFile, atomically: true, encoding: .utf8)
+        case .swiftData(let dbPath):
+            let migrationFile = dbPath.isEmpty ? "webauthn_swiftdata_migration_v2.flag" : "\(dbPath).migration_v2.flag"
+            try? "completed".write(toFile: migrationFile, atomically: true, encoding: .utf8)
+        }
+        print("[WebAuthn] 🏁 Field migration marked as completed - will not run again")
+    }
+    
+    /// Clean up legacy JSON credential files when using SwiftData backend
+    /// This prevents JSON files from being processed repeatedly after migration
+    private func cleanupLegacyJSONFiles() {
+        guard case .swiftData = storageBackend else {
+            print("[WebAuthn] 🗂️ Using JSON storage - no cleanup needed")
+            return
+        }
+        
+        // List of potential JSON credential files to clean up
+        let jsonFiles = [
+            "webauthn_credentials_fido2.json",
+            "webauthn_credentials_u2f.json",
+            "webauthn_credentials.json",
+            defaultJSONPath
+        ]
+        
+        var cleanedFiles = 0
+        for jsonFile in jsonFiles {
+            if FileManager.default.fileExists(atPath: jsonFile) {
+                do {
+                    // Create backup before deleting
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyyMMdd_HHmmss"
+                    let timestamp = formatter.string(from: Date())
+                    let backupPath = "\(jsonFile).migrated_backup_\(timestamp)"
+                    try FileManager.default.copyItem(atPath: jsonFile, toPath: backupPath)
+                    
+                    // Remove the original JSON file
+                    try FileManager.default.removeItem(atPath: jsonFile)
+                    
+                    print("[WebAuthn] 🧹 Cleaned up legacy JSON file: \(jsonFile)")
+                    print("[WebAuthn] 📦 Backup saved as: \(backupPath)")
+                    cleanedFiles += 1
+                } catch {
+                    print("[WebAuthn] ⚠️ Failed to cleanup JSON file \(jsonFile): \(error)")
+                }
+            }
+        }
+        
+        if cleanedFiles > 0 {
+            print("[WebAuthn] 🧹 Legacy JSON cleanup completed: \(cleanedFiles) files processed")
+            print("[WebAuthn] ✅ This prevents repeated migration processing")
+        } else {
+            print("[WebAuthn] ✅ No legacy JSON files found - cleanup not needed")
         }
     }
     

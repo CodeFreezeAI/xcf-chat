@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- Primary Meta Tags -->
+    <title>💬 chat.xcf.ai</title>
+    <meta name="title" content="XCF Chat - Secure Real-time Chat">
+    <meta name="description" content="Anonymous • Passwordless • Emoji Avatars • WebAuthn FIDO2 Passkey Security">
+    <meta name="keywords" content="chat, real-time, secure, WebAuthn, emoji, file sharing, instant messaging, group chat, rooms">
+    <meta name="author" content="XCF Chat">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https:///">
+    <meta property="og:title" content="XCF Chat - Secure Real-time Chat Platform">
+    <meta property="og:description" content="Anonymous • Passwordless • Emoji Avatars • WebAuthn FIDO2 Passkey Security">
+    <meta property="og:image" content="https://chat.xcf.ai/chat-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="XCF Chat - Modern chat interface with emoji avatars">
+    <meta property="og:site_name" content="XCF Chat">
+    <meta property="og:locale" content="en_US">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://chat.xcf.ai/">
+    <meta property="twitter:title" content="XCF Chat - Secure Real-time Chat Platform">
+    <meta property="twitter:description" content="Anonymous • Passwordless • Emoji Avatars • WebAuthn FIDO2 Passkey Security">
+    <meta property="twitter:image" content="https://chat.xcf.ai/chat-preview.png">
+    <meta property="twitter:image:alt" content="XCF Chat - Modern chat interface with emoji avatars">
+    
+    <!-- LinkedIn -->
+    <meta property="linkedin:owner" content="">
+    
+    <!-- Apple / iMessage -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="XCF Chat">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <link rel="apple-touch-icon" sizes="57x57" href="/icons/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/icons/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/icons/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/icons/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/icons/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/icons/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png">
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="/icons/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+    <link rel="shortcut icon" href="/favicon.ico">
+    
+    <!-- Microsoft -->
+    <meta name="msapplication-TileColor" content="#007AFF">
+    <meta name="msapplication-TileImage" content="/icons/ms-icon-144x144.png">
+    <meta name="msapplication-config" content="/browserconfig.xml">
+    
+    <!-- Android -->
+    <!-- Light mode theme color -->
+    <meta name="theme-color" content="#eceff1" media="(prefers-color-scheme: light)">
+    
+    <!-- Dark mode theme color -->
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Additional Meta Tags -->
+    <meta name="format-detection" content="telephone=no">
+    <meta name="format-detection" content="date=no">
+    <meta name="format-detection" content="address=no">
+    <meta name="format-detection" content="email=no">
+
+    
+    <!-- Security -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; img-src 'self' data: blob: https:; media-src 'self' blob: https:;">
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://chat.xcf.ai">
+    
+    <link rel="stylesheet" href="/stylev008.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>💬 <span id="rp-id"></span></h1>
+            <div class="status">
+                <span id="connection-status" class="status-disconnected">Disconnected</span>
+                <span id="user-count">0 users online</span>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Login Screen -->
+            <div id="login-screen" class="screen">
+                <div class="login-form">
+                    <h2>Join the Chat</h2>
+                    <div class="emoji-picker">
+                        <span id="selected-emoji" class="selected-emoji">👤</span>
+                        <div class="emoji-scroll-container">
+                            <div class="emoji-grid">
+                                <span class="emoji-option">👤</span>
+                                <span class="emoji-option">🐶</span>
+                                <span class="emoji-option">🐱</span>
+                                <span class="emoji-option">🐭</span>
+                                <span class="emoji-option">🐹</span>
+                                <span class="emoji-option">🐰</span>
+                                <span class="emoji-option">🦊</span>
+                                <span class="emoji-option">🐻</span>
+                                <span class="emoji-option">🐼</span>
+                                <span class="emoji-option">🐨</span>
+                                <span class="emoji-option">🐯</span>
+                                <span class="emoji-option">🦁</span>
+                                <span class="emoji-option">🐸</span>
+                                <span class="emoji-option">🐵</span>
+                                <span class="emoji-option">🙈</span>
+                                <span class="emoji-option">🙉</span>
+                                <span class="emoji-option">🙊</span>
+                                <span class="emoji-option">🐒</span>
+                                <span class="emoji-option">🦍</span>
+                                <span class="emoji-option">🦧</span>
+                                <span class="emoji-option">🐕</span>
+                                <span class="emoji-option">🐩</span>
+                                <span class="emoji-option">🐺</span>
+                                <span class="emoji-option">🦝</span>
+                                <span class="emoji-option">🐈</span>
+                                <span class="emoji-option">🐅</span>
+                                <span class="emoji-option">🐆</span>
+                                <span class="emoji-option">🦓</span>
+                                <span class="emoji-option">🦄</span>
+                                <span class="emoji-option">🐴</span>
+                                <span class="emoji-option">🐎</span>
+                                <span class="emoji-option">🦌</span>
+                                <span class="emoji-option">🐮</span>
+                                <span class="emoji-option">🐂</span>
+                                <span class="emoji-option">🐃</span>
+                                <span class="emoji-option">🐄</span>
+                                <span class="emoji-option">🐷</span>
+                                <span class="emoji-option">🐖</span>
+                                <span class="emoji-option">🐗</span>
+                                <span class="emoji-option">🐽</span>
+                                <span class="emoji-option">🐏</span>
+                                <span class="emoji-option">🐑</span>
+                                <span class="emoji-option">🐐</span>
+                                <span class="emoji-option">🐪</span>
+                                <span class="emoji-option">🐫</span>
+                                <span class="emoji-option">🦒</span>
+                                <span class="emoji-option">🐘</span>
+                                <span class="emoji-option">🦏</span>
+                                <span class="emoji-option">🦛</span>
+                                <span class="emoji-option">🐊</span>
+                                <span class="emoji-option">🐢</span>
+                                <span class="emoji-option">🦎</span>
+                                <span class="emoji-option">🐍</span>
+                                <span class="emoji-option">🐲</span>
+                                <span class="emoji-option">🐉</span>
+                                <span class="emoji-option">🦕</span>
+                                <span class="emoji-option">🦖</span>
+                                <span class="emoji-option">🐳</span>
+                                <span class="emoji-option">🐋</span>
+                                <span class="emoji-option">🐬</span>
+                                <span class="emoji-option">🦈</span>
+                                <span class="emoji-option">🐟</span>
+                                <span class="emoji-option">🐠</span>
+                                <span class="emoji-option">🐡</span>
+                                <span class="emoji-option">🦀</span>
+                                <span class="emoji-option">🦞</span>
+                                <span class="emoji-option">🦐</span>
+                                <span class="emoji-option">🐙</span>
+                                <span class="emoji-option">🦑</span>
+                                <span class="emoji-option">🦆</span>
+                                <span class="emoji-option">🐓</span>
+                                <span class="emoji-option">🐔</span>
+                                <span class="emoji-option">🐣</span>
+                                <span class="emoji-option">🐤</span>
+                                <span class="emoji-option">🐥</span>
+                                <span class="emoji-option">🦅</span>
+                                <span class="emoji-option">🦉</span>
+                                <span class="emoji-option">🦜</span>
+                                <span class="emoji-option">🕊️</span>
+                                <span class="emoji-option">🦢</span>
+                                <span class="emoji-option">🦩</span>
+                                <span class="emoji-option">🐧</span>
+                                <span class="emoji-option">🦇</span>
+                                <span class="emoji-option">🐝</span>
+                                <span class="emoji-option">🐛</span>
+                                <span class="emoji-option">🦋</span>
+                                <span class="emoji-option">🐌</span>
+                                <span class="emoji-option">🐞</span>
+                                <span class="emoji-option">🐜</span>
+                                <span class="emoji-option">🦗</span>
+                                <span class="emoji-option">🕷️</span>
+                                <span class="emoji-option">🦂</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="login-input-container" id="login-input-container">
+                        <input type="text" id="nickname-input" placeholder="Enter your username" maxlength="20" autocomplete="username" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+                        <div class="auth-options" id="login-buttons-anchor">
+                            <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
+                            <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
+                            <div id="login-status" class="status-message mobile-error-space"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Screen -->
+            <div id="chat-screen" class="screen hidden">
+                <div class="sidebar">
+                    <div class="sidebar-top">
+                        <div class="user-info">
+                            <div class="user-avatar" onclick="showUserEmojiPicker()">👤</div>
+                            <span id="current-username"></span>
+                        </div>
+                        
+                        <div class="rooms-section-header" onclick="toggleRoomsList()">
+                            <span class="toggle-icon">▶</span>
+                            <h3>Rooms</h3>
+                            <button onclick="showCreateRoom()" style="padding-bottom: 2px;">+</button>
+                        </div>
+                    </div>
+                    
+                    <div class="rooms-section">
+                        <div id="rooms-list-container" class="rooms-list-container">
+                            <div id="rooms-list" class="rooms-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="invite-section">
+                        <button id="invite-btn" onclick="createInvite()" disabled style="display:none;">📋 Create Invite</button>
+                    </div>
+                </div>
+
+                <div class="chat-area">
+                    <div class="chat-header">
+                        <h3 id="current-room-name">Select a room</h3>
+                        <div class="room-actions">
+                            <div class="room-info-mobile">
+                                <button id="clear-history-btn" class="clear-history-btn" onclick="clearChatHistory()" disabled>Clear</button>
+                                <button id="remove-room-btn" class="remove-room-btn" onclick="removeRoom()">Remove</button>
+                                <button id="leave-room-btn" class="leave-room-btn" onclick="leaveRoom()" disabled>Leave</button>
+                                <button id="logout-btn" onclick="logout()">Logout</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="messages-container" class="messages-container">
+                        <div class="welcome-message">
+                            <h3>Welcome to <span id="rp-id"></span>! 🎉</h3>
+                            <p>Create a room or join an existing one to start chatting.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="message-input-container">
+                        <div class="file-upload-area">
+                            <input type="file" id="file-input" style="display:none;" accept="image/*,.pdf,.doc,.docx,.txt,.zip" multiple>
+                            <button id="file-btn" class="circle-attachment-btn" onclick="selectFiles()" title="Attach files" disabled>🔗</button>
+                        </div>
+                        <input type="text" id="message-input" placeholder="Type a message..." disabled>
+                        <button id="send-btn" onclick="sendMessage()" disabled>Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Room Modal -->
+    <div id="create-room-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Create New Room</h3>
+            <input type="text" id="room-name-input" placeholder="Room name" maxlength="30">
+            <div class="modal-actions">
+                <button onclick="createRoom()">Create</button>
+                <button onclick="hideCreateRoom()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invite Modal -->
+    <div id="invite-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Invite Link Created! 🔗</h3>
+            <p>Share this link with others:</p>
+            <div class="invite-link-container">
+                <input type="text" id="invite-link" readonly>
+                <button onclick="copyInviteLink()">Copy</button>
+            </div>
+            <div class="modal-actions">
+                <button onclick="hideInviteModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload Modal -->
+    <div id="file-upload-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Upload Files 📎</h3>
+            <div id="file-preview-container" class="file-preview-container">
+                <!-- File previews will be added here -->
+            </div>
+            <div class="file-upload-controls">
+                <input type="text" id="file-caption" placeholder="Add a caption (optional)" maxlength="200">
+                <div class="modal-actions">
+                    <button id="upload-files-btn" onclick="uploadFiles()" disabled>Upload</button>
+                    <button onclick="hideFileUploadModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Emoji Picker Modal -->
+    <div id="user-emoji-picker-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Change Your Emoji 🎭</h3>
+            <div class="emoji-picker">
+                <span id="selected-user-emoji" class="selected-emoji">👤</span>
+                <div class="emoji-scroll-container">
+                    <div class="emoji-grid">
+                        <span class="emoji-option" onclick="changeUserEmoji('👤')">👤</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐶')">🐶</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐱')">🐱</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐭')">🐭</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐹')">🐹</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐰')">🐰</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦊')">🦊</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐻')">🐻</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐼')">🐼</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐨')">🐨</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐯')">🐯</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦁')">🦁</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐸')">🐸</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐵')">🐵</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🙈')">🙈</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🙉')">🙉</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🙊')">🙊</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐒')">🐒</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦍')">🦍</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦧')">🦧</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐕')">🐕</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐩')">🐩</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐺')">🐺</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦝')">🦝</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐈')">🐈</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐅')">🐅</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐆')">🐆</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦓')">🦓</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦄')">🦄</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐴')">🐴</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐎')">🐎</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦌')">🦌</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐮')">🐮</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐂')">🐂</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐃')">🐃</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐄')">🐄</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐷')">🐷</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐖')">🐖</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐗')">🐗</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐽')">🐽</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐏')">🐏</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐑')">🐑</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐐')">🐐</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐪')">🐪</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐫')">🐫</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦒')">🦒</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐘')">🐘</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦏')">🦏</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦛')">🦛</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐊')">🐊</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐢')">🐢</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦎')">🦎</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐍')">🐍</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐲')">🐲</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐉')">🐉</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦕')">🦕</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦖')">🦖</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐳')">🐳</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐋')">🐋</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐬')">🐬</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦈')">🦈</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐟')">🐟</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐠')">🐠</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐡')">🐡</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦀')">🦀</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦞')">🦞</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦐')">🦐</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐙')">🐙</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦑')">🦑</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦆')">🦆</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐓')">🐓</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐔')">🐔</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐣')">🐣</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐤')">🐤</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐥')">🐥</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦅')">🦅</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦉')">🦉</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦜')">🦜</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🕊️')">🕊️</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦢')">🦢</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦩')">🦩</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐧')">🐧</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦇')">🦇</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐝')">🐝</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐛')">🐛</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦋')">🦋</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐌')">🐌</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐞')">🐞</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🐜')">🐜</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦗')">🦗</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🕷️')">🕷️</span>
+                        <span class="emoji-option" onclick="changeUserEmoji('🦂')">🦂</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button onclick="hideUserEmojiPicker()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/chatv008.js"></script>
+</body>
+</html> 

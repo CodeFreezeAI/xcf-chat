@@ -1,5 +1,13 @@
 // MARK: - JavaScript Content
-func generateChatJS(adminName: String) -> String {
+func generateChatJS() -> String {
+    // Try to read from external file first, fallback to default if not found
+    let staticJSPath = "static/chatv008.js"
+    
+    if let jsContent = try? String(contentsOfFile: staticJSPath) {
+        return jsContent
+    }
+    
+    // Fallback: return basic JavaScript
     return """
     // Updated: 2024-12-19 - Mobile Layout Fixed, Admin Security Fixed
     // Admin status is now determined server-side for security
@@ -1084,6 +1092,13 @@ func generateChatJS(adminName: String) -> String {
                     
                     // Apply emoji styling to message emojis immediately
                     if (message.emoji) {
+                        // Apply fallback styling first, then load dynamic styling
+                        const emojiElements = messageEl.querySelectorAll('.user-emoji');
+                        emojiElements.forEach(emojiElement => {
+                            if (emojiElement.textContent === message.emoji) {
+                                this.applyFallbackEmojiStyling(emojiElement);
+                            }
+                        });
                         this.loadEmojiStyling(message.emoji);
                     }
                 }
@@ -1093,6 +1108,11 @@ func generateChatJS(adminName: String) -> String {
             
             // Ensure all unique emojis in messages get their styling applied
             this.applyAllMessageEmojiStyling();
+            
+            // Force immediate styling application for any emojis that might have been missed
+            setTimeout(() => {
+                this.applyAllMessageEmojiStyling();
+            }, 10); // Very short delay to ensure DOM is fully updated
             
             // Scroll to bottom
             container.scrollTop = container.scrollHeight;
@@ -1309,17 +1329,15 @@ func generateChatJS(adminName: String) -> String {
             const uniqueEmojis = new Set();
             document.querySelectorAll('.user-emoji').forEach(emojiElement => {
                 const emoji = emojiElement.textContent;
-                if (emoji && emoji !== '👤') { // Skip default emoji
+                if (emoji) { // Include ALL emojis, even default ones
                     uniqueEmojis.add(emoji);
                     
-                    // Apply immediate fallback styling if no styling is already applied
-                    if (!emojiElement.style.backgroundColor) {
+                    // ALWAYS apply immediate fallback styling first
                         this.applyFallbackEmojiStyling(emojiElement);
-                    }
                 }
             });
             
-            // Apply styling to each unique emoji
+            // Apply dynamic styling to each unique emoji (this will override fallback)
             uniqueEmojis.forEach(emoji => {
                 this.loadEmojiStyling(emoji);
             });
@@ -1396,13 +1414,13 @@ func generateChatJS(adminName: String) -> String {
                 selectedUserEmoji.style.border = `3px solid ${this.adjustColorBrightness(backgroundColor, 30)}`;
             }
             
-            // Apply styling to message headers with this emoji
+            // Apply styling to ALL message emoji bubbles with this emoji (including default user icons)
             document.querySelectorAll('.user-emoji').forEach(emojiElement => {
                 if (emojiElement.textContent === emoji) {
-                    emojiElement.style.backgroundColor = backgroundColor;
-                    emojiElement.style.color = textColor;
-                    emojiElement.style.border = `2px solid ${this.adjustColorBrightness(backgroundColor, 15)}`;
-                    emojiElement.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
+                    emojiElement.style.setProperty('background-color', backgroundColor, 'important');
+                    emojiElement.style.setProperty('color', textColor, 'important');
+                    emojiElement.style.setProperty('border', `2px solid ${this.adjustColorBrightness(backgroundColor, 15)}`, 'important');
+                    emojiElement.style.setProperty('box-shadow', '0 2px 6px rgba(0, 0, 0, 0.15)', 'important');
                 }
             });
         }
