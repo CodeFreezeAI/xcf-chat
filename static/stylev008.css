@@ -1,5 +1,5 @@
-#clear-history-btn { display: none !important; }
-body.admin #clear-history-btn { display: inline-block !important; }
+#clear-history-btn { display: none; }
+body.admin #clear-history-btn { display: inline-block; }
 
 :root {
     /* Light Mode Colors */
@@ -82,11 +82,11 @@ body.admin #clear-history-btn { display: inline-block !important; }
         color-scheme: dark;
     }
     .message.other {
-        background: #000 !important;
+        background: #000;
         color: #e2e8f0;
     }
     .message.own {
-        background: #0a84ff !important;
+        background: #0a84ff;
         color: #fff;
     }
 }
@@ -241,13 +241,13 @@ body {
 }
 
 .selected-emoji {
-    font-size: 4rem !important;
-    width: 80px !important;
-    height: 80px !important;
-    margin-bottom: 1rem !important;
+    font-size: 4rem;
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1rem;
     flex-shrink: 0;
     transition: all 0.3s ease;
-    display: flex !important;
+    display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 20px;
@@ -325,21 +325,21 @@ body {
 
 /* Prevent auth buttons from being grayed out when disabled */
 .auth-options button:disabled {
-    opacity: 1 !important;
-    cursor: pointer !important;
-    background-color: inherit !important;
-    color: white !important;
-    transform: none !important;
+    opacity: 1;
+    cursor: pointer;
+    background-color: inherit;
+    color: white;
+    transform: none;
 }
 
 #webauthn-register-btn:disabled {
-    background-color: #2196F3 !important;
-    color: white !important;
+    background-color: #2196F3;
+    color: white;
 }
 
 #webauthn-login-btn:disabled {
-    background-color: #FF9800 !important;
-    color: white !important;
+    background-color: #FF9800;
+    color: white;
 }
 
 /* LOGIN INPUT CONTAINER */
@@ -389,11 +389,11 @@ body {
 #nickname-input::-webkit-credentials-auto-fill-button,
 #nickname-input::-webkit-password-auto-fill-button,
 #nickname-input::-webkit-strong-password-auto-fill-button {
-    display: none !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-    position: absolute !important;
-    right: -9999px !important;
+    display: none;
+    visibility: hidden;
+    pointer-events: none;
+    position: absolute;
+    right: -9999px;
 }
 
 /* Prevent autofill styling and background changes */
@@ -401,15 +401,15 @@ body {
 #nickname-input:-webkit-autofill:hover,
 #nickname-input:-webkit-autofill:focus,
 #nickname-input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px var(--input-bg) inset !important;
-    box-shadow: 0 0 0 30px var(--input-bg) inset !important;
-    -webkit-text-fill-color: var(--input-text) !important;
+    -webkit-box-shadow: 0 0 0 30px var(--input-bg) inset;
+    box-shadow: 0 0 0 30px var(--input-bg) inset;
+    -webkit-text-fill-color: var(--input-text);
 }
 
 /* Hide any additional browser UI elements */
 #nickname-input::-ms-reveal,
 #nickname-input::-ms-clear {
-    display: none !important;
+    display: none;
 }
 
 /* DESKTOP CHAT SCREEN */
@@ -474,7 +474,7 @@ body {
     align-items: center;
     cursor: pointer;
     padding: 1rem;
-    background: var(--bg-primary) !important;
+    background: var(--bg-primary);
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--border-color);
@@ -748,8 +748,8 @@ body {
     height: 44px;
     border-radius: 50%;
     border: none;
-    background: var(--orange-color) !important;
-    color: white !important;
+    background: var(--orange-color);
+    color: white;
     cursor: pointer;
     font-size: 1.2rem;
     font-weight: bold;
@@ -758,18 +758,18 @@ body {
     justify-content: center;
     transition: background 0.3s ease;
     flex-shrink: 0;
-    padding: 0 !important;
+    padding: 0;
 }
 
 .circle-attachment-btn:hover {
     background: var(--orange-color-hover);
-    color: white !important;
+    color: white;
 }
 
 .circle-attachment-btn:disabled {
     background: var(--disabled-bg);
     cursor: not-allowed;
-    color: white !important;
+    color: white;
 }
 
 /* MOBILE COMPLETE OVERHAUL */
@@ -852,8 +852,8 @@ body {
 
     /* Create a form content container to constrain all elements to same width */
     .login-form > * {
-        width: 90% !important;
-        max-width: 300px !important;
+        width: 90%;
+        max-width: 300px;
         flex-shrink: 0; /* Prevent form elements from shrinking */
     }
 
@@ -867,8 +867,8 @@ body {
 
     /* Mobile login input container */
     .login-input-container {
-        width: 90% !important;
-        max-width: 300px !important;
+        width: 90%;
+        max-width: 300px;
         gap: 12px;
         /* Improve mobile stability */
         position: relative;
@@ -890,7 +890,7 @@ body {
         outline: none;
         transition: border-color 0.3s ease, box-shadow 0.3s ease;
         box-sizing: border-box;
-        width: 100% !important;
+        width: 100%;
     }
 
     .login-input-container input:focus {
@@ -900,10 +900,10 @@ body {
     }
 
     .selected-emoji {
-        font-size: 4rem !important;
-        width: 80px !important;
-        height: 80px !important;
-        margin-bottom: 1rem !important;
+        font-size: 4rem;
+        width: 80px;
+        height: 80px;
+        margin-bottom: 1rem;
         flex-shrink: 0;
         align-self: center;
     }
@@ -1155,8 +1155,8 @@ body {
         height: 44px;
         border-radius: 50%;
         border: none;
-        background: var(--orange-color) !important;
-        color: white !important;
+        background: var(--orange-color);
+        color: white;
         cursor: pointer;
         font-size: 1.2rem;
         font-weight: bold;
@@ -1226,9 +1226,9 @@ body {
     }
     
     .selected-emoji {
-        font-size: 3rem !important;
-        width: 70px !important;
-        height: 70px !important;
+        font-size: 3rem;
+        width: 70px;
+        height: 70px;
     }
     
     .emoji-scroll-container {
@@ -1857,19 +1857,19 @@ input:disabled,
 button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    background-color: var(--disabled-bg) !important;
-    color: var(--text-secondary) !important;
+    background-color: var(--disabled-bg);
+    color: var(--text-secondary);
 }
 
 .message-input-container input:disabled {
-    background-color: var(--disabled-bg) !important;
-    color: var(--text-secondary) !important;
-    border-color: var(--disabled-bg) !important;
+    background-color: var(--disabled-bg);
+    color: var(--text-secondary);
+    border-color: var(--disabled-bg);
 }
 
 .message-input-container button:disabled {
-    background-color: var(--disabled-bg) !important;
-    color: var(--text-secondary) !important;
+    background-color: var(--disabled-bg);
+    color: var(--text-secondary);
 }
 
 /* INVITE SECTION */
@@ -1899,13 +1899,13 @@ button:disabled {
 }
 
 #invite-btn {
-    display: none !important;
+    display: none;
 }
 
 /* ADMIN/USER PERMISSIONS */
 body.user #clear-history-btn,
 body.user #remove-room-btn {
-    display: none !important;
+    display: none;
 }
 
 body.admin #clear-history-btn,
@@ -1947,10 +1947,10 @@ body.admin #remove-room-btn {
     }
 
     .selected-emoji {
-        font-size: 4rem !important;
-        width: 80px !important;
-        height: 80px !important;
-        margin-bottom: 1rem !important;
+        font-size: 4rem;
+        width: 80px;
+        height: 80px;
+        margin-bottom: 1rem;
     }
 
     .emoji-scroll-container {
@@ -1976,18 +1976,18 @@ body.admin #remove-room-btn {
     .login-form .emoji-picker,
     .login-form .auth-options,
     .login-form input {
-        width: 90% !important;
-        max-width: 300px !important;
+        width: 90%;
+        max-width: 300px;
     }
     
     .login-form .emoji-scroll-container {
-        width: 100% !important;
-        max-width: 100% !important;
+        width: 100%;
+        max-width: 100%;
     }
     
     .login-form .auth-options button {
-        width: 100% !important;
-        max-width: 100% !important;
+        width: 100%;
+        max-width: 100%;
     }
     
     /* Ensure login screen scrolls properly on mobile */
@@ -2020,7 +2020,7 @@ body.admin #remove-room-btn {
     }
     
     .selected-emoji {
-        margin-bottom: 0.5rem !important;
+        margin-bottom: 0.5rem;
     }
     
     .emoji-scroll-container {
@@ -2048,10 +2048,10 @@ body.admin #remove-room-btn {
     }
     
     .selected-emoji {
-        font-size: 2.5rem !important;
-        width: 60px !important;
-        height: 60px !important;
-        margin-bottom: 0.5rem !important;
+        font-size: 2.5rem;
+        width: 60px;
+        height: 60px;
+        margin-bottom: 0.5rem;
     }
     
     .emoji-scroll-container {
@@ -2136,8 +2136,8 @@ html {
 .rooms-list-container::-webkit-scrollbar,
 .file-preview-container::-webkit-scrollbar {
     width: 8px;
-    -webkit-appearance: none !important;
-    appearance: none !important;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .messages-container::-webkit-scrollbar-track,
@@ -2146,8 +2146,8 @@ html {
 .file-preview-container::-webkit-scrollbar-track {
     background: var(--bg-primary);
     border-radius: 4px;
-    -webkit-appearance: none !important;
-    appearance: none !important;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .messages-container::-webkit-scrollbar-thumb,
@@ -2156,8 +2156,8 @@ html {
 .file-preview-container::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 4px;
-    -webkit-appearance: none !important;
-    appearance: none !important;
+    -webkit-appearance: none;
+    appearance: none;
     border: none;
 }
 
