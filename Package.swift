@@ -16,6 +16,7 @@ let package = Package(
             name: "MultiPeerChatCore",
             targets: ["MultiPeerChatCore"]
         ),
+      
         .library(
             name: "DogTagKit",
             targets: ["DogTagKit"]

@@ -271,7 +271,8 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         broadcast([
             "type": "roomCreated",
             "room": roomToDict(room)
-        ])
+        ]
+        )
         
         DispatchQueue.main.async {
             self.totalRooms = self.rooms.count
