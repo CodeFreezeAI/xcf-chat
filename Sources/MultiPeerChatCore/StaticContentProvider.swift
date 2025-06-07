@@ -273,6 +273,46 @@ public func generateWebAuthnJS() -> String {
     return generateFallbackWebAuthnJS()
 }
 
+public func generateWebAuthnUIJS() -> String {
+    // Try to read from external file first, fallback to default if not found
+    let possiblePaths = [
+        "static/webauthnui.js",
+        "./static/webauthnui.js",
+        "../../static/webauthnui.js",
+        FileManager.default.currentDirectoryPath + "/static/webauthnui.js"
+    ]
+    
+    for staticJSPath in possiblePaths {
+        if let jsContent = try? String(contentsOfFile: staticJSPath) {
+            print("🔐 Loaded WebAuthn UI JavaScript from: \(staticJSPath)")
+            return jsContent
+        }
+    }
+    
+    print("⚠️ Static WebAuthn UI JavaScript file not found, using fallback")
+    return generateFallbackWebAuthnUIJS()
+}
+
+public func generateWebAuthnCSS() -> String {
+    // Try to read from external file first, fallback to default if not found
+    let possiblePaths = [
+        "static/webauthn.css",
+        "./static/webauthn.css",
+        "../../static/webauthn.css",
+        FileManager.default.currentDirectoryPath + "/static/webauthn.css"
+    ]
+    
+    for staticCSSPath in possiblePaths {
+        if let cssContent = try? String(contentsOfFile: staticCSSPath) {
+            print("🎨 Loaded WebAuthn CSS from: \(staticCSSPath)")
+            return cssContent
+        }
+    }
+    
+    print("⚠️ Static WebAuthn CSS file not found, using fallback")
+    return generateFallbackWebAuthnCSS()
+}
+
 private func generateFallbackWebAuthnJS() -> String {
     return """
     // Basic fallback WebAuthn JavaScript
@@ -325,6 +365,59 @@ private func generateFallbackWebAuthnJS() -> String {
             loginForm.appendChild(errorMsg);
         }
     });
+    """
+}
+
+private func generateFallbackWebAuthnUIJS() -> String {
+    return """
+    // Basic fallback WebAuthn UI JavaScript
+    console.log('XCF Chat - Loading basic fallback WebAuthn UI JavaScript');
+    
+    // Placeholder WebAuthn UI functions
+    function showWebAuthnLogin() {
+        console.log('WebAuthn UI not available - static files missing');
+    }
+    
+    function hideWebAuthnLogin() {
+        console.log('WebAuthn UI not available - static files missing');
+    }
+    
+    function resetWebAuthnButtons() {
+        console.log('WebAuthn UI reset not available - static files missing');
+    }
+    
+    // Initialize fallback state
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('WebAuthn UI fallback initialized');
+    });
+    """
+}
+
+private func generateFallbackWebAuthnCSS() -> String {
+    return """
+    /* Basic fallback WebAuthn CSS */
+    .webauthn-button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-block;
+        text-decoration: none;
+        color: white;
+        background-color: #007AFF;
+    }
+    
+    .webauthn-button:hover {
+        background-color: #0056CC;
+    }
+    
+    .webauthn-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
     """
 }
 

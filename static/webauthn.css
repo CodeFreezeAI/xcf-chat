@@ -1,0 +1,50 @@
+/* ===== WEBAUTHN BUTTON STYLES ===== */
+/* Passkey messages use green color to distinguish from Security Key blue messages */
+
+#webauthn-register-btn {
+    background-color: var(--orange-color);
+}
+
+#webauthn-register-btn:hover {
+    background-color: var(--orange-color-hover);
+}
+
+#webauthn-register-btn:disabled {
+    background: var(--gray-color);
+}
+
+#webauthn-login-btn {
+    background-color: var(--green-color);
+}
+
+#webauthn-login-btn:hover {
+    background-color: var(--green-color-hover);
+}
+
+#webauthn-login-btn:disabled {
+    background: var(--gray-color);
+}
+
+#webauthn-security-key-btn {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+#webauthn-security-key-btn:hover {
+    background-color: #0066E6;
+}
+
+#webauthn-security-key-btn:disabled {
+    background: var(--gray-color);
+}
+
+/* Disabled states for mobile */
+@media (max-width: 768px) {
+    #webauthn-register-btn:disabled {
+        background: var(--gray-color);
+    }
+
+    #webauthn-login-btn:disabled {
+        background: var(--gray-color);
+    }
+} 

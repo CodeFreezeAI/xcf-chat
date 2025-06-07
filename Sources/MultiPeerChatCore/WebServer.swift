@@ -326,11 +326,17 @@ public class WebServer: ObservableObject {
         case ("GET", "/webauthn.js"):
             response = generateWebAuthnJS()
             contentType = "application/javascript"
+        case ("GET", "/webauthnui.js"):
+            response = generateWebAuthnUIJS()
+            contentType = "application/javascript"
         case ("GET", "/emoji.js"):
             response = generateEmojiJS()
             contentType = "application/javascript"
         case ("GET", "/style.css"):
             response = generateCSS()
+            contentType = "text/css"
+        case ("GET", "/webauthn.css"):
+            response = generateWebAuthnCSS()
             contentType = "text/css"
         // Admin Routes - REQUIRES AUTHENTICATION
         case ("GET", "/admin/index.html"), ("GET", "/admin/"), ("GET", "/admin"):

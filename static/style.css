@@ -313,42 +313,7 @@ body {
     background: var(--gray-color);
 }
 
-#webauthn-register-btn {
-    background-color: var(--orange-color);
-}
 
-#webauthn-register-btn:hover {
-    background-color: var(--orange-color-hover);
-}
-
-#webauthn-register-btn:disabled {
-    background: var(--gray-color);
-}
-
-#webauthn-login-btn {
-    background-color: var(--green-color);
-}
-
-#webauthn-login-btn:hover {
-    background-color: var(--green-color-hover);
-}
-
-#webauthn-login-btn:disabled {
-    background: var(--gray-color);
-}
-
-#webauthn-security-key-btn {
-    background-color: var(--accent-color);
-    color: white;
-}
-
-#webauthn-security-key-btn:hover {
-    background-color: #0066E6;
-}
-
-#webauthn-security-key-btn:disabled {
-    background: var(--gray-color);
-}
 
 /* LOGIN INPUT CONTAINER */
 .login-input-container {
@@ -1543,13 +1508,7 @@ body {
     background: var(--gray-color);
 }
 
-#webauthn-register-btn:disabled {
-    background: var(--gray-color);
-}
 
-#webauthn-login-btn:disabled {
-    background: var(--gray-color);
-}
 
 /* Status Message Styles */
 .status-message {
@@ -1629,6 +1588,13 @@ body {
     display: block;
 }
 
+.status-message.passkey {
+    background: rgba(52, 199, 89, 0.15);
+    color: var(--green-color);
+    border: 1px solid rgba(52, 199, 89, 0.3);
+    display: block;
+}
+
 @media (prefers-color-scheme: dark) {
     .status-message.success {
         background: rgba(48, 209, 88, 0.2);
@@ -1643,6 +1609,11 @@ body {
     .status-message.info {
         background: rgba(0, 122, 255, 0.2);
         color: var(--accent-color);
+    }
+
+    .status-message.passkey {
+        background: rgba(48, 209, 88, 0.2);
+        color: var(--green-color);
     }
 }
 

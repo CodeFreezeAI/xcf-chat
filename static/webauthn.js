@@ -154,7 +154,7 @@ class WebAuthnClient {
         // FIRST CHECK: Validate username for ALL flows and browsers
         if (!username || username.trim() === '') {
             onStatus('Username required for registration', 'error');
-            const error = new Error('Username Required\n\nPlease enter a username before registering.');
+            const error = new Error('Username Required\nPlease enter a username to register.');
             onError(error.message);
             throw error;
         }
@@ -202,7 +202,7 @@ class WebAuthnClient {
             if (!usernameResult.available) {
                 console.log(`❌ Username "${username}" is already taken`);
                 onStatus('Username already taken', 'error');
-                throw new Error('Username Already Taken\n\nPlease choose a different username.');
+                throw new Error('Username Already Taken\nPlease choose a different username.');
             }
             
             console.log(`✅ Username "${username}" is available`);
@@ -332,7 +332,7 @@ class WebAuthnClient {
                 // Handle user cancellation FIRST
                 if (credentialError.name === 'AbortError') {
                     onStatus('Registration cancelled by user', 'error');
-                    throw new Error('Registration Cancelled\n\nYou cancelled the registration process.');
+                    throw new Error('Registration CancelledYou cancelled the registration process.');
                 }
                 
                 // Handle other specific errors
@@ -618,11 +618,11 @@ class WebAuthnClient {
             if (isSafariBrowser) {
                 console.log('🍎 Safari security key error:', error);
                 if (error.name === 'NotAllowedError') {
-                    errorMessage = 'Safari Security Key Error\nPlease ensure:\n1. Security key is inserted\n2. You have registered with this key\n3. Touch the key when it blinks';
+                    errorMessage = 'Make sure you have\n1. Security key is inserted\n2. Registered with this key\n3. Touch the key when it blinks';
                 } else if (error.name === 'NotSupportedError') {
-                    errorMessage = 'Safari does not support this security key\nTry using a different key or browser';
+                    errorMessage = 'Unsupported security key\nTry using a different key or browser';
                 } else if (error.name === 'InvalidStateError') {
-                    errorMessage = 'Security key in invalid state\nPlease remove and reinsert the key';
+                    errorMessage = 'Invalid Security Key state\nRemove and reinsert the key';
                 }
                 onError(errorMessage);
             }
@@ -712,7 +712,7 @@ class WebAuthnClient {
             
             if (result.success) {
                 console.log('✅ Passkey authentication successful');
-                onStatus('Passkey login successful', 'success');
+                onStatus('Passkey login successful', 'passkey');
                 onSuccess({ username: result.username || username, method: 'passkey' });
                 return { success: true, username: result.username || username, method: 'passkey' };
             } else {
