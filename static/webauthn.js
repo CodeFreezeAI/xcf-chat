@@ -110,7 +110,13 @@ class WebAuthnClient {
                     })
                 });
                 
-                if (!verificationResponse.ok) throw new Error('Registration verification failed');
+                if (!verificationResponse.ok) {
+                    const errorResult = await verificationResponse.json().catch(() => ({}));
+                    if (errorResult.error && (errorResult.error.includes('disabled') || errorResult.error.includes('locked') || errorResult.error.includes('Account Lockout'))) {
+                        throw new Error('Account Lockout');
+                    }
+                    throw new Error('Registration verification failed');
+                }
                 
                 onStatus('Registration successful', 'success');
                 onSuccess({ username, emoji });
@@ -210,7 +216,15 @@ class WebAuthnClient {
                 onSuccess({ username: result.username || username });
                 return { success: true, username: result.username || username };
             } else {
-                const error = 'Login failed';
+                // Check for specific error types
+                let error = 'Login failed';
+                if (result.error) {
+                    if (result.error.includes('disabled') || result.error.includes('locked') || result.error.includes('Account Lockout')) {
+                        error = 'Account Lockout';
+                    } else {
+                        error = result.error;
+                    }
+                }
                 onError(error);
                 return { success: false, error };
             }

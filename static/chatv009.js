@@ -2286,7 +2286,12 @@ async function registerWebAuthn() {
         },
         onError: (error) => {
             console.log('🔴 Error:', error);
-            showLoginStatus(`❌ ${error}`, 'error');
+            // Handle specific error cases for account lockout
+            let displayError = error;
+            if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
+                displayError = 'Account Lockout';
+            }
+            showLoginStatus(`❌ ${displayError}`, 'error');
         },
         onSuccess: () => {
             console.log('🟢 Success!');
@@ -2322,7 +2327,12 @@ async function loginWithWebAuthn() {
         },
         onError: (error) => {
             console.log('🔴 Error:', error);
-            showLoginStatus(`❌ ${error}`, 'error');
+            // Handle specific error cases for account lockout
+            let displayError = error;
+            if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
+                displayError = 'Account Lockout';
+            }
+            showLoginStatus(`❌ ${displayError}`, 'error');
         },
         onSuccess: (data) => {
             console.log('🟢 Success!', data);
