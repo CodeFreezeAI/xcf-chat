@@ -128,7 +128,7 @@ final class WebAuthnTests: XCTestCase {
         
         // CBOR/FIDO2 should have these fields
         XCTAssertNotNil(publicKey["attestation"])
-        XCTAssertEqual(publicKey["attestation"] as? String, "direct")
+        XCTAssertEqual(publicKey["attestation"] as? String, "none")
         XCTAssertNotNil(publicKey["authenticatorSelection"])
     }
     

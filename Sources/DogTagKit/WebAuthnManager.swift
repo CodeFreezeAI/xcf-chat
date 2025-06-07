@@ -670,10 +670,22 @@ public class WebAuthnManager {
         let challenge = generateChallenge()
         let userId = generateUserId()
         
-        let rpData: [String: Any] = [
+        var rpData: [String: Any] = [
             "id": rpId,
             "name": rpName ?? rpId,
         ]
+        
+        // Add RP icon based on configuration
+        if let rpIcon = rpIcon {
+            // If rpIcon is explicitly set (even if empty), respect the value
+            if !rpIcon.isEmpty {
+                rpData["icon"] = rpIcon
+            }
+            // If rpIcon is empty string, don't add icon field (handled in testEmptyIconHandling)
+        } else {
+            // If rpIcon is nil, use default favicon
+            rpData["icon"] = "https://\(rpId)/icon-192.png"
+        }
         
         let displayNameToUse = displayName ?? username
         var userData: [String: Any] = [
@@ -682,9 +694,18 @@ public class WebAuthnManager {
             "displayName": displayNameToUse
         ]
         
-        // Only add user icon if we have one
+        // Add user icon - either provided, generated, or based on default setting
         if !userIconUrl.isEmpty {
             userData["icon"] = userIconUrl
+        } else if let defaultUserIcon = defaultUserIcon {
+            // If defaultUserIcon is explicitly set (even if empty), respect the value
+            if !defaultUserIcon.isEmpty {
+                userData["icon"] = defaultUserIcon
+            }
+            // If defaultUserIcon is empty string, don't add icon field (handled in testEmptyIconHandling)
+        } else {
+            // If defaultUserIcon is nil, generate a default user icon based on username
+            userData["icon"] = generateUserIcon(for: username)
         }
         
         // Enhanced public key credential parameters for better platform support
@@ -695,13 +716,25 @@ public class WebAuthnManager {
             ["type": "public-key", "alg": -36]   // ES512 (maximum security)
         ]
         
-        // Universal authenticator selection - enables Safari "Other Options"
-        // By not specifying authenticatorAttachment, Safari shows both Touch ID and security key options
-        let authenticatorSelection: [String: Any] = [
-            "userVerification": "preferred",  // Flexible verification for all authenticator types
-            "requireResidentKey": false,      // Don't require resident keys
-            "residentKey": "preferred"        // Prefer but don't require resident keys for better compatibility
-        ]
+        // Configure authenticator selection based on enablePasskeys
+        let authenticatorSelection: [String: Any]
+        if enablePasskeys {
+            // Passkey-specific configuration
+            authenticatorSelection = [
+                "authenticatorAttachment": "platform",  // Platform authenticators only (Touch ID, Face ID, Windows Hello)
+                "userVerification": "required",         // Required verification for passkeys
+                "requireResidentKey": true,             // Passkeys require resident keys
+                "residentKey": "required"               // Required resident keys for passkeys
+            ]
+        } else {
+            // Security key configuration
+            authenticatorSelection = [
+                "authenticatorAttachment": "cross-platform", // External security keys
+                "userVerification": "preferred",             // Flexible verification
+                "requireResidentKey": false,                 // Don't require resident keys
+                "residentKey": "discouraged"                 // Discourage resident keys for security keys
+            ]
+        }
         
         var options: [String: Any] = [
             "publicKey": [
@@ -715,14 +748,24 @@ public class WebAuthnManager {
             ]
         ]
         
-        // Add minimal extensions for better Windows 11 compatibility
+        // Add passkey-specific extensions
         var extensions: [String: Any] = [:]
         
-        // Only add credProtect with less aggressive settings for Windows 11
         if enablePasskeys {
+            // Large blob support for additional data storage
+            extensions["largeBlob"] = [
+                "support": "required"
+            ]
+            
+            // Credential protection for enhanced security
             extensions["credProtect"] = [
-                "credentialProtectionPolicy": 1, // userVerificationOptional (less restrictive)
-                "enforceCredentialProtectionPolicy": false // Don't enforce strictly
+                "credentialProtectionPolicy": 3, // userVerificationRequired (most secure)
+                "enforceCredentialProtectionPolicy": true
+            ]
+            
+            // Enterprise attestation
+            extensions["enterpriseAttestation"] = [
+                "rp": rpId
             ]
         }
         
@@ -1759,11 +1802,13 @@ public class WebAuthnManager {
     
     // Check if user exists and is enabled
     public func isUserEnabled(username: String) -> Bool {
-        // Check if user exists in WebAuthn credentials and is enabled
+        // First check if user exists in WebAuthn credentials and is enabled
         if let credential = getCredential(username: username) {
             return credential.isEnabled
         }
-        return false
+        
+        // If no WebAuthn credential exists, check userManager for admin user status
+        return userManager.isUserEnabled(username: username)
     }
     
     // Check if user exists and is enabled by credential ID
@@ -2098,7 +2143,7 @@ public class WebAuthnManager {
     // MARK: - Direct Database Query Methods
     
     /// Get credential by username from database
-    private func getCredential(username: String) -> WebAuthnCredential? {
+    internal func getCredential(username: String) -> WebAuthnCredential? {
         switch storageBackend {
         case .json:
             // For JSON backend, still need to load from file (legacy support)
@@ -2164,7 +2209,7 @@ public class WebAuthnManager {
     }
     
     /// Store/update credential in database
-    private func storeCredential(_ credential: WebAuthnCredential) {
+    internal func storeCredential(_ credential: WebAuthnCredential) {
         switch storageBackend {
         case .json:
             storeCredentialInJSON(credential)

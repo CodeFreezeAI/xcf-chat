@@ -19,7 +19,7 @@ public protocol WebServerDelegate: AnyObject {
     func webServer(_ server: WebServer, clientDidDisconnect client: WebSocketClient)
 }
 
-public class WebServer: ObservableObject {
+public class WebServer: ObservableObject, AdminManagerDelegate {
     public weak var delegate: WebServerDelegate?
     
     private var listener: NWListener?
@@ -35,20 +35,9 @@ public class WebServer: ObservableObject {
     private let webAuthnServer: WebAuthnServer
     private let port: UInt16?
     
-    // Simple session storage for admin authentication
-    private var adminSessions: [String: AdminSession] = [:]
-    private let sessionTimeout: TimeInterval = 3600 // 1 hour
-    
-    private struct AdminSession {
-        let sessionId: String
-        let username: String
-        let loginTime: Date
-        let clientIP: String
-        
-        var isExpired: Bool {
-            Date().timeIntervalSince(loginTime) > 3600 // 1 hour timeout
-        }
-    }
+    // Manager for admin operations
+    private let adminManager: AdminManager
+    private let webAuthAdminManager: WebAuthAdminManager
     
     public init(rpId: String, port: UInt16? = nil, adminUsername: String = "XCF Admin", storageBackend: WebAuthnStorageBackend = .json(""), existingWebAuthnManager: WebAuthnManager? = nil) {
         self.rpId = rpId
@@ -82,38 +71,21 @@ public class WebServer: ObservableObject {
         
         self.webAuthnServer = WebAuthnServer(manager: webAuthnManager)
         
+        // Initialize managers
+        self.adminManager = AdminManager(adminUsername: adminUsername)
+        self.webAuthAdminManager = WebAuthAdminManager(webAuthnManager: webAuthnManager, adminUsername: adminUsername)
+        
+        // Set up admin manager delegation
+        self.adminManager.delegate = self
+        
         // Only bootstrap admin user when creating a fresh WebAuthn manager
         // This prevents duplicate admin checks when reusing an existing manager
         if existingWebAuthnManager == nil {
-            bootstrapAdminUser()
+            webAuthAdminManager.bootstrapAdminUser()
         }
     }
     
-    // MARK: - Admin Bootstrap
-    
-    private func bootstrapAdminUser() {
-        print("[WebServer] 🔑 Checking admin bootstrap for username: '\(adminUsername)'")
-        
-        // Check if the configured admin username exists in WebAuthn credentials
-        let allUsers = webAuthnManager.getAllUsers()
-        
-        if let adminCredential = allUsers.first(where: { $0.username == adminUsername }) {
-            if adminCredential.isAdmin {
-                print("[WebServer] ✅ Admin user '\(adminUsername)' already has admin privileges")
-            } else {
-                print("[WebServer] 🔧 Promoting '\(adminUsername)' to admin...")
-                let success = webAuthnManager.updateUserAdminStatus(username: adminUsername, isAdmin: true)
-                if success {
-                    print("[WebServer] ✅ Successfully promoted '\(adminUsername)' to admin")
-                } else {
-                    print("[WebServer] ❌ Failed to promote '\(adminUsername)' to admin")
-                }
-            }
-        } else {
-            print("[WebServer] ⚠️ Admin user '\(adminUsername)' not found in credentials")
-            print("[WebServer] 💡 User must register with WebAuthn first, then will be automatically promoted to admin")
-        }
-    }
+
     
     public func start(on port: UInt16) {
         do {
@@ -156,6 +128,9 @@ public class WebServer: ObservableObject {
             }
             
             listener?.start(queue: queue)
+            
+            // Start periodic cleanup of expired admin sessions
+            startPeriodicCleanup()
             
         } catch let error as NWError {
             if error == .posix(.EADDRINUSE) {
@@ -345,7 +320,7 @@ public class WebServer: ObservableObject {
             contentType = "text/html"
         case ("GET", "/admin/panel.html"):
             // Only show admin panel if authenticated
-            if isAdminRequest(request) {
+            if adminManager.isValidAdminSession(request) {
                 response = generateAdminIndexHTML()
                 contentType = "text/html"
             } else {
@@ -360,7 +335,7 @@ public class WebServer: ObservableObject {
             response = generateAdminCSS()
             contentType = "text/css"
         case ("GET", "/admin/admin.js"):
-            if isAdminRequest(request) {
+            if adminManager.isValidAdminSession(request) {
                 response = generateAdminJS()
                 contentType = "application/javascript"
             } else {
@@ -375,7 +350,7 @@ public class WebServer: ObservableObject {
             handleAdminLogin(connection, request: request)
             return
         case ("GET", "/admin/api/users"):
-            if isAdminRequest(request) || hasValidAdminSession(request) {
+            if adminManager.isValidAdminSession(request) || adminManager.hasValidAdminSession(request) {
                 handleAdminAPIUsers(connection, request: request)
                 return
             } else {
@@ -384,7 +359,7 @@ public class WebServer: ObservableObject {
                 statusCode = "401 Unauthorized"
             }
         case ("POST", let path) where path.matches(#"/admin/api/users/[^/]+/toggle"#):
-            if isAdminRequest(request) || hasValidAdminSession(request) {
+            if adminManager.isValidAdminSession(request) || adminManager.hasValidAdminSession(request) {
                 handleAdminAPIToggleUser(connection, request: request, path: path)
                 return
             } else {
@@ -393,7 +368,7 @@ public class WebServer: ObservableObject {
                 statusCode = "404 Not Found"
             }
         case ("DELETE", let path) where path.matches(#"/admin/api/users/[^/]+"#):
-            if isAdminRequest(request) || hasValidAdminSession(request) {
+            if adminManager.isValidAdminSession(request) || adminManager.hasValidAdminSession(request) {
                 handleAdminAPIDeleteUser(connection, request: request, path: path)
                 return
             } else {
@@ -402,7 +377,7 @@ public class WebServer: ObservableObject {
                 statusCode = "404 Not Found"
             }
         case ("POST", "/admin/api/users/disable-by-ip"):
-            if isAdminRequest(request) || hasValidAdminSession(request) {
+            if adminManager.isValidAdminSession(request) || adminManager.hasValidAdminSession(request) {
                 handleAdminAPIDisableByIP(connection, request: request)
                 return
             } else {
@@ -411,7 +386,7 @@ public class WebServer: ObservableObject {
                 statusCode = "404 Not Found"
             }
         case ("POST", let path) where path.matches(#"/admin/api/users/[^/]+/emoji"#):
-            if isAdminRequest(request) || hasValidAdminSession(request) {
+            if adminManager.isValidAdminSession(request) || adminManager.hasValidAdminSession(request) {
                 handleAdminAPIUpdateEmoji(connection, request: request, path: path)
                 return
             } else {
@@ -420,7 +395,7 @@ public class WebServer: ObservableObject {
                 statusCode = "404 Not Found"
             }
         case ("POST", let path) where path.matches(#"/admin/api/users/[^/]+/admin"#):
-            if isAdminRequest(request) || hasValidAdminSession(request) {
+            if adminManager.isValidAdminSession(request) || adminManager.hasValidAdminSession(request) {
                 handleAdminAPIToggleAdmin(connection, request: request, path: path)
                 return
             } else {
@@ -2073,130 +2048,10 @@ public class WebServer: ObservableObject {
         return svgIcon.data(using: .utf8) ?? Data()
     }
     
-    // MARK: - Admin Authentication and API Methods
-    
-    private func isAdminRequest(_ request: String) -> Bool {
-        // Extract session ID from request headers or cookies
-        let sessionId = extractSessionId(from: request)
-        
-        guard let sessionId = sessionId,
-              let session = adminSessions[sessionId],
-              !session.isExpired else {
-            print("[WebServer] 🔒 No valid admin session found")
-            return false
-        }
-        
-        // Verify the user is still enabled (check against regular chat users, not admin users)
-        guard webAuthnManager.isUserEnabled(username: session.username) else {
-            // Remove invalid session
-            adminSessions.removeValue(forKey: sessionId)
-            print("[WebServer] 🔒 User \(session.username) not found or disabled in chat system")
-            return false
-        }
-        
-        // CRITICAL: Verify the authenticated user matches the configured admin username
-        guard session.username == adminUsername else {
-            print("[WebServer] 🔒 Session user '\(session.username)' does not match configured admin '\(adminUsername)'")
-            adminSessions.removeValue(forKey: sessionId) // Remove invalid session
-            return false
-        }
-        
-        
-        print("[WebServer] ✅ Valid admin session for \(session.username)")
-        return true
-    }
-    
-    private func extractSessionId(from request: String) -> String? {
-        // Check for session ID in Cookie header first (most common)
-        let lines = request.components(separatedBy: "\r\n")
-        for line in lines {
-            if line.lowercased().hasPrefix("cookie:") {
-                let cookies = line.dropFirst(7).components(separatedBy: ";")
-                for cookie in cookies {
-                    let parts = cookie.trimmingCharacters(in: .whitespaces).components(separatedBy: "=")
-                    if parts.count == 2 && parts[0] == "adminSessionId" {
-                        return parts[1]
-                    }
-                }
-            }
-        }
-        
-        // Check for session ID in Authorization header
-        for line in lines {
-            if line.lowercased().hasPrefix("authorization: bearer ") {
-                return String(line.dropFirst(22).trimmingCharacters(in: .whitespaces))
-            }
-        }
-        
-        return nil
-    }
-    
-    private func extractClientIP(_ request: String, connection: NWConnection) -> String? {
-        // Parse headers into dictionary (same approach as WebAuthnServer)
-        let lines = request.components(separatedBy: "\r\n")
-        var headers: [String: String] = [:]
-        
-        for line in lines {
-            if line.isEmpty { break } // Stop at header end
-            if let colonRange = line.range(of: ":") {
-                let key = String(line[..<colonRange.lowerBound]).trimmingCharacters(in: .whitespaces).lowercased()
-                let value = String(line[colonRange.upperBound...]).trimmingCharacters(in: .whitespaces)
-                headers[key] = value
-            }
-        }
-        
-        // Try X-Forwarded-For header first (same logic as WebAuthnServer)
-        if let forwardedFor = headers["x-forwarded-for"] {
-            let clientIP = forwardedFor.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces)
-            print("[WebServer] 🔍 Found X-Forwarded-For: \(forwardedFor) -> \(clientIP ?? "nil")")
-            return clientIP
-        }
-        
-        // Try X-Real-IP header
-        if let realIP = headers["x-real-ip"] {
-            print("[WebServer] 🔍 Found X-Real-IP: \(realIP)")
-            return realIP.trimmingCharacters(in: .whitespaces)
-        }
-        
-        // Try to get from connection
-        if let endpoint = connection.currentPath?.remoteEndpoint {
-            switch endpoint {
-            case .hostPort(let host, _):
-                let hostIP = String(describing: host)
-                print("[WebServer] 🔍 Connection endpoint IP: \(hostIP)")
-                return hostIP
-            default:
-                break
-            }
-        }
-        
-        print("[WebServer] ⚠️ No IP found in headers or connection, returning nil")
-        return nil
-    }
+    // MARK: - Admin API Handlers (delegate to managers)
     
     private func handleAdminAPIUsers(_ connection: NWConnection, request: String) {
-        // Get ALL chat users from WebAuthn credentials storage
-        let allChatUsers = webAuthnManager.getAllUsers()
-        
-        // Convert to JSON-serializable format
-        let usersData = allChatUsers.map { credential in
-            let formatter = ISO8601DateFormatter()
-            
-            return [
-                "id": credential.id as Any,
-                "username": credential.username as Any,
-                "credentialId": credential.id as Any,
-                "publicKey": credential.publicKey as Any,
-                "signCount": credential.signCount as Any,
-                "createdAt": formatter.string(from: credential.createdAt ?? Date()) as Any,
-                "lastLoginAt": credential.lastLoginAt != nil ? formatter.string(from: credential.lastLoginAt!) : NSNull(),
-                "lastLoginIP": credential.lastLoginIP ?? NSNull(),
-                "isEnabled": credential.isEnabled as Any,
-                "isAdmin": credential.isAdmin as Any,
-                "userNumber": credential.userNumber ?? 0 as Any,
-                "emoji": credential.emoji ?? "👤" as Any
-            ] as [String: Any]
-        }
+        let usersData = webAuthAdminManager.getAllUsers()
         
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: usersData)
@@ -2221,13 +2076,6 @@ public class WebServer: ObservableObject {
             return
         }
         
-        // Find user by credential ID
-        let allUsers = webAuthnManager.getAllUsers()
-        guard let userCredential = allUsers.first(where: { $0.id == credentialId }) else {
-            sendErrorResponse(connection, error: "User not found")
-            return
-        }
-        
         // Extract request body
         guard let bodyStart = request.range(of: "\r\n\r\n")?.upperBound else {
             sendErrorResponse(connection, error: "Invalid request format")
@@ -2242,8 +2090,8 @@ public class WebServer: ObservableObject {
             return
         }
         
-        // Update user enabled status using WebAuthn manager
-        let success = webAuthnManager.updateUserEnabledStatus(username: userCredential.username, isEnabled: enabled)
+        // Update user enabled status using WebAuthAdminManager
+        let success = webAuthAdminManager.toggleUserStatus(credentialId: credentialId, enabled: enabled)
         
         if success {
             let response = "{\"success\":true,\"message\":\"User status updated successfully\"}"
@@ -2267,17 +2115,14 @@ public class WebServer: ObservableObject {
             return
         }
         
-        // Find user by credential ID
-        let allUsers = webAuthnManager.getAllUsers()
-        guard let userCredential = allUsers.first(where: { $0.id == credentialId }) else {
-            sendErrorResponse(connection, error: "User not found")
-            return
-        }
+        // Delete user using WebAuthAdminManager
+        let success = webAuthAdminManager.deleteUser(credentialId: credentialId)
         
-        // Delete user credentials
-        webAuthnManager.deleteUserCredentials(username: userCredential.username)
-        print("[WebServer] Deleted user: \(userCredential.username)")
-        sendJSONResponse(connection, json: "{\"success\":true}")
+        if success {
+            sendJSONResponse(connection, json: "{\"success\":true}")
+        } else {
+            sendErrorResponse(connection, error: "Failed to delete user")
+        }
     }
     
     private func handleAdminAPIDisableByIP(_ connection: NWConnection, request: String) {
@@ -2295,20 +2140,8 @@ public class WebServer: ObservableObject {
             return
         }
         
-        // Disable all users with the specified IP using WebAuthn credentials
-        let allUsers = webAuthnManager.getAllUsers()
-        var disabledCount = 0
-        
-        for user in allUsers {
-            if user.lastLoginIP == ipAddress {
-                // Update user to disabled status
-                let success = webAuthnManager.updateUserEnabledStatus(username: user.username, isEnabled: false)
-                if success {
-                    disabledCount += 1
-                    print("[WebServer] Disabled user '\(user.username)' with IP \(ipAddress)")
-                }
-            }
-        }
+        // Disable all users with the specified IP using WebAuthAdminManager
+        let disabledCount = webAuthAdminManager.disableUsersByIP(ipAddress: ipAddress)
         
         let response = "{\"success\":true,\"disabledCount\":\(disabledCount)}"
         sendJSONResponse(connection, json: response)
@@ -2336,15 +2169,8 @@ public class WebServer: ObservableObject {
             return
         }
         
-        // Find user by credential ID in WebAuthn credentials
-        let allUsers = webAuthnManager.getAllUsers()
-        guard let userCredential = allUsers.first(where: { $0.id == credentialId }) else {
-            sendResponse(connection, statusCode: "404 Not Found", contentType: "application/json", body: "{\"error\":\"User not found\"}")
-            return
-        }
-        
-        // Update emoji using WebAuthn manager
-        let success = webAuthnManager.updateUserEmoji(username: userCredential.username, emoji: newEmoji)
+        // Update emoji using WebAuthAdminManager
+        let success = webAuthAdminManager.updateUserEmoji(credentialId: credentialId, emoji: newEmoji)
         
         if success {
             let response = "{\"success\":true,\"message\":\"Emoji updated successfully\"}"
@@ -2376,15 +2202,8 @@ public class WebServer: ObservableObject {
             return
         }
         
-        // Find user by credential ID in WebAuthn credentials
-        let allUsers = webAuthnManager.getAllUsers()
-        guard let userCredential = allUsers.first(where: { $0.id == credentialId }) else {
-            sendResponse(connection, statusCode: "404 Not Found", contentType: "application/json", body: "{\"error\":\"User not found\"}")
-            return
-        }
-        
-        // Update admin status using WebAuthn manager
-        let success = webAuthnManager.updateUserAdminStatus(username: userCredential.username, isAdmin: newIsAdmin)
+        // Update admin status using WebAuthAdminManager
+        let success = webAuthAdminManager.toggleUserAdminStatus(credentialId: credentialId, isAdmin: newIsAdmin)
         
         if success {
             let response = "{\"success\":true,\"message\":\"Admin role updated successfully\"}"
@@ -2408,28 +2227,26 @@ public class WebServer: ObservableObject {
         return WebAdminContent.generateAdminJS()
     }
     
-    // More permissive admin session check
-    private func hasValidAdminSession(_ request: String) -> Bool {
-        // If we have any valid admin sessions, allow access
-        let validSessions = adminSessions.values.filter { !$0.isExpired }
-        
-        if !validSessions.isEmpty {
-            print("[WebServer] ✅ Found valid admin sessions - allowing admin API access")
-            return true
+    // MARK: - AdminManagerDelegate
+    
+    public func adminManager(_ manager: AdminManager, didAuthenticateUser username: String) -> Bool {
+        // The WebAuthAdminManager already handled the actual authentication
+        // This is just a final check that the user has admin privileges
+        return webAuthAdminManager.verifyAdminAccess(username: username)
+    }
+    
+    public func adminManager(_ manager: AdminManager, shouldAllowAdminAccess username: String) -> Bool {
+        return webAuthAdminManager.shouldAllowAdminAccess(username: username)
+    }
+    
+    // MARK: - Session Cleanup
+    
+    private func startPeriodicCleanup() {
+        // Clean up expired sessions every 15 minutes
+        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 900) { [weak self] in
+            self?.adminManager.cleanupExpiredSessions()
+            self?.startPeriodicCleanup() // Schedule next cleanup
         }
-        
-        // Also check for session cookie
-        let sessionId = extractSessionId(from: request)
-        if let sessionId = sessionId,
-           let session = adminSessions[sessionId],
-           !session.isExpired,
-           session.username == adminUsername {
-            print("[WebServer] ✅ Valid session cookie found for admin API")
-            return true
-        }
-        
-        print("[WebServer] 🔒 No valid admin sessions found")
-        return false
     }
 }
 
@@ -2581,7 +2398,7 @@ extension WebServer {
         print("[WebServer] 🔑 Admin login attempt")
         
         // Extract client IP
-        let clientIPString = extractClientIP(request, connection: connection)
+        let clientIPString = adminManager.extractClientIP(request, connection: connection)
         print("[WebServer] 🔍 Extracted client IP for admin login: \(clientIPString ?? "unknown")")
         
         // Extract request body
@@ -2598,52 +2415,37 @@ extension WebServer {
             return
         }
         
-        // CRITICAL: Only allow the configured admin username to access admin functions
-        guard username == adminUsername else {
-            print("[WebServer] ❌ Username \(username) does not match configured admin \(adminUsername)")
-            sendErrorResponse(connection, error: "Access denied - invalid admin username", statusCode: "404 Not Found")
-            return
-        }
-        
         print("[WebServer] 🔑 Admin login for username: \(username)")
         
         do {
-            // Verify authentication using existing WebAuthn system
-            let authenticatedUsername = try webAuthnManager.verifyAuthentication(
-                username: username, 
-                credential: json, 
+            // Authenticate using WebAuthAdminManager
+            let authenticatedUsername = try webAuthAdminManager.authenticateAdmin(
+                username: username,
+                requestData: json,
                 clientIP: clientIPString
             )
             
-            let finalUsername = authenticatedUsername ?? username
-            
-            // Double-check the authenticated username still matches the configured admin
-            guard finalUsername == adminUsername else {
-                print("[WebServer] ❌ Authenticated username \(finalUsername) does not match configured admin \(adminUsername)")
-                sendErrorResponse(connection, error: "Access denied - authentication mismatch", statusCode: "404 Not Found")
+            guard let finalUsername = authenticatedUsername else {
+                print("[WebServer] ❌ Admin authentication failed")
+                sendErrorResponse(connection, error: "Authentication failed", statusCode: "401 Unauthorized")
                 return
             }
             
-            // Verify user is an admin and enabled using WebAuthn credentials
-            let allUsers = webAuthnManager.getAllUsers()
-            guard let userCredential = allUsers.first(where: { $0.username == finalUsername }),
-                  userCredential.isEnabled && userCredential.isAdmin else {
+            // Verify admin access
+            guard webAuthAdminManager.verifyAdminAccess(username: finalUsername) else {
                 print("[WebServer] ❌ User \(finalUsername) is not an admin or is disabled")
                 sendErrorResponse(connection, error: "Access denied", statusCode: "403 Forbidden")
                 return
             }
             
-            // Create admin session
-            let sessionId = UUID().uuidString
-            let session = AdminSession(
-                sessionId: sessionId,
-                username: finalUsername,
-                loginTime: Date(),
-                clientIP: clientIPString ?? "unknown"
-            )
+            // Create admin session using AdminManager
+            let (sessionId, success) = adminManager.createAdminSession(username: finalUsername, clientIP: clientIPString)
             
-            // Store session
-            adminSessions[sessionId] = session
+            guard success else {
+                print("[WebServer] ❌ Failed to create admin session for \(finalUsername)")
+                sendErrorResponse(connection, error: "Session creation failed", statusCode: "500 Internal Server Error")
+                return
+            }
             
             print("[WebServer] ✅ Admin login successful for \(finalUsername)")
             

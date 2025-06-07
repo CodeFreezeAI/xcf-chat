@@ -32,7 +32,7 @@ final class WebAuthnSignCountTests: XCTestCase {
     func testInitialSignCountIsZero() throws {
         // Register a new credential
         let username = "testuser"
-        let options = try webAuthnManager.generateRegistrationOptions(username: username)
+        _ = try webAuthnManager.generateRegistrationOptions(username: username)
         
         // Simulate registration with a mock credential
         let mockCredential = createMockCredential(
@@ -50,7 +50,7 @@ final class WebAuthnSignCountTests: XCTestCase {
     func testSignCountIncreasesOnAuthentication() throws {
         // Register a new credential
         let username = "testuser"
-        let options = try webAuthnManager.generateRegistrationOptions(username: username)
+        _ = try webAuthnManager.generateRegistrationOptions(username: username)
         
         // Simulate registration
         let mockCredential = createMockCredential(
@@ -82,7 +82,7 @@ final class WebAuthnSignCountTests: XCTestCase {
     func testRejectedAuthenticationWithLowerSignCount() throws {
         // Register a new credential
         let username = "testuser"
-        let options = try webAuthnManager.generateRegistrationOptions(username: username)
+        _ = webAuthnManager.generateRegistrationOptions(username: username)
         
         // Simulate registration with sign count 0
         let mockCredential = createMockCredential(
@@ -134,7 +134,7 @@ final class WebAuthnSignCountTests: XCTestCase {
     func testRejectedAuthenticationWithSameSignCount() throws {
         // Register a new credential
         let username = "testuser"
-        let options = try webAuthnManager.generateRegistrationOptions(username: username)
+        _ = webAuthnManager.generateRegistrationOptions(username: username)
         
         // Simulate registration with sign count 0
         let mockCredential = createMockCredential(

@@ -8,7 +8,12 @@ extension PersistenceManager: WebAuthnUserManager {
     
     /// Check if a user is enabled and can authenticate
     public func isUserEnabled(username: String) -> Bool {
-        // All user enabled status is now handled by WebAuthn credentials
+        // Check if user exists in admin users (legacy system)
+        if let adminUser = getAdminUser(by: username) {
+            return adminUser.isEnabled
+        }
+        
+        // If no admin user record exists, allow WebAuthn to handle it
         return true
     }
     
