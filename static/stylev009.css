@@ -872,7 +872,9 @@ body {
         width: 90%;
         max-width: 300px;
         gap: 12px;
-        /* Improve mobile stability */
+        
+        
+        rove mobile stability */
         position: relative;
         will-change: transform;
         backface-visibility: hidden;

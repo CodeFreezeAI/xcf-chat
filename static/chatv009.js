@@ -323,13 +323,6 @@ class ChatClient {
                 
                 this.updateMessagesDisplay();
 
-                // Ensure history is fully scrolled into view (instant) after messages render
-                requestAnimationFrame(() => {
-                    const container = document.getElementById('messages-container');
-                    if (container) {
-                        this.scrollToBottom(container); // smooth scroll
-                    }
-                });
 
                 // Show/hide remove and clear history buttons based on admin status
                 this.updateRoomActionButtons();
@@ -629,15 +622,7 @@ class ChatClient {
         
         messageInput.value = '';
         
-        // Ensure messages scroll to bottom after sending on mobile
-        if (window.innerWidth <= 768) {
-            setTimeout(() => {
-                const container = document.getElementById('messages-container');
-                if (container) {
-                    this.scrollToBottom(container);
-                }
-            }, 100);
-        }
+      
     }
     
     showConnectionError(message) {
@@ -647,7 +632,6 @@ class ChatClient {
         errorMsg.className = 'message system connection-error';
         errorMsg.textContent = message;
         container.appendChild(errorMsg);
-        container.scrollTop = container.scrollHeight;
         
         // Auto-remove error message after 10 seconds for all users
         setTimeout(() => {
@@ -688,7 +672,6 @@ class ChatClient {
             }
         } else {
             targetContainer.appendChild(errorMsg);
-            targetContainer.scrollTop = targetContainer.scrollHeight;
         }
         
         // Auto-remove error message after 10 seconds for non-admin users
@@ -943,7 +926,6 @@ class ChatClient {
         
         if (!isDuplicate) {
             const container = document.getElementById('messages-container');
-            const wasScrolledToBottom = this.isScrolledToBottom(container);
             
             this.messages.push(message);
             
@@ -953,14 +935,7 @@ class ChatClient {
             }
             
             this.updateMessagesDisplay();
-            
-            // Always scroll to bottom for new messages if user was already at bottom
-            if (wasScrolledToBottom) {
-                // Use requestAnimationFrame to ensure smooth scroll on both desktop and mobile
-                requestAnimationFrame(() => {
-                    this.scrollToBottom(container);
-                });
-            }
+          
         }
     }
     
@@ -1033,24 +1008,9 @@ class ChatClient {
     
     updateMessagesDisplay() {
         const container = document.getElementById('messages-container');
-        
-        if (this.messages.length === 0) {
-            const welcomeText = this.currentRoom ? 
-                `Welcome to ${this.currentRoom.name}!` : 
-                `Welcome to ${window.location.hostname}!`;
-                
-            container.innerHTML = `
-                <div class="welcome-message">
-                    <h3>${welcomeText} 🎉</h3>
-                    <p>${this.currentRoom ? 'Start chatting with others in this room.' : 'Create a room or join an existing one to start chatting.'}</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Store scroll position before updating
-        const wasScrolledToBottom = this.isScrolledToBottom(container);
-        
+        if (!container) return;
+
+
         container.innerHTML = '';
         
         this.messages.forEach(message => {
@@ -1120,10 +1080,7 @@ class ChatClient {
             this.applyAllMessageEmojiStyling();
         }, 10); // Very short delay to ensure DOM is fully updated
         
-        // Always scroll to bottom after rendering to ensure latest messages are visible
-        requestAnimationFrame(() => {
-            this.scrollToBottom(container);
-        });
+
     }
     
     updateRoomsList() {
@@ -1234,27 +1191,8 @@ class ChatClient {
         div.textContent = text;
         return div.innerHTML;
     }
-    
-    // Check if container is scrolled to bottom (with tolerance for mobile)
-    isScrolledToBottom(container) {
-        const threshold = 100; // 100px tolerance for mobile scrolling
-        return container.scrollTop + container.clientHeight >= container.scrollHeight - threshold;
-    }
-    
-    // Enhanced scroll to bottom that works reliably on all devices
-    scrollToBottom(container) {
-        const doScroll = () => {
-            if (container.scrollTo) {
-                container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-            } else {
-                container.scrollTop = container.scrollHeight;
-            }
-        };
 
-        // Immediate smooth scroll, then one more after layout settles
-        doScroll();
-        setTimeout(doScroll, 100);
-    }
+
 
     showTemporarySystemMessage(content, durationMs) {
         const container = document.getElementById('messages-container');
@@ -1262,7 +1200,6 @@ class ChatClient {
         msg.className = 'message system lobby-welcome';
         msg.textContent = content;
         container.appendChild(msg);
-        container.scrollTop = container.scrollHeight;
 
         // ALWAYS auto-remove system messages - no admin exception
         setTimeout(() => {
@@ -1567,52 +1504,26 @@ document.addEventListener('DOMContentLoaded', () => {
         setVhProperty();
         window.addEventListener('resize', () => {
             setVhProperty();
-            // Ensure messages scroll to bottom after viewport changes
-            if (chatClient) {
-                setTimeout(() => {
-                    const container = document.getElementById('messages-container');
-                    if (container) {
-                        chatClient.scrollToBottom(container);
-                    }
-                }, 200);
-            }
+       
         });
         window.addEventListener('orientationchange', () => {
             setTimeout(() => {
                 setVhProperty();
-                // Ensure messages scroll to bottom after orientation change
-                if (chatClient) {
-                    setTimeout(() => {
-                        const container = document.getElementById('messages-container');
-                        if (container) {
-                            chatClient.scrollToBottom(container);
-                        }
-                    }, 300);
-                }
+               
             }, 100);
         });
         
-        // Prevent body scroll on mobile when typing
         document.body.style.overflow = 'hidden';
         document.body.style.position = 'fixed';
         document.body.style.width = '100%';
         document.body.style.height = '100%';
         
-        // Ensure login form is scrollable when keyboard appears
         const nicknameInput = document.getElementById('nickname-input');
         if (nicknameInput) {
             nicknameInput.addEventListener('focus', () => {
-                // Scroll login form to show input when keyboard appears
                 setTimeout(() => {
                     const loginForm = document.querySelector('.login-form');
                     const authOptions = document.querySelector('.auth-options');
-                    if (loginForm && authOptions) {
-                        authOptions.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'end',
-                            inline: 'nearest'
-                        });
-                    }
                 }, 300); // Wait for keyboard animation
             });
         }
@@ -1764,7 +1675,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mobileInput && !mobileInput.hasEventListeners) {
         mobileInput.hasEventListeners = true; // Mark to prevent duplicates
         
-        // Simplified focus handling - remove complex scrolling that can cause issues
         mobileInput.addEventListener('focus', (e) => {
             // Ensure input stays focused and selectable
             e.target.style.userSelect = 'text';
@@ -1848,27 +1758,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageInput = document.getElementById('message-input');
         if (messageInput) {
             messageInput.addEventListener('focus', () => {
-                // When keyboard opens, scroll messages to bottom after a delay
-                setTimeout(() => {
-                    if (chatClient) {
-                        const container = document.getElementById('messages-container');
-                        if (container) {
-                            chatClient.scrollToBottom(container);
-                        }
-                    }
-                }, 300);
+               
             });
             
             messageInput.addEventListener('blur', () => {
-                // When keyboard closes, ensure proper scrolling
-                setTimeout(() => {
-                    if (chatClient) {
-                        const container = document.getElementById('messages-container');
-                        if (container) {
-                            chatClient.scrollToBottom(container);
-                        }
-                    }
-                }, 300);
+               
             });
         }
     }
@@ -2158,44 +2052,11 @@ function arrayBufferToBase64(buffer) {
 
 // Status message functions
 function showLoginStatus(message, type = 'info') {
-    console.log(`[LoginStatus] ${type.toUpperCase()}: ${message}`);
     const statusEl = document.getElementById('login-status');
+    if (!statusEl) return;
     
-    // Force clear ALL existing timeouts to prevent accumulation
-    if (window.statusTimeout) {
-        clearTimeout(window.statusTimeout);
-        window.statusTimeout = null;
-    }
-    if (window.statusFadeTimeout) {
-        clearTimeout(window.statusFadeTimeout);
-        window.statusFadeTimeout = null;
-    }
-    
-    // Immediately set clean state without calling clearLoginStatus
-    statusEl.classList.remove('fading');
     statusEl.textContent = message;
     statusEl.className = `status-message ${type}`;
-    statusEl.style.display = 'block';
-    
-    // Auto-hide after 3 seconds with fade - use separate timeout variables
-    window.statusTimeout = setTimeout(() => {
-        statusEl.classList.add('fading');
-        window.statusFadeTimeout = setTimeout(() => {
-            statusEl.style.display = 'none';
-            statusEl.classList.remove('fading');
-            window.statusTimeout = null;
-            window.statusFadeTimeout = null;
-        }, 100); // Reduced from 300ms to 100ms (3x faster)
-    }, 3000); // Reduced from 10000ms to 3000ms
-    
-    // Scroll status message into view on mobile - remove delay for responsiveness
-    if (window.innerWidth <= 768) {
-        statusEl.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'nearest',
-            inline: 'nearest'
-        });
-    }
 }
 
 function clearLoginStatus() {
@@ -2634,4 +2495,13 @@ function changeUserEmoji(emoji) {
     
     // Don't hide the picker immediately - let user see the change
     // They can click Close when done
+}
+
+// Remove all viewport and keyboard event listeners
+window.removeEventListener('resize', () => {});
+window.removeEventListener('orientationchange', () => {});
+document.removeEventListener('focusin', () => {});
+document.removeEventListener('focusout', () => {});
+if ('virtualKeyboard' in navigator) {
+    navigator.virtualKeyboard.removeEventListener('geometrychange', () => {});
 }
