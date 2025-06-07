@@ -366,10 +366,13 @@ func generateAuthenticationOptions(username: String?) -> PublicKeyCredentialRequ
 |---------|-------------|----------------|--------------|---------------|
 | **Chrome 67+** | ✅ | ✅ | ✅ | ✅ |
 | **Firefox 60+** | ✅ | ✅ | ✅ | ✅ |
+| **Firefox 60+ (Linux)** | ✅ | ✅ | ✅ | 🔑 |
 | **Safari 14+** | ✅ | ✅ | ✅ | ✅ |
 | **Edge 18+** | ✅ | ✅ | ✅ | ✅ |
 | **iOS Safari 14+** | ✅ | ✅ | ✅ | ✅ |
 | **Android Chrome 70+** | ✅ | ✅ | ✅ | ✅ |
+
+**Note:** 🔑 = Requires external FIDO2/U2F security key (YubiKey, Titan, etc.)
 
 #### **🌟 Production Deployment Considerations**
 

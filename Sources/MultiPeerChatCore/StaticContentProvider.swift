@@ -58,7 +58,7 @@ private func generateFallbackHTML() -> String {
         <link rel="manifest" href="/manifest.json">
         
         <!-- Stylesheets -->
-        <link rel="stylesheet" href="/stylev009.css">
+        <link rel="stylesheet" href="/style.css">
     </head>
     <body>
         <div class="container">
@@ -89,7 +89,7 @@ private func generateFallbackHTML() -> String {
         </div>
         <script src="/emoji.js"></script>
         <script src="/webauthn.js"></script>
-        <script src="/chatv009.js"></script>
+        <script src="/chat.js"></script>
     </body>
     </html>
     """
@@ -98,10 +98,10 @@ private func generateFallbackHTML() -> String {
 public func generateCSS() -> String {
     // Try to read from external file first, fallback to default if not found
     let possiblePaths = [
-        "static/stylev009.css",
-        "./static/stylev009.css",
-        "../../static/stylev009.css",
-        FileManager.default.currentDirectoryPath + "/static/stylev009.css"
+        "static/style.css",
+        "./static/style.css",
+        "../../static/style.css",
+        FileManager.default.currentDirectoryPath + "/static/style.css"
     ]
     
     for staticCSSPath in possiblePaths {
@@ -236,10 +236,10 @@ private func generateFallbackCSS() -> String {
 public func generateChatJS() -> String {
     // Try to read from external file first, fallback to default if not found
     let possiblePaths = [
-        "static/chatv009.js",
-        "./static/chatv009.js",
-        "../../static/chatv009.js",
-        FileManager.default.currentDirectoryPath + "/static/chatv009.js"
+        "static/chat.js",
+        "./static/chat.js",
+        "../../static/chat.js",
+        FileManager.default.currentDirectoryPath + "/static/chat.js"
     ]
     
     for staticJSPath in possiblePaths {

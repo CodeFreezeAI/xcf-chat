@@ -2222,6 +2222,151 @@ public class WebAuthnManager {
             print("[WebAuthn] ❌ Failed to update single credential in Swift Data: \(error)")
         }
     }
+    
+    // Linux/Firefox compatible registration with cross-platform authenticators
+    public func generateLinuxCompatibleRegistrationOptions(username: String, displayName: String? = nil) -> [String: Any] {
+        let challenge = generateChallenge()
+        let userId = generateUserId()
+        
+        let rpData: [String: Any] = [
+            "id": rpId,
+            "name": rpName ?? rpId
+        ]
+        
+        let displayNameToUse = displayName ?? username
+        let userData: [String: Any] = [
+            "id": userId,
+            "name": username,
+            "displayName": displayNameToUse
+        ]
+        
+        // Algorithm support for FIDO2/U2F security keys
+        let pubKeyCredParams: [[String: Any]] = [
+            ["type": "public-key", "alg": -7],   // ES256 (FIDO2 preferred)
+            ["type": "public-key", "alg": -257], // RS256 (legacy compatibility)
+            ["type": "public-key", "alg": -8]    // EdDSA (modern security keys)
+        ]
+        
+        // Linux/Firefox compatible authenticator selection - cross-platform only
+        let authenticatorSelection: [String: Any] = [
+            "authenticatorAttachment": "cross-platform", // External security keys
+            "userVerification": "discouraged",           // Security keys may not have biometrics
+            "requireResidentKey": false,                 // Don't require resident keys
+            "residentKey": "discouraged"                 // Basic security key support
+        ]
+        
+        let options: [String: Any] = [
+            "publicKey": [
+                "challenge": challenge,
+                "rp": rpData,
+                "user": userData,
+                "pubKeyCredParams": pubKeyCredParams,
+                "timeout": 60000,           // Standard timeout
+                "attestation": "none",      // No attestation for privacy
+                "authenticatorSelection": authenticatorSelection
+                // No extensions for maximum compatibility
+            ]
+        ]
+        
+        return options
+    }
+    
+    // Universal registration options - works on all platforms
+    public func generateUniversalRegistrationOptions(username: String, displayName: String? = nil) -> [String: Any] {
+        let challenge = generateChallenge()
+        let userId = generateUserId()
+        
+        let rpData: [String: Any] = [
+            "id": rpId,
+            "name": rpName ?? rpId
+        ]
+        
+        let displayNameToUse = displayName ?? username
+        let userData: [String: Any] = [
+            "id": userId,
+            "name": username,
+            "displayName": displayNameToUse
+        ]
+        
+        // Comprehensive algorithm support for all authenticator types
+        let pubKeyCredParams: [[String: Any]] = [
+            ["type": "public-key", "alg": -7],   // ES256 (universal)
+            ["type": "public-key", "alg": -257], // RS256 (Windows Hello)
+            ["type": "public-key", "alg": -8],   // EdDSA (modern keys)
+            ["type": "public-key", "alg": -35],  // ES384 (enhanced security)
+            ["type": "public-key", "alg": -36],  // ES512 (maximum security)
+            ["type": "public-key", "alg": -37]   // PS256 (RSASSA-PSS)
+        ]
+        
+        // No authenticator restrictions - let user/browser choose
+        let options: [String: Any] = [
+            "publicKey": [
+                "challenge": challenge,
+                "rp": rpData,
+                "user": userData,
+                "pubKeyCredParams": pubKeyCredParams,
+                "timeout": 300000,      // Longer timeout for user choice
+                "attestation": "none",  // Privacy-friendly
+                "userVerification": "preferred" // Flexible verification
+                // No authenticatorSelection - allow any authenticator type
+            ]
+        ]
+        
+        return options
+    }
+    
+    // Software-based registration for Linux (browser-stored credentials)
+    public func generateLinuxSoftwareRegistrationOptions(username: String, displayName: String? = nil) -> [String: Any] {
+        let challenge = generateChallenge()
+        let userId = generateUserId()
+        
+        let rpData: [String: Any] = [
+            "id": rpId,
+            "name": rpName ?? rpId
+        ]
+        
+        let displayNameToUse = displayName ?? username
+        let userData: [String: Any] = [
+            "id": userId,
+            "name": username,
+            "displayName": displayNameToUse
+        ]
+        
+        // Algorithm support optimized for software authenticators
+        let pubKeyCredParams: [[String: Any]] = [
+            ["type": "public-key", "alg": -7],   // ES256 (browser preferred)
+            ["type": "public-key", "alg": -257]  // RS256 (fallback)
+        ]
+        
+        // Minimal options - NO authenticator restrictions at all for Firefox compatibility
+        let options: [String: Any] = [
+            "publicKey": [
+                "challenge": challenge,
+                "rp": rpData,
+                "user": userData,
+                "pubKeyCredParams": pubKeyCredParams,
+                "timeout": 60000,           // Standard timeout
+                "attestation": "none"       // No attestation required
+                // NO authenticatorSelection - complete freedom for browser to choose
+                // NO userVerification - let browser use whatever is available
+                // NO authenticatorAttachment - let browser choose any available method
+                // NO residentKey requirements - maximum compatibility
+            ]
+        ]
+        
+        return options
+    }
+    
+    // Convenience method: Auto-detect best option for Linux
+    public func generateLinuxAutoRegistrationOptions(username: String, displayName: String? = nil, preferSoftware: Bool = false) -> [String: Any] {
+        if preferSoftware {
+            print("[WebAuthn] Using software-based authentication for Linux user: \(username)")
+            return generateLinuxSoftwareRegistrationOptions(username: username, displayName: displayName)
+        } else {
+            print("[WebAuthn] Using hardware security key authentication for Linux user: \(username)")
+            return generateLinuxCompatibleRegistrationOptions(username: username, displayName: displayName)
+        }
+    }
 }
 
  

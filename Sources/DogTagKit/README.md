@@ -319,11 +319,14 @@ private func verifyWebAuthnSignature(
 | **Chrome 67+** | Windows | ✅ | ✅ | ✅ | ✅ | Full WebAuthn Level 2 |
 | **Chrome 67+** | macOS | ✅ | ✅ | ✅ | ✅ | Touch ID support |
 | **Chrome 67+** | Android | ✅ | ✅ | ✅ | ✅ | Biometric unlock |
+| **Chrome 67+** | Linux | ✅ | ✅ | ✅ | 🔑 | FIDO2/U2F security keys |
 | **Firefox 60+** | Windows | ✅ | ✅ | ✅ | ✅ | Windows Hello |
 | **Firefox 60+** | macOS | ✅ | ✅ | ✅ | ✅ | Touch ID support |
+| **Firefox 60+** | Linux | ✅ | ✅ | ✅ | 🔑 | FIDO2/U2F security keys |
 | **Safari 14+** | macOS | ✅ | ✅ | ✅ | ✅ | Touch ID, Face ID |
 | **Safari 14+** | iOS | ✅ | ✅ | ✅ | ✅ | Face ID, Touch ID |
 | **Edge 18+** | Windows | ✅ | ✅ | ✅ | ✅ | Windows Hello native |
+| **Edge 79+** | Linux | ✅ | ✅ | ✅ | 🔑 | FIDO2/U2F security keys |
 
 ### **📱 Mobile Platform Features**
 
@@ -333,6 +336,19 @@ private func verifyWebAuthnSignature(
 | **Android** | Fingerprint, Face | Google Password Manager | ✅ | ✅ |
 | **Windows** | Windows Hello | Microsoft Authenticator | ✅ | ✅ |
 | **macOS** | Touch ID | iCloud Keychain | ✅ | ✅ |
+| **Linux** | Browser Storage | Chrome/Firefox | ✅ | ✅ |
+| **Linux** | FIDO2/U2F Keys | Hardware-based | ✅ | ❌ |
+
+### **🔑 Security Key Support (Linux/Cross-Platform)**
+
+| Key Type | Protocol | Support | Notes |
+|----------|----------|---------|-------|
+| **YubiKey 5 Series** | FIDO2/WebAuthn | ✅ | USB-A, USB-C, NFC, Lightning |
+| **YubiKey 4/Neo** | U2F Legacy | ✅ | Legacy FIDO U2F support |
+| **Google Titan** | FIDO2/WebAuthn | ✅ | USB-A, USB-C, Bluetooth |
+| **SoloKeys** | FIDO2/WebAuthn | ✅ | Open source security keys |
+| **Nitrokey** | FIDO2/WebAuthn | ✅ | Privacy-focused keys |
+| **Feitian** | FIDO2/WebAuthn | ✅ | Budget-friendly options |
 
 ## 🎯 Client Implementation (JavaScript)
 
@@ -914,7 +930,7 @@ app.post("webauthn", "register", "complete") { req in
     <script>
         const webAuthn = new WebAuthnClient();
         
-        // Register new user
+        // Register new user (auto-detects platform)
         async function register() {
             const result = await webAuthn.register('john_doe', '👤');
             if (result.success) {
@@ -929,10 +945,131 @@ app.post("webauthn", "register", "complete") { req in
                 console.log(`Welcome back, ${result.username}!`);
             }
         }
+        
+        // Check platform capabilities
+        async function checkCapabilities() {
+            const isSupported = webAuthn.isSupported();
+            const strategy = await webAuthn.getBestRegistrationStrategy();
+            
+            console.log(`WebAuthn supported: ${isSupported}`);
+            console.log(`Best strategy: ${strategy}`);
+            
+            if (strategy === 'cross-platform') {
+                console.log('🔑 Please insert your security key when prompted');
+            } else if (strategy === 'platform') {
+                console.log('📱 You can use biometric authentication');
+            }
+        }
     </script>
 </body>
 </html>
 ```
+
+### **🐧 Linux-Specific Usage**
+
+#### **💻 Software-Based Authentication (No Hardware Required)**
+
+```javascript
+// Browser-stored credentials (convenient option)
+async function registerWithBrowserCredentials() {
+    const response = await fetch('/webauthn/register/begin/linux-software', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'linux_user' })
+    });
+    
+    const options = await response.json();
+    
+    // Browser handles credential creation and storage
+    const credential = await navigator.credentials.create(options);
+    
+    // Complete registration
+    const result = await fetch('/webauthn/register/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            username: 'linux_user',
+            id: arrayBufferToBase64(credential.rawId),
+            response: {
+                attestationObject: arrayBufferToBase64(credential.response.attestationObject),
+                clientDataJSON: arrayBufferToBase64(credential.response.clientDataJSON)
+            },
+            type: credential.type
+        })
+    });
+    
+    console.log('✅ Browser-based authentication set up!');
+}
+```
+
+#### **🔑 Hardware Security Key Authentication (Maximum Security)**
+
+```javascript
+// Security key registration (hardware option)
+async function registerWithSecurityKey() {
+    const response = await fetch('/webauthn/register/begin/linux', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'linux_user' })
+    });
+    
+    const options = await response.json();
+    
+    // This will prompt for security key insertion
+    const credential = await navigator.credentials.create(options);
+    
+    // Complete registration
+    const result = await fetch('/webauthn/register/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            username: 'linux_user',
+            id: arrayBufferToBase64(credential.rawId),
+            response: {
+                attestationObject: arrayBufferToBase64(credential.response.attestationObject),
+                clientDataJSON: arrayBufferToBase64(credential.response.clientDataJSON)
+            },
+            type: credential.type
+        })
+    });
+    
+    console.log('🔑 Security key registration completed!');
+}
+```
+
+#### **🤖 Automatic Choice (Recommended)**
+
+```javascript
+// Let DogTagKit automatically choose the best option
+async function registerLinuxUser() {
+    const webAuthn = new WebAuthnClient();
+    
+    // Will prompt user to choose between software and hardware
+    const result = await webAuthn.register('linux_user', '🐧');
+    
+    if (result.success) {
+        console.log('🎉 Linux authentication configured successfully!');
+    }
+}
+```
+
+#### **⚖️ Security vs Convenience Comparison**
+
+| Aspect | Software-Based | Hardware-Based |
+|--------|----------------|----------------|
+| **Setup Speed** | ⚡ Instant | 🐌 Requires key purchase |
+| **User Experience** | 🎯 Seamless | 🔌 Insert key each time |
+| **Security Level** | ⭐⭐⭐⭐ High | ⭐⭐⭐⭐⭐ Maximum |
+| **Cost** | 💚 Free | 💰 $20-60 |
+| **Hardware Independence** | ✅ No hardware needed | ❌ Requires physical key |
+| **Phishing Protection** | ✅ Domain-bound | ✅ Hardware-verified |
+| **Multi-device** | ✅ Browser sync | 🔑 Physical portability |
+| **Loss Risk** | 🔒 Can't lose browser | 😰 Can lose physical key |
+
+**Recommendation:** 
+- **New users**: Start with software-based for convenience
+- **Security-conscious**: Upgrade to hardware keys
+- **Organizations**: Mandate hardware keys for sensitive access
 
 ## 🏆 Why DogTagKit?
 
@@ -962,3 +1099,35 @@ app.post("webauthn", "register", "complete") { req in
 ---
 
 **DogTagKit** - *Bringing the future of authentication to Swift applications* 🚀 
+
+### **🐧 Linux Authentication Options**
+
+Linux users get **two choices** - convenience vs maximum security:
+
+#### **💻 Option 1: Software-Based (Convenient)**
+
+| Feature | Details | Security Level |
+|---------|---------|----------------|
+| **Storage** | Browser encrypted storage | ⭐⭐⭐⭐ High |
+| **Requirement** | No additional hardware | 🟢 None |
+| **Setup Time** | Instant | 🟢 0 seconds |
+| **Cost** | Free | 🟢 $0 |
+| **Portability** | Browser-specific | 🟡 Limited |
+| **Phishing Protection** | Domain-bound | ✅ Yes |
+
+**How it works:**
+- Credentials stored in browser's encrypted storage
+- Works with Chrome Password Manager, Firefox credentials
+- Syncs across devices if browser sync enabled
+- No physical device required
+
+#### **🔑 Option 2: Hardware-Based (Maximum Security)**
+
+| Feature | Details | Security Level |
+|---------|---------|----------------|
+| **Storage** | Hardware security module | ⭐⭐⭐⭐⭐ Maximum |
+| **Requirement** | FIDO2/U2F security key | 🔴 Required |
+| **Setup Time** | Requires key purchase | 🟡 Few days |
+| **Cost** | $20-60 per key | 🟡 Investment |
+| **Portability** | Physical key | 🟢 Universal |
+| **Tamper Resistance** | Hardware-level | ✅ Yes | 

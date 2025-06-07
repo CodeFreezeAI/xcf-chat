@@ -69,6 +69,12 @@ public class WebAuthnServer {
         switch (request.method, request.path) {
         case ("POST", "/webauthn/register/begin"):
             return handleRegisterBegin(request)
+        case ("POST", "/webauthn/register/begin/linux"):
+            return handleRegisterBeginLinux(request)
+        case ("POST", "/webauthn/register/begin/linux-software"):
+            return handleRegisterBeginLinuxSoftware(request)
+        case ("POST", "/webauthn/register/begin/universal"):
+            return handleRegisterBeginUniversal(request)
         case ("POST", "/webauthn/register/complete"):
             return handleRegisterComplete(request)
         case ("POST", "/webauthn/authenticate/begin"):
@@ -109,6 +115,51 @@ public class WebAuthnServer {
         }
         
         print("[WebAuthnServer] Registration options generated for: \(username)")
+        return HTTPResponse.json(options)
+    }
+    
+    private func handleRegisterBeginLinux(_ request: HTTPRequest) -> HTTPResponse {
+        guard let body = request.body,
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let username = json["username"] as? String else {
+            print("[WebAuthnServer] Linux registration begin: Invalid request body")
+            return HTTPResponse.error("Invalid request body - username required")
+        }
+        
+        print("[WebAuthnServer] Using Linux-compatible registration options for: \(username)")
+        let options = manager.generateLinuxCompatibleRegistrationOptions(username: username)
+        
+        print("[WebAuthnServer] Linux registration options generated for: \(username)")
+        return HTTPResponse.json(options)
+    }
+    
+    private func handleRegisterBeginLinuxSoftware(_ request: HTTPRequest) -> HTTPResponse {
+        guard let body = request.body,
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let username = json["username"] as? String else {
+            print("[WebAuthnServer] Linux software registration begin: Invalid request body")
+            return HTTPResponse.error("Invalid request body - username required")
+        }
+        
+        print("[WebAuthnServer] Using Linux software-based registration options for: \(username)")
+        let options = manager.generateLinuxSoftwareRegistrationOptions(username: username)
+        
+        print("[WebAuthnServer] Linux software registration options generated for: \(username)")
+        return HTTPResponse.json(options)
+    }
+    
+    private func handleRegisterBeginUniversal(_ request: HTTPRequest) -> HTTPResponse {
+        guard let body = request.body,
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let username = json["username"] as? String else {
+            print("[WebAuthnServer] Universal registration begin: Invalid request body")
+            return HTTPResponse.error("Invalid request body - username required")
+        }
+        
+        print("[WebAuthnServer] Using universal registration options for: \(username)")
+        let options = manager.generateUniversalRegistrationOptions(username: username)
+        
+        print("[WebAuthnServer] Universal registration options generated for: \(username)")
         return HTTPResponse.json(options)
     }
     
@@ -321,6 +372,24 @@ extension WebAuthnServer {
             return self.httpResponseToVaporResponse(httpResponse)
         }
         
+        app.post("webauthn", "register", "begin", "linux") { req -> Response in
+            let httpRequest = try self.vaporRequestToHTTPRequest(req)
+            let httpResponse = self.handleRequest(httpRequest)
+            return self.httpResponseToVaporResponse(httpResponse)
+        }
+        
+        app.post("webauthn", "register", "begin", "linux-software") { req -> Response in
+            let httpRequest = try self.vaporRequestToHTTPRequest(req)
+            let httpResponse = self.handleRequest(httpRequest)
+            return self.httpResponseToVaporResponse(httpResponse)
+        }
+        
+        app.post("webauthn", "register", "begin", "universal") { req -> Response in
+            let httpRequest = try self.vaporRequestToHTTPRequest(req)
+            let httpResponse = self.handleRequest(httpRequest)
+            return self.httpResponseToVaporResponse(httpResponse)
+        }
+        
         app.post("webauthn", "register", "complete") { req -> Response in
             let httpRequest = try self.vaporRequestToHTTPRequest(req)
             let httpResponse = self.handleRequest(httpRequest)
@@ -386,6 +455,18 @@ public protocol WebAuthnRouter {
 extension WebAuthnServer {
     public func addRoutes<T: WebAuthnRouter>(to router: T) {
         router.addRoute(method: "POST", path: "/webauthn/register/begin") { request in
+            return self.handleRequest(request)
+        }
+        
+        router.addRoute(method: "POST", path: "/webauthn/register/begin/linux") { request in
+            return self.handleRequest(request)
+        }
+        
+        router.addRoute(method: "POST", path: "/webauthn/register/begin/linux-software") { request in
+            return self.handleRequest(request)
+        }
+        
+        router.addRoute(method: "POST", path: "/webauthn/register/begin/universal") { request in
             return self.handleRequest(request)
         }
         
