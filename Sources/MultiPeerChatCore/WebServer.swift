@@ -50,33 +50,43 @@ public class WebServer: ObservableObject {
         }
     }
     
-    public init(rpId: String, port: UInt16? = nil, adminUsername: String = "XCF Admin", storageBackend: WebAuthnStorageBackend = .json("")) {
+    public init(rpId: String, port: UInt16? = nil, adminUsername: String = "XCF Admin", storageBackend: WebAuthnStorageBackend = .json(""), existingWebAuthnManager: WebAuthnManager? = nil) {
         self.rpId = rpId
         self.adminUsername = adminUsername
         self.port = port
         
-        // Try using a publicly accessible icon for better compatibility
-        // For localhost, include the port number in the URL
-        let iconUrl: String
-        if rpId.lowercased() == "localhost", let port = port {
-            iconUrl = "http://localhost:\(port)/icon-192.png"
+        // Use existing WebAuthn manager if provided, otherwise create a new one
+        if let existingManager = existingWebAuthnManager {
+            self.webAuthnManager = existingManager
+            print("[WebServer] 🔄 Reusing existing WebAuthnManager (avoiding duplicate initialization)")
         } else {
-            iconUrl = "https://ui-avatars.com/api/?name=💬Chat&background=007AFF&color=white&size=192&format=png"
+            // Try using a publicly accessible icon for better compatibility
+            // For localhost, include the port number in the URL
+            let iconUrl: String
+            if rpId.lowercased() == "localhost", let port = port {
+                iconUrl = "http://localhost:\(port)/icon-192.png"
+            } else {
+                iconUrl = "https://ui-avatars.com/api/?name=💬Chat&background=007AFF&color=white&size=192&format=png"
+            }
+            
+            self.webAuthnManager = WebAuthnManager(
+                rpId: rpId,
+                storageBackend: storageBackend,
+                rpName: "Multi-Peer Chat",
+                rpIcon: iconUrl,
+                defaultUserIcon: nil, // Will use the automatic generation
+                adminUsername: adminUsername,
+                userManager: PersistenceManager.shared
+            )
         }
         
-        self.webAuthnManager = WebAuthnManager(
-            rpId: rpId,
-            storageBackend: storageBackend,
-            rpName: "Multi-Peer Chat",
-            rpIcon: iconUrl,
-            defaultUserIcon: nil, // Will use the automatic generation
-            adminUsername: adminUsername,
-            userManager: PersistenceManager.shared
-        )
         self.webAuthnServer = WebAuthnServer(manager: webAuthnManager)
         
-        // Bootstrap admin user if they exist in credentials
-        bootstrapAdminUser()
+        // Only bootstrap admin user when creating a fresh WebAuthn manager
+        // This prevents duplicate admin checks when reusing an existing manager
+        if existingWebAuthnManager == nil {
+            bootstrapAdminUser()
+        }
     }
     
     // MARK: - Admin Bootstrap
@@ -912,29 +922,22 @@ public class WebServer: ObservableObject {
                     
                     print("💾 Saving file to:", filePath.path)
                     
-                    do {
-                        try FileManager.default.createDirectory(at: uploadsPath, withIntermediateDirectories: true)
-                        try fileData.write(to: filePath)
-                        print("✅ File saved successfully")
-                        
-                        // Create and save the attachment
-                        let attachment = FileAttachment(
-                            fileName: uniqueFileName,
-                            originalFileName: originalName,
-                            mimeType: mime,
-                            fileSize: Int64(fileData.count),
-                            filePath: "uploads/\(uniqueFileName)",
-                            thumbnailPath: nil
-                        )
+                                            do {
+                            print("✅ File data extracted, creating attachment with thumbnail...")
+                            
+                            // Create and save the attachment using ChatFileManager for thumbnail generation
+                            let attachment = try ChatFileManager.shared.saveUploadedFile(
+                                data: fileData,
+                                originalFileName: originalName,
+                                mimeType: mime
+                            )
                         
                         // Save the attachment
                         PersistenceManager.shared.saveStandaloneAttachment(attachment)
                         print("✅ Attachment saved to persistence")
                         
-                        // Return success response
-                        let response: [String: Any] = [
-                            "success": true,
-                            "attachment": [
+                                                    // Return success response with thumbnail URL if available
+                            var attachmentResponse: [String: Any] = [
                                 "id": attachment.id.uuidString,
                                 "fileName": attachment.fileName,
                                 "originalFileName": attachment.originalFileName,
@@ -943,9 +946,18 @@ public class WebServer: ObservableObject {
                                 "fileSize": attachment.fileSize,
                                 "size": attachment.fileSize, // For client compatibility
                                 "url": "/files/\(attachment.id.uuidString)/\(attachment.originalFileName)",
-                                "isImage": mime.starts(with: "image/")
+                                "isImage": attachment.isImage
                             ]
-                        ]
+                            
+                            // Add thumbnail URL if available
+                            if let thumbnailPath = attachment.thumbnailPath {
+                                attachmentResponse["thumbnailUrl"] = "/\(thumbnailPath)"
+                            }
+                            
+                            let response: [String: Any] = [
+                                "success": true,
+                                "attachment": attachmentResponse
+                            ]
                         
                         do {
                             let jsonData = try JSONSerialization.data(withJSONObject: response)
@@ -1206,37 +1218,42 @@ public class WebServer: ObservableObject {
         
         print("💾 Saving file to:", filePath.path)
         
-        do {
-            try FileManager.default.createDirectory(at: uploadsPath, withIntermediateDirectories: true)
-            try fileData.write(to: filePath)
-            print("✅ File saved successfully")
-            
-            // Create and save the attachment
-            let attachment = FileAttachment(
-                fileName: uniqueFileName,
-                originalFileName: originalName,
-                mimeType: mime,
-                fileSize: Int64(fileData.count),
-                filePath: "uploads/\(uniqueFileName)",
-                thumbnailPath: nil
-            )
+                    do {
+                print("✅ File data extracted, creating attachment with thumbnail...")
+                
+                // Create and save the attachment using ChatFileManager for thumbnail generation
+                let attachment = try ChatFileManager.shared.saveUploadedFile(
+                    data: fileData,
+                    originalFileName: originalName,
+                    mimeType: mime
+                )
             
             // Save the attachment
             PersistenceManager.shared.saveStandaloneAttachment(attachment)
             print("✅ Attachment saved to persistence")
             
-            // Return success response
-            let response: [String: Any] = [
-                "success": true,
-                "attachment": [
+                            // Return success response with thumbnail URL if available
+                var attachmentResponse: [String: Any] = [
                     "id": attachment.id.uuidString,
                     "fileName": attachment.fileName,
                     "originalFileName": attachment.originalFileName,
+                    "name": attachment.originalFileName, // For client compatibility
                     "mimeType": attachment.mimeType,
                     "fileSize": attachment.fileSize,
-                    "isImage": mime.starts(with: "image/")
+                    "size": attachment.fileSize, // For client compatibility
+                    "url": "/files/\(attachment.id.uuidString)/\(attachment.originalFileName)",
+                    "isImage": attachment.isImage
                 ]
-            ]
+                
+                // Add thumbnail URL if available
+                if let thumbnailPath = attachment.thumbnailPath {
+                    attachmentResponse["thumbnailUrl"] = "/\(thumbnailPath)"
+                }
+                
+                let response: [String: Any] = [
+                    "success": true,
+                    "attachment": attachmentResponse
+                ]
             
             do {
                 let jsonData = try JSONSerialization.data(withJSONObject: response)
@@ -2156,7 +2173,7 @@ public class WebServer: ObservableObject {
         let allChatUsers = webAuthnManager.getAllUsers()
         
         // Convert to JSON-serializable format
-        let usersData = allChatUsers.enumerated().map { (index, credential) in
+        let usersData = allChatUsers.map { credential in
             let formatter = ISO8601DateFormatter()
             
             return [
@@ -2170,7 +2187,7 @@ public class WebServer: ObservableObject {
                 "lastLoginIP": credential.lastLoginIP ?? NSNull(),
                 "isEnabled": credential.isEnabled as Any,
                 "isAdmin": credential.isAdmin as Any,
-                "userNumber": (index + 1) as Any,
+                "userNumber": credential.userNumber ?? 0 as Any,
                 "emoji": credential.emoji ?? "👤" as Any
             ] as [String: Any]
         }
@@ -2192,7 +2209,11 @@ public class WebServer: ObservableObject {
             return
         }
         
-        let credentialId = pathComponents[4]
+        let rawCredentialId = pathComponents[4]
+        guard let credentialId = rawCredentialId.removingPercentEncoding else {
+            sendErrorResponse(connection, error: "Invalid credential ID encoding")
+            return
+        }
         
         // Find user by credential ID
         let allUsers = webAuthnManager.getAllUsers()
@@ -2234,7 +2255,11 @@ public class WebServer: ObservableObject {
             return
         }
         
-        let credentialId = pathComponents[4]
+        let rawCredentialId = pathComponents[4]
+        guard let credentialId = rawCredentialId.removingPercentEncoding else {
+            sendErrorResponse(connection, error: "Invalid credential ID encoding")
+            return
+        }
         
         // Find user by credential ID
         let allUsers = webAuthnManager.getAllUsers()
@@ -2299,7 +2324,11 @@ public class WebServer: ObservableObject {
             return
         }
         
-        let credentialId = pathComponents[4]
+        let rawCredentialId = pathComponents[4]
+        guard let credentialId = rawCredentialId.removingPercentEncoding else {
+            sendResponse(connection, statusCode: "400 Bad Request", contentType: "application/json", body: "{\"error\":\"Invalid credential ID encoding\"}")
+            return
+        }
         
         // Find user by credential ID in WebAuthn credentials
         let allUsers = webAuthnManager.getAllUsers()
@@ -2335,7 +2364,11 @@ public class WebServer: ObservableObject {
             return
         }
         
-        let credentialId = pathComponents[4]
+        let rawCredentialId = pathComponents[4]
+        guard let credentialId = rawCredentialId.removingPercentEncoding else {
+            sendResponse(connection, statusCode: "400 Bad Request", contentType: "application/json", body: "{\"error\":\"Invalid credential ID encoding\"}")
+            return
+        }
         
         // Find user by credential ID in WebAuthn credentials
         let allUsers = webAuthnManager.getAllUsers()

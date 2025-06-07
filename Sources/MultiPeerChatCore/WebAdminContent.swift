@@ -1340,7 +1340,7 @@ public enum WebAdminContent {
 
             async toggleUser(userId, enabled) {
                 try {
-                    const response = await fetch('/admin/api/users/' + userId + '/toggle', {
+                    const response = await fetch('/admin/api/users/' + encodeURIComponent(userId) + '/toggle', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -1378,7 +1378,7 @@ public enum WebAdminContent {
                 }
 
                 try {
-                    const response = await fetch('/admin/api/users/' + userId, {
+                    const response = await fetch('/admin/api/users/' + encodeURIComponent(userId), {
                         method: 'DELETE'
                     });
 
@@ -1573,7 +1573,7 @@ public enum WebAdminContent {
             const userId = window.currentEditUser.id;
             const newEmoji = window.selectedEmoji;
             
-            fetch(`/admin/api/users/${userId}/emoji`, {
+            fetch(`/admin/api/users/${encodeURIComponent(userId)}/emoji`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1618,7 +1618,7 @@ public enum WebAdminContent {
                 return;
             }
             
-            fetch(`/admin/api/users/${userId}/admin`, {
+            fetch(`/admin/api/users/${encodeURIComponent(userId)}/admin`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

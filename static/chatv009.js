@@ -1046,19 +1046,34 @@ class ChatClient {
                 let attachmentHTML = '';
                 if (message.attachment) {
                     const attachment = message.attachment;
-                    attachmentHTML = `
-                        <div class="message-attachment">
-                            <a href="${attachment.url}" class="message-attachment-file" target="_blank" rel="noopener noreferrer">
-                                <div class="message-attachment-icon">
-                                    ${this.getFileIcon(attachment.mimeType)}
-                                </div>
-                                <div class="message-attachment-info">
-                                    <div class="message-attachment-name">${this.escapeHtml(attachment.name)}</div>
-                                    <div class="message-attachment-size">${this.formatFileSize(attachment.size)}</div>
-                                </div>
-                            </a>
-                        </div>
-                    `;
+                    
+                    // Check if it's an image with a thumbnail or direct display
+                    if (attachment.isImage) {
+                        // For images, show thumbnail or full image
+                        const imageUrl = attachment.thumbnailUrl || attachment.url;
+                        attachmentHTML = `
+                            <div class="message-attachment">
+                                <a href="${attachment.url}" target="_blank" rel="noopener noreferrer">
+                                    <img src="${imageUrl}" class="message-attachment-image" alt="${this.escapeHtml(attachment.name)}" />
+                                </a>
+                            </div>
+                        `;
+                    } else {
+                        // For non-image files, show file icon and info
+                        attachmentHTML = `
+                            <div class="message-attachment">
+                                <a href="${attachment.url}" class="message-attachment-file" target="_blank" rel="noopener noreferrer">
+                                    <div class="message-attachment-icon">
+                                        ${this.getFileIcon(attachment.mimeType)}
+                                    </div>
+                                    <div class="message-attachment-info">
+                                        <div class="message-attachment-name">${this.escapeHtml(attachment.name)}</div>
+                                        <div class="message-attachment-size">${this.formatFileSize(attachment.size)}</div>
+                                    </div>
+                                </a>
+                            </div>
+                        `;
+                    }
                 }
                 
                 messageEl.innerHTML = `

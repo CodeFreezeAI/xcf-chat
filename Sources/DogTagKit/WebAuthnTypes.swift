@@ -62,6 +62,7 @@ public struct WebAuthnCredential: Codable, Sendable {
     public let createdAt: Date?
     public let isEnabled: Bool
     public let isAdmin: Bool
+    public let userNumber: Int?
     
     /// Legacy initializer for backward compatibility
     public init(id: String, publicKey: String, signCount: UInt32, username: String, algorithm: Int, protocolVersion: String) {
@@ -82,6 +83,7 @@ public struct WebAuthnCredential: Codable, Sendable {
         self.createdAt = Date()
         self.isEnabled = true
         self.isAdmin = false
+        self.userNumber = nil
     }
     
     /// Enhanced initializer with full metadata
@@ -102,7 +104,8 @@ public struct WebAuthnCredential: Codable, Sendable {
         lastLoginAt: Date? = nil,
         createdAt: Date? = nil,
         isEnabled: Bool = true,
-        isAdmin: Bool = false
+        isAdmin: Bool = false,
+        userNumber: Int? = nil
     ) {
         self.id = id
         self.publicKey = publicKey
@@ -121,6 +124,7 @@ public struct WebAuthnCredential: Codable, Sendable {
         self.createdAt = createdAt ?? Date()
         self.isEnabled = isEnabled
         self.isAdmin = isAdmin
+        self.userNumber = userNumber
     }
 }
 
@@ -144,6 +148,7 @@ public class WebAuthnCredentialModel {
     public var createdAt: Date
     public var isEnabled: Bool?
     public var isAdmin: Bool?
+    public var userNumber: Int?
     
     public init(
         id: String,
@@ -161,7 +166,8 @@ public class WebAuthnCredentialModel {
         lastLoginIP: String? = nil,
         lastLoginAt: Date? = nil,
         isEnabled: Bool? = true,
-        isAdmin: Bool? = false
+        isAdmin: Bool? = false,
+        userNumber: Int? = nil
     ) {
         self.id = id
         self.publicKey = publicKey
@@ -180,6 +186,7 @@ public class WebAuthnCredentialModel {
         self.createdAt = Date()
         self.isEnabled = isEnabled
         self.isAdmin = isAdmin
+        self.userNumber = userNumber
     }
     
     /// Convert to WebAuthnCredential for API compatibility
@@ -201,7 +208,8 @@ public class WebAuthnCredentialModel {
             lastLoginAt: lastLoginAt,
             createdAt: createdAt,
             isEnabled: isEnabled ?? true,
-            isAdmin: isAdmin ?? false
+            isAdmin: isAdmin ?? false,
+            userNumber: userNumber
         )
     }
 }

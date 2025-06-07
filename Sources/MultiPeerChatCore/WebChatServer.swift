@@ -98,8 +98,12 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
     public func start(on port: UInt16) {
         // Store the port and recreate WebServer with port for proper icon URLs
         self.port = port
+        
+        // Get the existing WebAuthn manager to reuse it (avoid double initialization)
+        let existingWebAuthnManager = webServer.webAuthnManager
+        
         webServer.stop() // Stop the old one
-        webServer = WebServer(rpId: rpId, port: port, adminUsername: adminUsername, storageBackend: storageBackend)
+        webServer = WebServer(rpId: rpId, port: port, adminUsername: adminUsername, storageBackend: storageBackend, existingWebAuthnManager: existingWebAuthnManager)
         webServer.delegate = self
         
         webServer.start(on: port)
@@ -307,20 +311,27 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
                 
                 // Add attachment information if present
                 if let attachment = message.attachment {
+                    var attachmentDict: [String: Any] = [
+                        "id": attachment.id.uuidString,
+                        "fileName": attachment.fileName,
+                        "originalFileName": attachment.originalFileName,
+                        "name": attachment.originalFileName, // For client compatibility
+                        "mimeType": attachment.mimeType,
+                        "fileSize": attachment.fileSize,
+                        "size": attachment.fileSize, // For client compatibility
+                        "url": "/files/\(attachment.id.uuidString)/\(attachment.originalFileName)",
+                        "isImage": attachment.isImage,
+                        "filePath": attachment.filePath,
+                        "thumbnailPath": attachment.thumbnailPath as Any
+                    ]
+                    
+                    // Add thumbnail URL if available
+                    if let thumbnailPath = attachment.thumbnailPath {
+                        attachmentDict["thumbnailUrl"] = "/\(thumbnailPath)"
+                    }
+                    
                     messageDict["message"] = (messageDict["message"] as! [String: Any]).merging([
-                        "attachment": [
-                            "id": attachment.id.uuidString,
-                            "fileName": attachment.fileName,
-                            "originalFileName": attachment.originalFileName,
-                            "name": attachment.originalFileName, // For client compatibility
-                            "mimeType": attachment.mimeType,
-                            "fileSize": attachment.fileSize,
-                            "size": attachment.fileSize, // For client compatibility
-                            "url": "/files/\(attachment.id.uuidString)/\(attachment.originalFileName)",
-                            "isImage": attachment.isImage,
-                            "filePath": attachment.filePath,
-                            "thumbnailPath": attachment.thumbnailPath as Any
-                        ]
+                        "attachment": attachmentDict
                     ]) { _, new in new }
                 }
                 
@@ -426,6 +437,25 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
         }
         roomMessages[roomId]?.append(chatMessage)
         
+        var attachmentDict: [String: Any] = [
+            "id": attachment.id.uuidString,
+            "fileName": attachment.fileName,
+            "originalFileName": attachment.originalFileName,
+            "name": attachment.originalFileName, // For client compatibility
+            "mimeType": attachment.mimeType,
+            "fileSize": attachment.fileSize,
+            "size": attachment.fileSize, // For client compatibility
+            "url": "/files/\(attachment.id.uuidString)/\(attachment.originalFileName)",
+            "isImage": attachment.isImage,
+            "filePath": attachment.filePath,
+            "thumbnailPath": attachment.thumbnailPath as Any
+        ]
+        
+        // Add thumbnail URL if available
+        if let thumbnailPath = attachment.thumbnailPath {
+            attachmentDict["thumbnailUrl"] = "/\(thumbnailPath)"
+        }
+        
         let message = [
             "type": "chatMessage",
             "message": [
@@ -434,19 +464,7 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
                 "timestamp": ISO8601DateFormatter().string(from: chatMessage.timestamp),
                 "messageType": chatMessage.messageType.rawValue,
                 "emoji": emoji,
-                "attachment": [
-                    "id": attachment.id.uuidString,
-                    "fileName": attachment.fileName,
-                    "originalFileName": attachment.originalFileName,
-                    "name": attachment.originalFileName, // For client compatibility
-                    "mimeType": attachment.mimeType,
-                    "fileSize": attachment.fileSize,
-                    "size": attachment.fileSize, // For client compatibility
-                    "url": "/files/\(attachment.id.uuidString)/\(attachment.originalFileName)",
-                    "isImage": attachment.isImage,
-                    "filePath": attachment.filePath,
-                    "thumbnailPath": attachment.thumbnailPath as Any
-                ]
+                "attachment": attachmentDict
             ]
         ] as [String : Any]
         

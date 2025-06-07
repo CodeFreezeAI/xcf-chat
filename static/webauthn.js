@@ -31,7 +31,7 @@ class WebAuthnClient {
     // Check if this is Chrome browser
     isChrome() {
         const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : '';
-        return userAgent.includes('Chrome') && !userAgent.includes('Edg'); // Chrome but not Edge
+        return userAgent.includes('Chrome') //&& !userAgent.includes('Edg'); // Chrome but not Edge
     }
 
     // Check if this is Windows browser

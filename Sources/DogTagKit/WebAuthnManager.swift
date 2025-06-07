@@ -73,6 +73,9 @@ public class WebAuthnManager {
         
         print("[WebAuthn] 🚀 WebAuthnManager initialization complete")
         print("[WebAuthn] 🚀 Using database-direct approach - no credentials loaded into memory")
+        
+        // Perform user number migration for existing users
+        migrateUserNumbers()
     }
     
     private func setupStorage() {
@@ -915,6 +918,9 @@ public class WebAuthnManager {
             print("[WebAuthn] 🔍 Attempting FIDO2 registration verification...")
             let fido2Result = try verifyFIDO2Registration(username: username, id: id, response: response, clientIP: clientIP)
             
+            // Get the next user number
+            let userNumber = getNextUserNumber()
+            
             // Store the credential with enhanced metadata
             let newCredential = WebAuthnCredential(
                 id: id,
@@ -932,7 +938,8 @@ public class WebAuthnManager {
                 lastLoginIP: clientIP,
                 createdAt: Date(),
                 isEnabled: true,
-                isAdmin: shouldBeAdmin
+                isAdmin: shouldBeAdmin,
+                userNumber: userNumber
             )
             storeCredential(newCredential)
             print("[WebAuthn] ✅ FIDO2 registration successful")
@@ -940,6 +947,9 @@ public class WebAuthnManager {
             print("[WebAuthn] ⚠️ FIDO2 verification failed: \(error), trying U2F...")
             do {
                 let u2fPublicKey = try verifyU2FRegistration(username: username, id: id, response: response, clientIP: clientIP)
+                
+                // Get the next user number
+                let userNumber = getNextUserNumber()
                 
                 // Store the credential
                 let newCredential = WebAuthnCredential(
@@ -958,7 +968,8 @@ public class WebAuthnManager {
                     lastLoginIP: clientIP,
                     createdAt: Date(),
                     isEnabled: true,
-                    isAdmin: shouldBeAdmin
+                    isAdmin: shouldBeAdmin,
+                    userNumber: userNumber
                 )
                 storeCredential(newCredential)
                 print("[WebAuthn] ✅ U2F registration successful")
@@ -1239,7 +1250,8 @@ public class WebAuthnManager {
             lastLoginAt: Date(),
             createdAt: credential.createdAt,
             isEnabled: credential.isEnabled,
-            isAdmin: credential.isAdmin
+            isAdmin: credential.isAdmin,
+            userNumber: credential.userNumber
         )
         
         // Update user login information
@@ -1723,7 +1735,8 @@ public class WebAuthnManager {
             lastLoginAt: credential.lastLoginAt,
             createdAt: credential.createdAt,
             isEnabled: credential.isEnabled,
-            isAdmin: credential.isAdmin
+            isAdmin: credential.isAdmin,
+            userNumber: credential.userNumber
         )
         
         // Store updated credential directly in database
@@ -1758,7 +1771,8 @@ public class WebAuthnManager {
             lastLoginAt: credential.lastLoginAt,
             createdAt: credential.createdAt,
             isEnabled: credential.isEnabled,
-            isAdmin: isAdmin
+            isAdmin: isAdmin,
+            userNumber: credential.userNumber
         )
         
         // Store updated credential directly in database
@@ -1793,7 +1807,8 @@ public class WebAuthnManager {
             lastLoginAt: credential.lastLoginAt,
             createdAt: credential.createdAt,
             isEnabled: isEnabled,
-            isAdmin: credential.isAdmin
+            isAdmin: credential.isAdmin,
+            userNumber: credential.userNumber
         )
         
         // Store updated credential directly in database
@@ -1829,6 +1844,77 @@ public class WebAuthnManager {
         }
         
         print("[WebAuthn] ✅ Successfully deleted credentials for user: \(username)")
+    }
+    
+    /// Get the next available user number
+    private func getNextUserNumber() -> Int {
+        let allUsers = getAllUsers()
+        let maxUserNumber = allUsers.compactMap { $0.userNumber }.max() ?? 0
+        return maxUserNumber + 1
+    }
+    
+    /// Migrate existing users to assign user numbers if they don't have them
+    private func migrateUserNumbers() {
+        print("[WebAuthn] 🔄 Starting user number migration...")
+        
+        let allUsers = getAllUsers()
+        
+        // Debug: Print user number status for all users
+        print("[WebAuthn] 🔍 DEBUG: All users and their userNumber status:")
+        for user in allUsers {
+            print("[WebAuthn] 🔍   User: \(user.username), userNumber: \(user.userNumber?.description ?? "nil")")
+        }
+        
+        let usersWithoutNumbers = allUsers.filter { $0.userNumber == nil }
+        
+        if usersWithoutNumbers.isEmpty {
+            print("[WebAuthn] ✅ User number migration: No users need migration")
+            return
+        }
+        
+        print("[WebAuthn] 🔄 Found \(usersWithoutNumbers.count) users without user numbers, assigning sequential numbers...")
+        
+        // Sort users by creation date to maintain consistent ordering
+        let sortedUsers = usersWithoutNumbers.sorted { user1, user2 in
+            let date1 = user1.createdAt ?? Date.distantPast
+            let date2 = user2.createdAt ?? Date.distantPast
+            return date1 < date2
+        }
+        
+        // Get the current max user number to start assigning from
+        let existingNumbers = allUsers.compactMap { $0.userNumber }
+        var nextNumber = (existingNumbers.max() ?? 0) + 1
+        
+        // Assign user numbers to users who don't have them
+        for user in sortedUsers {
+            print("[WebAuthn] 🔄 Assigning user number \(nextNumber) to user: \(user.username)")
+            
+            let updatedCredential = WebAuthnCredential(
+                id: user.id,
+                publicKey: user.publicKey,
+                signCount: user.signCount,
+                username: user.username,
+                algorithm: user.algorithm,
+                protocolVersion: user.protocolVersion,
+                attestationFormat: user.attestationFormat,
+                aaguid: user.aaguid,
+                isDiscoverable: user.isDiscoverable,
+                backupEligible: user.backupEligible,
+                backupState: user.backupState,
+                emoji: user.emoji,
+                lastLoginIP: user.lastLoginIP,
+                lastLoginAt: user.lastLoginAt,
+                createdAt: user.createdAt,
+                isEnabled: user.isEnabled,
+                isAdmin: user.isAdmin,
+                userNumber: nextNumber
+            )
+            
+            storeCredential(updatedCredential)
+            nextNumber += 1
+        }
+        
+        print("[WebAuthn] ✅ User number migration complete: Assigned numbers to \(usersWithoutNumbers.count) users")
     }
     
     private func deleteCredentialFromSwiftData(username: String) {
@@ -2101,8 +2187,9 @@ public class WebAuthnManager {
                 existingModel.emoji = credential.emoji
                 existingModel.isEnabled = credential.isEnabled
                 existingModel.isAdmin = credential.isAdmin
+                existingModel.userNumber = credential.userNumber  // ✅ CRITICAL FIX: Update userNumber field!
                 
-                print("[WebAuthn] ✅ Updated existing credential model for user: \(credential.username)")
+                print("[WebAuthn] ✅ Updated existing credential model for user: \(credential.username) with userNumber: \(credential.userNumber?.description ?? "nil")")
             } else {
                 // Create new model if it doesn't exist
                 let newModel = WebAuthnCredentialModel(
@@ -2121,7 +2208,8 @@ public class WebAuthnManager {
                     lastLoginIP: credential.lastLoginIP,
                     lastLoginAt: credential.lastLoginAt,
                     isEnabled: credential.isEnabled,
-                    isAdmin: credential.isAdmin
+                    isAdmin: credential.isAdmin,
+                    userNumber: credential.userNumber
                 )
                 context.insert(newModel)
                 print("[WebAuthn] ✅ Created new credential model for user: \(credential.username)")
