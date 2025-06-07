@@ -314,11 +314,11 @@ body {
 }
 
 #webauthn-register-btn {
-    background-color: #2196F3;
+    background-color: var(--orange-color);
 }
 
 #webauthn-register-btn:hover {
-    background-color: #1976D2;
+    background-color: var(--orange-color-hover);
 }
 
 #webauthn-register-btn:disabled {
@@ -326,14 +326,27 @@ body {
 }
 
 #webauthn-login-btn {
-    background-color: #FF9800;
+    background-color: var(--green-color);
 }
 
 #webauthn-login-btn:hover {
-    background-color: #F57C00;
+    background-color: var(--green-color-hover);
 }
 
 #webauthn-login-btn:disabled {
+    background: var(--gray-color);
+}
+
+#webauthn-security-key-btn {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+#webauthn-security-key-btn:hover {
+    background-color: #0066E6;
+}
+
+#webauthn-security-key-btn:disabled {
     background: var(--gray-color);
 }
 
@@ -1450,7 +1463,7 @@ body {
 .emoji-scroll-container {
     width: 100%;
     max-width: 320px;
-    height: 180px;
+    height: 168px;
     background: rgba(42, 42, 42, 0.8);
     border-radius: 12px;
     padding: 8px;
