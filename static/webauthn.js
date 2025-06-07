@@ -261,18 +261,18 @@ class WebAuthnClient {
             
             // Provide strategy-specific user guidance
             if (strategy === 'linux-hardware') {
-                onStatus('🐧🦊 Firefox Linux: Insert your security key and follow the prompts', 'info');
+                onStatus('🐧🦊 Firefox Linux: Insert security key', 'info');
             } else if (strategy === 'linux-software') {
-                onStatus('🐧 Linux: Setting up browser-based authentication...', 'info');
+                onStatus('🐧 Linux: Setting up authentication', 'info');
             } else if (strategy === 'cross-platform') {
-                onStatus('Insert your security key and follow the prompts', 'info');
+                onStatus('Insert security key', 'info');
             } else if (strategy === 'platform') {
-                onStatus('Create your passkey using biometrics', 'info');
+                onStatus('Create passkey with biometrics', 'info');
             } else {
-                onStatus('Create your passkey', 'info');
+                onStatus('Create passkey', 'info');
             }
             
-            onStatus('Create your passkey', 'info');
+            onStatus('Create passkey', 'info');
             
             // Convert base64 strings to ArrayBuffer
             options.publicKey.challenge = this.base64ToArrayBuffer(options.publicKey.challenge, atobFn);
@@ -476,9 +476,9 @@ class WebAuthnClient {
                     onError(error);
                     return { success: false, error };
                 }
-                onStatus('Safari: Insert your security key and touch when it blinks...', 'info');
+                onStatus('Safari: Insert security key', 'info');
             } else {
-                onStatus('Insert your security key...', 'info');
+                onStatus('Insert security key', 'info');
             }
             
             // Prepare request body - FORCE security key only by telling server
@@ -528,25 +528,32 @@ class WebAuthnClient {
                 userVerification: 'discouraged' // Don't require PIN for security keys
             };
             
-            // Safari-specific handling - NUCLEAR OPTION: Force security key only
+            // Safari-specific handling - Security key mode
             if (isSafari) {
-                console.log('🍎 Safari detected: SECURITY KEY ONLY MODE');
+                console.log('🍎 Safari detected: SECURITY KEY MODE');
                 
-                // Safari requires specific configuration to properly prompt for YubiKey
+                // For Safari, use the original server credentials but with security key optimizations
+                // This preserves any actual credentials while optimizing for external authenticators
                 securityKeyOptions = {
                     challenge: options.publicKey.challenge,
                     timeout: 120000, // Extra long timeout for YubiKey insertion
                     rpId: options.publicKey.rpId,
                     userVerification: 'discouraged',
-                    allowCredentials: [], // Empty array forces Safari to prompt for any external authenticator
-                    authenticatorSelection: {
-                        authenticatorAttachment: 'cross-platform',
-                        userVerification: 'discouraged'
-                    }
+                    allowCredentials: options.publicKey.allowCredentials || [] // Use server credentials or empty
                 };
                 
-                console.log('🍎 Safari: Security key options configured for external authenticator');
-                onStatus('Safari: Insert and touch your YubiKey when it blinks...', 'info');
+                // If we have actual credentials, mark them as external-only by updating transports
+                if (securityKeyOptions.allowCredentials && securityKeyOptions.allowCredentials.length > 0) {
+                    securityKeyOptions.allowCredentials = securityKeyOptions.allowCredentials.map(cred => ({
+                        ...cred,
+                        transports: ['usb', 'nfc', 'hybrid'] // Hint that these are for external authenticators
+                    }));
+                    console.log('🍎 Safari: Modified credentials for security key preference');
+                } else {
+                    console.log('🍎 Safari: No specific credentials - allowing any security key');
+                }
+                
+                onStatus('Safari: Insert YubiKey', 'info');
                 
                 // Add a small delay before calling get() to ensure Safari is ready
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -636,7 +643,7 @@ class WebAuthnClient {
         
         try {
             console.log('🔐 Attempting passkey authentication...');
-            onStatus('Authenticate with your passkey...', 'info');
+            onStatus('Authenticate with passkey', 'info');
             
             // Prepare request body - send null for usernameless authentication
             const requestBody = username === null ? {} : { username: username };

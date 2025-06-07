@@ -24,8 +24,8 @@ body.admin #clear-history-btn { display: inline-block; }
     --orange-color-hover: #E6850E;
     --red-color: #FF3B30;
     --red-color-hover: #D70015;
-    --green-color: #34C759;
-    --green-color-hover: #248A3D;
+    --green-color: #1E9A2F;
+    --green-color-hover: #2DB946;
     --dark-green-color: #1A5F1A;
     --dark-green-color-hover: #0F3D0F;
     --dark-red-color: #8B0000;
@@ -68,8 +68,8 @@ body.admin #clear-history-btn { display: inline-block; }
         --orange-color-hover: #E6850E;
         --red-color: #FF453A;
         --red-color-hover: #D70015;
-        --green-color: #30D158;
-        --green-color-hover: #248A3D;
+        --green-color: #1CC938;
+        --green-color-hover: #2DB946;
         --room-hover-bg: rgba(18, 18, 18, 0.8);
         --time-other: #d1d5db;
         --own-bg: #0a84ff;

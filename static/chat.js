@@ -2585,18 +2585,17 @@ async function loginWithSecurityKey() {
         const usernameElement = document.getElementById('nickname-input');
         const username = usernameElement ? usernameElement.value.trim() : '';
         
-        // Use null for usernameless authentication if no username provided
-        const authUsername = username.length > 0 ? username : null;
-        
-        console.log('🔑 Username:', authUsername === null ? 'usernameless' : authUsername);
-        
-        // Safari-specific pre-check
-        const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
-        if (isSafari && authUsername === null) {
-            console.log('🍎 Safari requires username for security key authentication');
-            showLoginStatus('Safari requires a username\nfor security key authentication', 'error');
-            return { success: false, error: 'Username required for Safari security key authentication' };
+        // REQUIRE username for security key authentication
+        if (!username || username.length === 0) {
+            console.log('🔑 Username required for security key authentication');
+            showLoginStatus('Please enter username for security key', 'error');
+            return { success: false, error: 'Username required for security key authentication' };
         }
+        
+        console.log('🔑 Username:', username);
+        
+        // No longer support usernameless for security key button - always use provided username
+        const authUsername = username;
         
         // Create browser API object
         const browserAPI = {
@@ -2705,12 +2704,12 @@ function testMultiLineStatus() {
     
     // Test Windows Hello error scenario with multiple lines
     setTimeout(() => {
-        showLoginStatus('Registration Not Allowed\nWindows Hello requires setup\nPlease configure in Settings > Accounts', 'error');
+        showLoginStatus('Setup Windows Hello in Settings', 'error');
     }, 4000);
     
     // Test success message with instructions
     setTimeout(() => {
-        showLoginStatus('✅ Registration Complete!\nYou can now login with\nyour passkey or Windows Hello', 'success');
+        showLoginStatus('✅ Registration Complete!', 'success');
     }, 8000);
     
     // Test literal \n conversion
@@ -2837,11 +2836,11 @@ function testWebAuthnCreation() {
     navigator.credentials.create(testOptions)
         .then(credential => {
             console.log('✅ WebAuthn Creation Success:', credential);
-            showLoginStatus('✅ WebAuthn Test Successful\nYour device supports WebAuthn\nChrome should work', 'success');
+            showLoginStatus('✅ WebAuthn Test Successful', 'success');
         })
         .catch(error => {
             console.log('❌ WebAuthn Creation Failed:', error);
-            showLoginStatus('❌ WebAuthn Test Failed\n' + error.name + '\n' + error.message, 'error');
+            showLoginStatus('❌ WebAuthn Test Failed: ' + error.name, 'error');
         });
 }
 
