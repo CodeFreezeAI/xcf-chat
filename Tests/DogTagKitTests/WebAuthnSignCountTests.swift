@@ -95,16 +95,27 @@ final class WebAuthnSignCountTests: XCTestCase {
         
         // Manually update the stored credential to have a higher sign count
         // This simulates a user that has successfully authenticated before
-        if let credential = webAuthnManager.credentials[username] {
+        if let credential = webAuthnManager.getCredential(username: username) {
             let updatedCredential = WebAuthnCredential(
                 id: credential.id,
                 publicKey: credential.publicKey,
                 signCount: 5, // Set to 5 to simulate previous authentications
                 username: credential.username,
                 algorithm: credential.algorithm,
-                protocolVersion: credential.protocolVersion
+                protocolVersion: credential.protocolVersion,
+                attestationFormat: credential.attestationFormat,
+                aaguid: credential.aaguid,
+                isDiscoverable: credential.isDiscoverable,
+                backupEligible: credential.backupEligible,
+                backupState: credential.backupState,
+                emoji: credential.emoji,
+                lastLoginIP: credential.lastLoginIP,
+                createdAt: credential.createdAt,
+                isEnabled: credential.isEnabled,
+                isAdmin: credential.isAdmin,
+                userNumber: credential.userNumber
             )
-            webAuthnManager.credentials[username] = updatedCredential
+            webAuthnManager.storeCredential(updatedCredential)
         }
         
         // Attempt authentication with lower sign count (1 < 5)
@@ -136,16 +147,27 @@ final class WebAuthnSignCountTests: XCTestCase {
         
         // Manually update the stored credential to have a specific sign count
         // This simulates a user that has successfully authenticated before
-        if let credential = webAuthnManager.credentials[username] {
+        if let credential = webAuthnManager.getCredential(username: username) {
             let updatedCredential = WebAuthnCredential(
                 id: credential.id,
                 publicKey: credential.publicKey,
                 signCount: 3, // Set to 3 to simulate previous authentications
                 username: credential.username,
                 algorithm: credential.algorithm,
-                protocolVersion: credential.protocolVersion
+                protocolVersion: credential.protocolVersion,
+                attestationFormat: credential.attestationFormat,
+                aaguid: credential.aaguid,
+                isDiscoverable: credential.isDiscoverable,
+                backupEligible: credential.backupEligible,
+                backupState: credential.backupState,
+                emoji: credential.emoji,
+                lastLoginIP: credential.lastLoginIP,
+                createdAt: credential.createdAt,
+                isEnabled: credential.isEnabled,
+                isAdmin: credential.isAdmin,
+                userNumber: credential.userNumber
             )
-            webAuthnManager.credentials[username] = updatedCredential
+            webAuthnManager.storeCredential(updatedCredential)
         }
         
         // Attempt authentication with same sign count (3 == 3)

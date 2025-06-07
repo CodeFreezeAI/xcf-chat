@@ -82,54 +82,46 @@ class WebAuthnClient {
             userAgent: navigator.userAgent
         });
         
-        if (isLinux) {
-            // For Linux, offer choice between software and hardware
-            return 'linux-choice'; // Special case for Linux
-        } else if (!platformAuthAvailable) {
-            return 'cross-platform'; // Use security keys
-        } else if (platformAuthAvailable) {
-            return 'platform'; // Use biometrics
-        } else {
-            return 'universal'; // Let browser decide
-        }
-    }
-
-    // Linux-specific choice between software and hardware authentication
-    async getLinuxAuthenticationChoice() {
-        // Check if browser supports software-based WebAuthn
-        const canUseSoftware = this.isSupported();
+        let strategy = 'default';
+        let linuxChoice = null;
         
-        return new Promise((resolve) => {
-            // More detailed dialog for Firefox users
-            const isFirefox = this.isFirefox();
-            const message = isFirefox ? 
-                '🐧 Firefox on Linux Authentication:\n\n' +
-                '💻 Browser Storage: No security key needed, stored in Firefox\n' +
-                '🔑 Security Key: Requires physical FIDO2/U2F key\n\n' +
-                'Click OK for Browser Storage (no key), Cancel for Security Key' :
-                '🐧 Linux Authentication Choice:\n\n' +
-                '✅ Software (Browser): More convenient, stored in browser\n' +
-                '🔑 Hardware Key: Maximum security, requires physical key\n\n' +
-                'Click OK for Software, Cancel for Hardware Key';
-                
-            if (confirm(message)) {
-                resolve('software');
+        if (this.isLinux()) {
+            if (this.isFirefox()) {
+                // Firefox on Linux: Use hardware key automatically (works well)
+                strategy = 'linux-hardware';
+                console.log('🐧 Firefox on Linux detected - using hardware security key mode');
             } else {
-                resolve('hardware');
+                // All other browsers on Linux: Use software authentication
+                strategy = 'linux-software';
+                console.log('🐧 Linux detected - using browser-based authentication');
             }
-        });
+        } else if (this.isWindows()) {
+            strategy = 'windows';
+            console.log('�� Windows detected - using Windows authenticators');
+        } else if (this.isMac()) {
+            strategy = 'mac';
+            console.log('🖥️ Mac detected - preparing Touch ID registration');
+        } else if (!platformAuthAvailable) {
+            strategy = 'cross-platform'; // Use security keys
+        } else if (platformAuthAvailable) {
+            strategy = 'platform'; // Use biometrics
+        } else {
+            strategy = 'universal'; // Let browser decide
+        }
+        
+        return { strategy, linuxChoice };
     }
 
     // Firefox-specific workaround for software authentication
     async createSoftwareCredential(options) {
-        // For Firefox on Linux, try to create credential without hardware prompts
+        // For non-Firefox browsers on Linux - browser-stored credentials
         try {
-            console.log('🦊 Attempting Firefox software credential creation...');
+            console.log('🐧 Attempting Linux software credential creation...');
             
             // Remove any authenticator selection that might trigger hardware
             if (options.publicKey.authenticatorSelection) {
                 delete options.publicKey.authenticatorSelection;
-                console.log('🦊 Removed authenticatorSelection for Firefox compatibility');
+                console.log('🐧 Removed authenticatorSelection for Linux compatibility');
             }
             
             // Add software-friendly authenticator selection
@@ -140,20 +132,22 @@ class WebAuthnClient {
             // Ensure no hardware-specific extensions
             if (options.publicKey.extensions) {
                 delete options.publicKey.extensions;
-                console.log('🦊 Removed extensions for Firefox compatibility');
+                console.log('🐧 Removed extensions for Linux compatibility');
             }
             
             const credential = await navigator.credentials.create(options);
             return credential;
             
         } catch (error) {
-            console.error('🦊 Firefox software credential failed:', error);
+            console.error('🐧 Linux software credential failed:', error);
             throw error;
         }
     }
 
     // Register with automatic platform detection
     async register(username, emoji = '👤', callbacks = {}, browserAPI = {}) {
+        console.log(`🚀 WebAuthn registration started for username: "${username}"`);
+        
         // FIRST CHECK: Validate username for ALL flows and browsers
         if (!username || username.trim() === '') {
             const { onStatus = () => {} } = callbacks;
@@ -163,6 +157,7 @@ class WebAuthnClient {
         
         // Clean username
         username = username.trim();
+        console.log(`🧹 Cleaned username: "${username}"`);
         
         try {
             if (this.inProgress) {
@@ -179,26 +174,49 @@ class WebAuthnClient {
                 credentialsAPI = navigator.credentials
             } = browserAPI;
             
+            onStatus('Checking username availability...', 'info');
+            
+            // Check if username is available before proceeding
+            console.log(`🔍 Checking username availability for: "${username}"`);
+            const usernameCheckResponse = await fetchFn('/webauthn/username/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            
+            console.log(`🔍 Username check response status: ${usernameCheckResponse.status}`);
+            
+            if (!usernameCheckResponse.ok) {
+                console.error('❌ Username check failed with status:', usernameCheckResponse.status);
+                throw new Error('Failed to check username availability');
+            }
+            
+            const usernameResult = await usernameCheckResponse.json();
+            console.log(`🔍 Username check result:`, usernameResult);
+            
+            if (!usernameResult.available) {
+                console.log(`❌ Username "${username}" is already taken`);
+                onStatus('Username already taken', 'error');
+                throw new Error('Username Already Taken\n\nPlease choose a different username.');
+            }
+            
+            console.log(`✅ Username "${username}" is available`);
             onStatus('Starting registration...', 'info');
             
             // Determine best registration strategy
-            const strategy = await this.getBestRegistrationStrategy();
+            const { strategy, linuxChoice } = await this.getBestRegistrationStrategy();
             console.log(`🎯 Selected registration strategy: ${strategy}`);
             
             let endpoint = '/webauthn/register/begin';
-            let linuxChoice = null;
             
-            // Handle Linux-specific choice
-            if (strategy === 'linux-choice') {
-                linuxChoice = await this.getLinuxAuthenticationChoice();
-                if (linuxChoice === 'software') {
-                    endpoint = '/webauthn/register/begin/linux-software';
-                } else {
-                    endpoint = '/webauthn/register/begin/linux';
-                }
+            // Select appropriate endpoint based on strategy
+            if (strategy === 'linux-hardware') {
+                endpoint = '/webauthn/register/begin/linux';  // Hardware security key endpoint
+            } else if (strategy === 'linux-software') {
+                endpoint = '/webauthn/register/begin/linux-software';  // Software browser endpoint
+            } else if (strategy === 'windows') {
+                endpoint = '/webauthn/register/begin';  // Windows Hello compatible
             } else if (strategy === 'cross-platform') {
-                endpoint = '/webauthn/register/begin/linux';
-            } else if (strategy === 'universal') {
                 endpoint = '/webauthn/register/begin/universal';
             }
             
@@ -237,10 +255,10 @@ class WebAuthnClient {
             }
             
             // Provide strategy-specific user guidance
-            if (strategy === 'linux-choice' && linuxChoice === 'software') {
-                onStatus('Setting up browser-based authentication...', 'info');
-            } else if (strategy === 'linux-choice' && linuxChoice === 'hardware') {
-                onStatus('Insert your security key and follow the prompts', 'info');
+            if (strategy === 'linux-hardware') {
+                onStatus('🐧🦊 Firefox Linux: Insert your security key and follow the prompts', 'info');
+            } else if (strategy === 'linux-software') {
+                onStatus('🐧 Linux: Setting up browser-based authentication...', 'info');
             } else if (strategy === 'cross-platform') {
                 onStatus('Insert your security key and follow the prompts', 'info');
             } else if (strategy === 'platform') {
@@ -258,9 +276,11 @@ class WebAuthnClient {
             try {
                 // Create credential with platform-specific handling
                 let credential;
-                if (strategy === 'linux-choice' && linuxChoice === 'software' && this.isFirefox()) {
+                if (strategy === 'linux-software' && !this.isFirefox()) {
+                    // Only non-Firefox browsers on Linux use software credentials
                     credential = await this.createSoftwareCredential(options);
                 } else {
+                    // All other cases including Firefox on Linux (hardware keys)
                     credential = await credentialsAPI.create(options);
                 }
                 
@@ -304,45 +324,66 @@ class WebAuthnClient {
                     stack: credentialError.stack
                 });
                 
-                // Special handling for Firefox Linux software mode ONLY
-                if (this.isFirefox() && this.isLinux() && strategy === 'linux-choice' && linuxChoice === 'software') {
-                    if (credentialError.name === 'NotAllowedError') {
-                        throw new Error('🦊 Firefox Linux Software Authentication Failed\n\nFirefox on Linux may not support browser-stored credentials.\n\nTry:\n1. Use "Security Key" option instead\n2. Try Chrome/Chromium browser\n3. Disconnect any USB security keys and restart Firefox');
-                    }
+                // Handle user cancellation FIRST
+                if (credentialError.name === 'AbortError') {
+                    onStatus('Registration cancelled by user', 'error');
+                    throw new Error('Registration Cancelled\n\nYou cancelled the registration process.');
                 }
                 
-                // Handle other browser-specific errors
-                if (this.isChrome() && credentialError.name === 'NotAllowedError') {
-                    throw new Error('Chrome WebAuthn Issue\nYour device may not be compatible\nTry Firefox or Edge browser');
-                } else if (this.isWindows() && credentialError.name === 'NotAllowedError') {
-                    throw new Error('Windows Hello Registration Failed\nPlease check Windows Hello setup\nSettings > Accounts > Sign-in options');
-                } else if (credentialError.name === 'NotAllowedError') {
-                    if (credentialError.message && credentialError.message.includes('device')) {
+                // Handle other specific errors
+                if (credentialError.name === 'NotAllowedError') {
+                    onStatus('Registration not allowed', 'error');
+                    if (this.isChrome()) {
+                        throw new Error('Chrome WebAuthn Issue\nYour device may not be compatible\nTry Firefox or Edge browser');
+                    } else if (this.isWindows()) {
+                        throw new Error('Windows Hello Registration Failed\nPlease check Windows Hello setup\nSettings > Accounts > Sign-in options');
+                    } else if (credentialError.message && credentialError.message.includes('device')) {
                         throw new Error('Device Not Compatible\nYour device may not support this\nTry a different browser or device');
+                    } else {
+                        throw new Error('Registration Not Allowed\nCheck browser permissions\nand privacy settings');
                     }
-                    throw new Error('Registration Not Allowed\nCheck browser permissions\nand privacy settings');
                 } else if (credentialError.name === 'InvalidStateError') {
+                    onStatus('Already registered', 'error');
                     throw new Error('Already Registered\nThis device is already registered\nTry logging in instead');
                 } else if (credentialError.name === 'SecurityError') {
+                    onStatus('Security error', 'error');
                     throw new Error('Security Error\nPlease ensure secure connection\n(HTTPS required)');
-                } else if (credentialError.name === 'AbortError') {
-                    throw new Error('Registration Cancelled\nPlease try again when ready');
                 } else if (credentialError.name === 'TimeoutError') {
+                    onStatus('Registration timeout', 'error');
                     throw new Error('Registration Timeout\nPlease try again\nCheck authenticator response');
+                } else {
+                    onStatus('Registration failed', 'error');
+                    throw credentialError;
                 }
-                
-                throw credentialError;
             }
             
         } catch (error) {
             console.error('WebAuthn registration error:', error);
-            let errorMsg = 'Registration failed';
             
-            // Handle specific Windows 11 error messages
-            if (error.message && error.message.includes('Windows Hello')) {
-                errorMsg = error.message;
+            // Handle specific error messages that are already formatted
+            if (error.message && (
+                error.message.includes('Username Already Taken') ||
+                error.message.includes('Registration Cancelled') ||
+                error.message.includes('Chrome WebAuthn Issue') ||
+                error.message.includes('Windows Hello Registration Failed') ||
+                error.message.includes('Device Not Compatible') ||
+                error.message.includes('Registration Not Allowed') ||
+                error.message.includes('Already Registered') ||
+                error.message.includes('Security Error') ||
+                error.message.includes('Registration Timeout')
+            )) {
+                onError(error.message);
+                return { success: false, error: error.message };
+            }
+            
+            // Handle other errors
+            let errorMsg = 'Registration failed';
+            if (error.message && error.message.includes('username availability')) {
+                errorMsg = 'Failed to check username availability - please try again';
             } else if (error.message && error.message.includes('not allowed')) {
                 errorMsg = 'Registration not allowed - check privacy settings';
+            } else if (error.message) {
+                errorMsg = error.message;
             }
             
             onError(errorMsg);
