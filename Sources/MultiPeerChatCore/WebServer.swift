@@ -313,6 +313,9 @@ public class WebServer: ObservableObject {
         case ("GET", "/chatv009.js"):
             response = generateChatJS()
             contentType = "application/javascript"
+        case ("GET", "/webauthn.js"):
+            response = generateWebAuthnJS()
+            contentType = "application/javascript"
         case ("GET", "/stylev009.css"):
             response = generateCSS()
             contentType = "text/css"

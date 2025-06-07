@@ -87,6 +87,7 @@ private func generateFallbackHTML() -> String {
                 </div>
             </div>
         </div>
+        <script src="/webauthn.js"></script>
         <script src="/chatv009.js"></script>
     </body>
     </html>
@@ -251,17 +252,30 @@ public func generateChatJS() -> String {
     return generateFallbackJS()
 }
 
-private func generateFallbackJS() -> String {
-    return """
-    // Basic fallback JavaScript
-    console.log('XCF Chat - Loading basic fallback JavaScript');
+public func generateWebAuthnJS() -> String {
+    // Try to read from external file first, fallback to default if not found
+    let possiblePaths = [
+        "static/webauthn.js",
+        "./static/webauthn.js",
+        "../../static/webauthn.js",
+        FileManager.default.currentDirectoryPath + "/static/webauthn.js"
+    ]
     
-    // Set hostname
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('#rp-id').forEach(function(el) {
-            el.textContent = window.location.hostname;
-        });
-    });
+    for staticJSPath in possiblePaths {
+        if let jsContent = try? String(contentsOfFile: staticJSPath) {
+            print("🔐 Loaded WebAuthn JavaScript from: \(staticJSPath)")
+            return jsContent
+        }
+    }
+    
+    print("⚠️ Static WebAuthn JavaScript file not found, using fallback")
+    return generateFallbackWebAuthnJS()
+}
+
+private func generateFallbackWebAuthnJS() -> String {
+    return """
+    // Basic fallback WebAuthn JavaScript
+    console.log('XCF Chat - Loading basic fallback WebAuthn JavaScript');
     
     // Placeholder WebAuthn functions
     function registerWebAuthn() {
@@ -272,14 +286,81 @@ private func generateFallbackJS() -> String {
         alert('WebAuthn login not available - static files missing');
     }
     
-    // Show error message to user
+    // Placeholder utility functions
+    function base64ToArrayBuffer(base64) {
+        console.error('WebAuthn utilities not available');
+        return new ArrayBuffer(0);
+    }
+    
+    function arrayBufferToBase64(buffer) {
+        console.error('WebAuthn utilities not available');
+        return '';
+    }
+    
+    function showLoginStatus(message, type) {
+        console.log('Login status:', type, message);
+    }
+    
+    function clearLoginStatus() {
+        console.log('Clear login status');
+    }
+    
+    function setButtonState(registerBtn, loginBtn, disabled, registerText, loginText) {
+        console.log('Set button state called');
+    }
+    
+    // Initialize fallback state
     document.addEventListener('DOMContentLoaded', function() {
+        window.statusTimeout = null;
+        window.statusFadeTimeout = null;
+        window.webauthnInProgress = false;
+        
+        // Show error message to user
         const loginForm = document.querySelector('.login-form');
         if (loginForm) {
             const errorMsg = document.createElement('div');
             errorMsg.style.cssText = 'background: #fee; color: #c33; padding: 1rem; border-radius: 8px; margin-top: 1rem; font-size: 0.9rem;';
-            errorMsg.innerHTML = '⚠️ Static files missing. Some features may not work properly.';
+            errorMsg.innerHTML = '⚠️ WebAuthn features not available - static files missing.';
             loginForm.appendChild(errorMsg);
+        }
+    });
+    """
+}
+
+private func generateFallbackJS() -> String {
+    return """
+    // Basic fallback JavaScript for Chat Client
+    console.log('XCF Chat - Loading basic fallback JavaScript for chat client');
+    
+    // Set hostname
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('#rp-id').forEach(function(el) {
+            el.textContent = window.location.hostname;
+        });
+    });
+    
+    // Basic chat placeholder
+    class ChatClient {
+        constructor() {
+            console.log('Basic fallback chat client initialized');
+        }
+        
+        connect() {
+            console.log('Chat connection not available - static files missing');
+        }
+    }
+    
+    // Initialize basic chat client
+    let chatClient = new ChatClient();
+    
+    // Show error message to user
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatScreen = document.getElementById('chat-screen');
+        if (chatScreen) {
+            const errorMsg = document.createElement('div');
+            errorMsg.style.cssText = 'background: #fee; color: #c33; padding: 1rem; border-radius: 8px; margin: 1rem; font-size: 0.9rem;';
+            errorMsg.innerHTML = '⚠️ Chat functionality not available - static files missing.';
+            chatScreen.appendChild(errorMsg);
         }
     });
     """
