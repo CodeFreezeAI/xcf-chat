@@ -687,6 +687,11 @@ body {
     min-height: 0;
     scroll-behavior: smooth;
     -webkit-scroll-behavior: smooth;
+    overscroll-behavior: contain;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: scroll-position;
+    position: relative;
 }
 
 .welcome-message {
@@ -872,9 +877,6 @@ body {
         width: 90%;
         max-width: 300px;
         gap: 12px;
-        
-        
-        rove mobile stability */
         position: relative;
         will-change: transform;
         backface-visibility: hidden;
@@ -1085,11 +1087,9 @@ body {
         scroll-behavior: smooth;
         -webkit-scroll-behavior: smooth;
         min-height: 0;
-        /* Improve mobile scrolling performance */
         transform: translateZ(0);
         -webkit-transform: translateZ(0);
         will-change: scroll-position;
-        /* Ensure consistent viewport */
         position: relative;
     }
 

@@ -1010,6 +1010,9 @@ class ChatClient {
         const container = document.getElementById('messages-container');
         if (!container) return;
 
+        // Store current scroll position and height
+        const wasAtBottom = container.scrollHeight - container.scrollTop === container.clientHeight;
+        const oldScrollHeight = container.scrollHeight;
 
         container.innerHTML = '';
         
@@ -1078,9 +1081,23 @@ class ChatClient {
         // Force immediate styling application for any emojis that might have been missed
         setTimeout(() => {
             this.applyAllMessageEmojiStyling();
+            
+            // Handle scrolling after DOM updates
+            if (wasAtBottom) {
+                // If we were at the bottom, scroll to the new bottom
+                container.scrollTo({
+                    top: container.scrollHeight,
+                    behavior: 'smooth'
+                });
+            } else {
+                // If we weren't at the bottom, maintain relative scroll position
+                const newScrollHeight = container.scrollHeight;
+                const scrollDiff = newScrollHeight - oldScrollHeight;
+                if (scrollDiff > 0) {
+                    container.scrollTop += scrollDiff;
+                }
+            }
         }, 10); // Very short delay to ensure DOM is fully updated
-        
-
     }
     
     updateRoomsList() {
