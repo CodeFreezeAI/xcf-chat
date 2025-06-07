@@ -2253,3 +2253,97 @@ document.removeEventListener('focusout', () => {});
 if ('virtualKeyboard' in navigator) {
     navigator.virtualKeyboard.removeEventListener('geometrychange', () => {});
 }
+
+// ===== WEBAUTHN WRAPPER FUNCTIONS =====
+// These functions handle DOM interactions and use the pure WebAuthn client
+
+async function registerWebAuthn() {
+    // Get username from DOM
+    const usernameElement = document.getElementById('nickname-input');
+    const username = usernameElement ? usernameElement.value : '';
+    
+    // Get emoji from global variable (fallback to default)
+    const emoji = (typeof window !== 'undefined' && window.currentEmoji) ? window.currentEmoji : '👤';
+    
+    // Create browser API object
+    const browserAPI = {
+        fetch: window.fetch,
+        atob: window.atob,
+        btoa: window.btoa,
+        credentialsAPI: navigator.credentials
+    };
+    
+    const result = await webAuthnClient.register(username, emoji, {
+        onStatus: (message, type) => showLoginStatus(message, type),
+        onError: (error) => showLoginStatus(`❌ ${error}`, 'error'),
+        onSuccess: () => showLoginStatus('✅ Registration Success', 'success')
+    }, browserAPI);
+    
+    return result;
+}
+
+async function loginWithWebAuthn() {
+    // Get username from DOM
+    const usernameElement = document.getElementById('nickname-input');
+    const username = usernameElement ? (usernameElement.value.trim() || null) : null;
+    
+    // Create browser API object
+    const browserAPI = {
+        fetch: window.fetch,
+        atob: window.atob,
+        btoa: window.btoa,
+        credentialsAPI: navigator.credentials
+    };
+    
+    const result = await webAuthnClient.authenticate(username, {
+        onStatus: (message, type) => showLoginStatus(message, type),
+        onError: (error) => showLoginStatus(`❌ ${error}`, 'error'),
+        onSuccess: (data) => {
+            showLoginStatus('✅ Login Success', 'success');
+            // Update username if provided by server
+            if (data.username) {
+                const usernameElement = document.getElementById('nickname-input');
+                if (usernameElement) {
+                    usernameElement.value = data.username;
+                }
+            }
+            // Join the chat after successful authentication
+            setTimeout(() => {
+                if (typeof joinChat === 'function') {
+                    joinChat();
+                }
+            }, 1000);
+        }
+    }, browserAPI);
+    
+    return result;
+}
+
+// Status message functions (DOM manipulation)
+function showLoginStatus(message, type = 'info') {
+    const statusEl = document.getElementById('login-status');
+    if (!statusEl) return;
+    
+    statusEl.textContent = message;
+    statusEl.className = `status-message ${type}`;
+}
+
+function clearLoginStatus() {
+    const statusEl = document.getElementById('login-status');
+    if (!statusEl) return;
+    
+    // Clear ALL status-related timeouts
+    if (window.statusTimeout) {
+        clearTimeout(window.statusTimeout);
+        window.statusTimeout = null;
+    }
+    if (window.statusFadeTimeout) {
+        clearTimeout(window.statusFadeTimeout);
+        window.statusFadeTimeout = null;
+    }
+    
+    statusEl.classList.remove('fading');
+    statusEl.className = 'status-message';
+    statusEl.textContent = '';
+    statusEl.style.display = 'none';
+}
