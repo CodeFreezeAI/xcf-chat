@@ -312,8 +312,11 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
                             "id": attachment.id.uuidString,
                             "fileName": attachment.fileName,
                             "originalFileName": attachment.originalFileName,
+                            "name": attachment.originalFileName, // For client compatibility
                             "mimeType": attachment.mimeType,
                             "fileSize": attachment.fileSize,
+                            "size": attachment.fileSize, // For client compatibility
+                            "url": "/files/\(attachment.id.uuidString)/\(attachment.originalFileName)",
                             "isImage": attachment.isImage,
                             "filePath": attachment.filePath,
                             "thumbnailPath": attachment.thumbnailPath as Any
@@ -435,8 +438,11 @@ public class WebChatServer: ObservableObject, WebServerDelegate {
                     "id": attachment.id.uuidString,
                     "fileName": attachment.fileName,
                     "originalFileName": attachment.originalFileName,
+                    "name": attachment.originalFileName, // For client compatibility
                     "mimeType": attachment.mimeType,
                     "fileSize": attachment.fileSize,
+                    "size": attachment.fileSize, // For client compatibility
+                    "url": "/files/\(attachment.id.uuidString)/\(attachment.originalFileName)",
                     "isImage": attachment.isImage,
                     "filePath": attachment.filePath,
                     "thumbnailPath": attachment.thumbnailPath as Any

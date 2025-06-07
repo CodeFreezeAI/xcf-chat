@@ -938,8 +938,11 @@ public class WebServer: ObservableObject {
                                 "id": attachment.id.uuidString,
                                 "fileName": attachment.fileName,
                                 "originalFileName": attachment.originalFileName,
+                                "name": attachment.originalFileName, // For client compatibility
                                 "mimeType": attachment.mimeType,
                                 "fileSize": attachment.fileSize,
+                                "size": attachment.fileSize, // For client compatibility
+                                "url": "/files/\(attachment.id.uuidString)/\(attachment.originalFileName)",
                                 "isImage": mime.starts(with: "image/")
                             ]
                         ]
