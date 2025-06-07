@@ -2324,7 +2324,7 @@ async function loginWithWebAuthn() {
         btoa: window.btoa,
         credentialsAPI: navigator.credentials
     };
-    
+
     const result = await webAuthnClient.authenticate(username, {
         onStatus: (message, type) => {
             console.log('🔵 Status:', message, type);
@@ -2357,8 +2357,86 @@ async function loginWithWebAuthn() {
             }, 1000);
         }
     }, browserAPI);
-    
+
     console.log('🔵 Login result:', result);
+    return result;
+}
+
+// Usernameless passkey sign-in function
+async function signInWithPasskey() {
+    console.log('🔑 Starting usernameless passkey sign-in...');
+    
+    // Create browser API object
+    const browserAPI = {
+        fetch: window.fetch,
+        atob: window.atob,
+        btoa: window.btoa,
+        credentialsAPI: navigator.credentials
+    };
+
+    const result = await webAuthnClient.authenticate(null, {
+        onStatus: (message, type) => {
+            console.log('🔑 Status:', message, type);
+            showLoginStatus(message, type);
+        },
+        onError: (error) => {
+            console.log('🔴 Error:', error);
+            // Handle specific error cases for account lockout
+            let displayError = error;
+            if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
+                displayError = 'Account Lockout';
+            } else if (error.includes('No credentials available')) {
+                displayError = 'No Passkeys Found\nPlease register a passkey first\nor use "Login with Username"';
+            } else if (error.includes('NotAllowedError') || error.includes('cancelled')) {
+                displayError = 'Authentication Cancelled\nPlease try again or contact support\nif this issue persists';
+            }
+            showLoginStatus(`❌ ${displayError}`, 'error');
+        },
+        onSuccess: (data) => {
+            console.log('🟢 Usernameless sign-in success!', data);
+            showLoginStatus('✅ Passkey Authentication Success', 'success');
+            
+            // Update username field with the discovered username
+            if (data.username) {
+                const usernameElement = document.getElementById('nickname-input');
+                if (usernameElement) {
+                    usernameElement.value = data.username;
+                    console.log(`🏷️ Discovered username: ${data.username}`);
+                }
+                
+                // Load user's emoji if available
+                const userEmoji = localStorage.getItem(`userEmoji_${data.username}`);
+                if (userEmoji) {
+                    const selectedEmojiElement = document.getElementById('selected-emoji');
+                    if (selectedEmojiElement) {
+                        selectedEmojiElement.textContent = userEmoji;
+                    }
+                    
+                    // Update emoji picker selection
+                    document.querySelectorAll('.emoji-option').forEach(option => {
+                        option.classList.remove('selected');
+                        if (option.textContent === userEmoji) {
+                            option.classList.add('selected');
+                        }
+                    });
+                    
+                    window.currentEmoji = userEmoji;
+                    if (typeof currentEmoji !== 'undefined') {
+                        currentEmoji = userEmoji;
+                    }
+                }
+            }
+            
+            // Join the chat after successful authentication
+            setTimeout(() => {
+                if (typeof joinChat === 'function') {
+                    joinChat();
+                }
+            }, 1000);
+        }
+    }, browserAPI);
+
+    console.log('🔑 Usernameless sign-in result:', result);
     return result;
 }
 

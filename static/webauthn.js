@@ -228,10 +228,13 @@ class WebAuthnClient {
         try {
             onStatus('Preparing login...', 'info');
             
+            // Prepare request body - send null for usernameless authentication
+            const requestBody = username === null ? {} : { username: username };
+            
             const optionsResponse = await fetchFn('/webauthn/authenticate/begin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: username || '' })
+                body: JSON.stringify(requestBody)
             });
             
             if (!optionsResponse.ok) {
@@ -275,9 +278,13 @@ class WebAuthnClient {
                     authenticatorData: this.arrayBufferToBase64(assertion.response.authenticatorData, btoaFn),
                     signature: this.arrayBufferToBase64(assertion.response.signature, btoaFn),
                     userHandle: assertion.response.userHandle ? this.arrayBufferToBase64(assertion.response.userHandle, btoaFn) : null
-                },
-                username: username || ''
+                }
             };
+            
+            // Only include username in credential if it was provided
+            if (username !== null) {
+                credential.username = username;
+            }
             
             const verifyResponse = await fetchFn('/webauthn/authenticate/complete', {
                 method: 'POST',

@@ -840,7 +840,7 @@ public class WebAuthnManager {
         
         var allowCredentials: [[String: Any]] = []
         
-        if let username = username {
+        if let username = username, !username.isEmpty {
             // If username is provided, only allow that specific credential
             guard let credential = getCredential(username: username) else {
                 throw WebAuthnError.credentialNotFound
@@ -851,15 +851,9 @@ public class WebAuthnManager {
                 "transports": ["internal"]
             ]]
         } else {
-            // If no username provided, allow all credentials
-            let allCredentials = getAllUsers()
-            allowCredentials = allCredentials.map { credential in
-                [
-                    "type": "public-key",
-                    "id": credential.id,
-                    "transports": ["internal"]
-                ]
-            }
+            // If no username provided, use empty allowCredentials for discoverable credentials
+            // This allows the authenticator to present all resident keys to the user
+            allowCredentials = []
         }
         
         let options: [String: Any] = [

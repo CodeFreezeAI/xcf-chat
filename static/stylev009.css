@@ -272,13 +272,9 @@ body {
 }
 
 .auth-options {
-    display: flex;
     flex-direction: column;
-    gap: 15px;
-    margin-top: 20px;
-    margin-bottom: 0;
-    width: 100%;
-    max-width: 300px;
+    gap: 0.75rem;
+    margin-top: 1rem;
 }
 
 .auth-options button {
@@ -325,21 +321,17 @@ body {
 
 /* Prevent auth buttons from being grayed out when disabled */
 .auth-options button:disabled {
-    opacity: 1;
-    cursor: pointer;
-    background-color: inherit;
-    color: white;
-    transform: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--gray-color);
 }
 
 #webauthn-register-btn:disabled {
-    background-color: #2196F3;
-    color: white;
+    background: var(--gray-color);
 }
 
 #webauthn-login-btn:disabled {
-    background-color: #FF9800;
-    color: white;
+    background: var(--gray-color);
 }
 
 /* LOGIN INPUT CONTAINER */
@@ -1525,11 +1517,8 @@ body {
 .auth-options {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    margin-top: 20px;
-    margin-bottom: 0;
-    width: 100%;
-    max-width: 300px;
+    gap: 0.75rem;
+    margin-top: 1rem;
 }
 
 .auth-options button {
@@ -2428,4 +2417,68 @@ html {
         font-size: 1.5rem;
         height: 35px;
     }
+}
+
+/* Primary authentication button for usernameless login */
+.primary-auth-btn {
+    background: var(--accent-color) !important;
+    color: white !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    padding: 0.8rem 1rem !important;
+    border-radius: 8px !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    width: 100% !important;
+    margin-bottom: 1rem !important;
+}
+
+.primary-auth-btn:hover {
+    background: var(--accent-color-hover) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3) !important;
+}
+
+/* Auth divider */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 0.75rem 0 !important;
+    text-align: center;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.auth-divider span {
+    padding: 0 1rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem !important;
+}
+
+/* Username-based auth section */
+.username-auth-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem !important;
+}
+
+.username-auth-section button {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    font-size: 0.9rem !important;
+    padding: 0.7rem 0.8rem !important;
+}
+
+.username-auth-section button:hover {
+    background: var(--bg-primary) !important;
+    border-color: var(--accent-color) !important;
+    color: var(--accent-color) !important;
 }
