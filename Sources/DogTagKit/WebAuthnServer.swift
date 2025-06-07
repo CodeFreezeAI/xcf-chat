@@ -161,7 +161,7 @@ public class WebAuthnServer {
             return HTTPResponse.json(response)
         } catch {
             print("[WebAuthnServer] Authentication verification failed: \(error)")
-            return HTTPResponse.error("Authentication verification failed: \(error.localizedDescription)")
+            return HTTPResponse.error("\(error.localizedDescription)")
         }
     }
     
