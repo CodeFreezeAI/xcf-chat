@@ -1394,7 +1394,7 @@ class ChatClient {
         if (selectedUserEmoji && selectedUserEmoji.textContent === emoji) {
             selectedUserEmoji.style.backgroundColor = backgroundColor;
             selectedUserEmoji.style.color = textColor;
-            selectedUserEmoji.style.border = `3px solid ${this.adjustColorBrightness(backgroundColor, 30)}`;
+            selectedUserEmoji.style.border = `1px solid ${this.adjustColorBrightness(backgroundColor, 30)}`;
         }
         
         // Apply styling to ALL message emoji bubbles with this emoji (including default user icons)
@@ -1402,8 +1402,8 @@ class ChatClient {
             if (emojiElement.textContent === emoji) {
                 emojiElement.style.setProperty('background-color', backgroundColor, 'important');
                 emojiElement.style.setProperty('color', textColor, 'important');
-                emojiElement.style.setProperty('border', `2px solid ${this.adjustColorBrightness(backgroundColor, 15)}`, 'important');
-                emojiElement.style.setProperty('box-shadow', '0 2px 6px rgba(0, 0, 0, 0.15)', 'important');
+                emojiElement.style.setProperty('border', `1px solid ${this.adjustColorBrightness(backgroundColor, 15)}`);
+                emojiElement.style.setProperty('box-shadow', '0 2px 6px rgba(0, 0, 0, 0.15)');
             }
         });
     }
@@ -1783,6 +1783,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+    
+    // Check Windows Hello support and update UI accordingly
+    setTimeout(async () => {
+        await checkWindowsHelloSupport();
+    }, 100);
 });
 
 // After the ChatClient class definition, add:
@@ -2365,6 +2370,163 @@ function testStatusDisplay() {
     setTimeout(() => showLoginStatus('Test message - success', 'success'), 2000);
 }
 
+// Test function for multi-line status messages
+function testMultiLineStatus() {
+    console.log('🔧 Testing multi-line status display...');
+    
+    // Test basic multi-line
+    setTimeout(() => {
+        showLoginStatus('Line 1\nLine 2\nLine 3', 'info');
+    }, 1000);
+    
+    // Test Windows Hello error scenario with multiple lines
+    setTimeout(() => {
+        showLoginStatus('Registration Not Allowed\nWindows Hello requires setup\nPlease configure in Settings > Accounts', 'error');
+    }, 4000);
+    
+    // Test success message with instructions
+    setTimeout(() => {
+        showLoginStatus('✅ Registration Complete!\nYou can now login with\nyour passkey or Windows Hello', 'success');
+    }, 8000);
+    
+    // Test literal \n conversion
+    setTimeout(() => {
+        showLoginStatus('Converted literal:\\nThis should be\\na new line', 'info');
+    }, 12000);
+}
+
+// Comprehensive WebAuthn browser debugging function
+function debugWebAuthnSupport() {
+    console.log('🔍 WebAuthn Browser Debug Report');
+    console.log('================================');
+    
+    // Basic browser info
+    const browserInfo = {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        cookieEnabled: navigator.cookieEnabled,
+        onLine: navigator.onLine
+    };
+    console.log('🌐 Browser Info:', browserInfo);
+    
+    // WebAuthn support check
+    const webauthnSupport = {
+        publicKeyCredential: typeof window.PublicKeyCredential !== 'undefined',
+        credentialsAPI: typeof navigator.credentials !== 'undefined',
+        createMethod: typeof navigator.credentials?.create === 'function',
+        getMethod: typeof navigator.credentials?.get === 'function'
+    };
+    console.log('🔐 WebAuthn Support:', webauthnSupport);
+    
+    // Platform authenticator check
+    if (typeof PublicKeyCredential !== 'undefined' && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+        PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+            .then(available => {
+                console.log('📱 Platform Authenticator Available:', available);
+            })
+            .catch(error => {
+                console.log('❌ Platform Authenticator Check Failed:', error);
+            });
+    } else {
+        console.log('❌ Platform Authenticator Check Not Available');
+    }
+    
+    // Browser-specific checks
+    const browserChecks = {
+        isChrome: navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Edg'),
+        isFirefox: navigator.userAgent.includes('Firefox'),
+        isEdge: navigator.userAgent.includes('Edg'),
+        isSafari: navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome'),
+        isWindows: navigator.userAgent.includes('Windows'),
+        isMac: navigator.userAgent.includes('Mac'),
+        isLinux: navigator.userAgent.includes('Linux')
+    };
+    console.log('🔍 Browser Detection:', browserChecks);
+    
+    // HTTPS check
+    const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
+    console.log('🔒 Secure Context:', isSecure);
+    
+    // Test minimal WebAuthn options
+    if (webauthnSupport.publicKeyCredential && webauthnSupport.credentialsAPI) {
+        console.log('🧪 Testing minimal WebAuthn options...');
+        
+        const testOptions = {
+            publicKey: {
+                challenge: new Uint8Array(32),
+                rp: { name: "Test" },
+                user: {
+                    id: new Uint8Array(16),
+                    name: "test",
+                    displayName: "Test User"
+                },
+                pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                timeout: 60000,
+                attestation: "none"
+            }
+        };
+        
+        console.log('📋 Test Options:', testOptions);
+        
+        // Don't actually create, just log what would be sent
+        console.log('💡 This would test credential creation with minimal options');
+        console.log('💡 Run testWebAuthnCreation() to actually test (will prompt for passkey)');
+    }
+    
+    return {
+        browserInfo,
+        webauthnSupport,
+        browserChecks,
+        isSecure,
+        summary: {
+            compatible: webauthnSupport.publicKeyCredential && webauthnSupport.credentialsAPI && isSecure,
+            reason: !webauthnSupport.publicKeyCredential ? 'No WebAuthn support' :
+                   !webauthnSupport.credentialsAPI ? 'No Credentials API' :
+                   !isSecure ? 'Not HTTPS/localhost' : 'Should work'
+        }
+    };
+}
+
+// Test actual WebAuthn credential creation (will prompt user)
+function testWebAuthnCreation() {
+    console.log('🧪 Testing WebAuthn Creation (will prompt)...');
+    
+    const testOptions = {
+        publicKey: {
+            challenge: crypto.getRandomValues(new Uint8Array(32)),
+            rp: { 
+                id: location.hostname,
+                name: "Test Registration" 
+            },
+            user: {
+                id: crypto.getRandomValues(new Uint8Array(16)),
+                name: "testuser",
+                displayName: "Test User"
+            },
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            timeout: 60000,
+            attestation: "none"
+        }
+    };
+    
+    navigator.credentials.create(testOptions)
+        .then(credential => {
+            console.log('✅ WebAuthn Creation Success:', credential);
+            showLoginStatus('✅ WebAuthn Test Successful\nYour device supports WebAuthn\nChrome should work', 'success');
+        })
+        .catch(error => {
+            console.log('❌ WebAuthn Creation Failed:', error);
+            showLoginStatus('❌ WebAuthn Test Failed\n' + error.name + '\n' + error.message, 'error');
+        });
+}
+
+// ===== STATUS MESSAGE FUNCTIONS =====
+// Multi-line status messages are supported! 
+// Use \n for line breaks: showLoginStatus('Line 1\nLine 2\nLine 3', 'error')
+// Auto-hide timing adjusts based on number of lines (longer for more lines)
+// Max height: 120px (desktop), 100px (mobile) with automatic scrolling
+
 // Status message functions (DOM manipulation)
 function showLoginStatus(message, type = 'info') {
     const statusEl = document.getElementById('login-status');
@@ -2380,20 +2542,38 @@ function showLoginStatus(message, type = 'info') {
         window.statusFadeTimeout = null;
     }
     
-    statusEl.textContent = message;
+    // Handle multi-line text by preserving line breaks
+    // Convert newlines to appropriate format for CSS pre-wrap
+    let processedMessage = message;
+    if (typeof message === 'string') {
+        // Normalize line breaks and handle various formats
+        processedMessage = message
+            .replace(/\\n/g, '\n')           // Convert literal \n to actual newlines
+            .replace(/\r\n/g, '\n')          // Normalize Windows line endings
+            .replace(/\r/g, '\n')            // Normalize Mac line endings
+            .trim();                         // Remove extra whitespace
+    }
+    
+    statusEl.textContent = processedMessage;
     statusEl.className = `status-message ${type}`;
     statusEl.style.display = 'block';
     statusEl.style.opacity = '1';
     
-    // Auto-hide success/error messages after a delay
+    // Auto-hide success/error messages after a delay (longer for multi-line)
     if (type === 'success' || type === 'error') {
+        // Calculate delay based on message length (more time for longer messages)
+        const lines = processedMessage.split('\n').length;
+        const baseDelay = 3000;
+        const extraDelay = Math.max(0, (lines - 1) * 1500); // +1.5s per extra line
+        const totalDelay = Math.min(baseDelay + extraDelay, 10000); // Max 10 seconds
+        
         window.statusTimeout = setTimeout(() => {
             statusEl.style.opacity = '0';
             window.statusFadeTimeout = setTimeout(() => {
                 statusEl.style.display = 'none';
                 statusEl.textContent = '';
             }, 300);
-        }, 3000);
+        }, totalDelay);
     }
 }
 
@@ -2416,4 +2596,85 @@ function clearLoginStatus() {
     statusEl.textContent = '';
     statusEl.style.display = 'none';
     statusEl.style.opacity = '1';
+}
+
+// Check Windows Hello availability and update UI
+async function checkWindowsHelloSupport() {
+    if (!webAuthnClient.isSupported()) {
+        return false;
+    }
+    
+    try {
+        const isAvailable = await webAuthnClient.isWindowsHelloAvailable();
+        const isWindows = webAuthnClient.isWindows();
+        
+        if (isWindows && isAvailable) {
+            console.log('✅ Windows Hello is available and ready');
+            // You could update button text or show Windows Hello-specific messaging
+            const registerBtn = document.getElementById('webauthn-register-btn');
+            const loginBtn = document.getElementById('webauthn-login-btn');
+            
+            if (registerBtn && loginBtn) {
+                registerBtn.textContent = 'Register with Windows Hello';
+                loginBtn.textContent = 'Login with Windows Hello';
+                
+                // Add privacy-friendly tooltip
+                registerBtn.title = 'Privacy-focused: Your biometric data stays on your device';
+                loginBtn.title = 'Privacy-focused: Your biometric data stays on your device';
+            }
+            
+            // Show privacy information if this is the first time
+            showWindowsHelloPrivacyInfo();
+        } else if (isWindows && !isAvailable) {
+            console.log('⚠️ Windows detected but Windows Hello not available');
+            showWindowsHelloSetupInfo();
+        } else if (isAvailable) {
+            console.log('✅ Platform authenticator available (Touch ID, Face ID, etc.)');
+        }
+        
+        return isAvailable;
+    } catch (error) {
+        console.log('Windows Hello check failed:', error);
+        return false;
+    }
+}
+
+// Show privacy information for Windows Hello users
+function showWindowsHelloPrivacyInfo() {
+    // Only show once per session
+    if (sessionStorage.getItem('windowsHelloPrivacyShown')) {
+        return;
+    }
+    
+    const isFirstVisit = !localStorage.getItem('windowsHelloPrivacyAcknowledged');
+    if (isFirstVisit) {
+        console.log('🔒 Windows Hello Privacy: Your biometric data never leaves your device');
+        
+        // Mark as acknowledged
+        localStorage.setItem('windowsHelloPrivacyAcknowledged', 'true');
+    }
+    
+    sessionStorage.setItem('windowsHelloPrivacyShown', 'true');
+}
+
+// Show setup information for Windows users without Windows Hello
+function showWindowsHelloSetupInfo() {
+    const statusEl = document.getElementById('login-status');
+    if (statusEl) {
+        statusEl.textContent = 'Windows Hello not set up. You can still use security keys.';
+        statusEl.className = 'status-message info';
+        statusEl.style.display = 'block';
+        statusEl.style.opacity = '1';
+        
+        // Auto-hide after 8 seconds
+        setTimeout(() => {
+            if (statusEl.textContent.includes('Windows Hello not set up')) {
+                statusEl.style.opacity = '0';
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                    statusEl.textContent = '';
+                }, 300);
+            }
+        }, 8000);
+    }
 }

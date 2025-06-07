@@ -14,6 +14,32 @@ class WebAuthnClient {
                typeof navigator.credentials.create === 'function';
     }
 
+    // Check if Windows Hello is available
+    async isWindowsHelloAvailable() {
+        if (!this.isSupported()) return false;
+        
+        try {
+            // Check if platform authenticator is available (Windows Hello, Touch ID, Face ID)
+            const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+            return available;
+        } catch (error) {
+            console.log('Platform authenticator check failed:', error);
+            return false;
+        }
+    }
+
+    // Check if this is Chrome browser
+    isChrome() {
+        const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : '';
+        return userAgent.includes('Chrome') && !userAgent.includes('Edg'); // Chrome but not Edge
+    }
+
+    // Check if this is Windows browser
+    isWindows() {
+        const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : '';
+        return userAgent.includes('Windows');
+    }
+
     // Register a new WebAuthn credential
     async register(username, emoji = '👤', callbacks = {}, browserAPI = {}) {
         if (this.inProgress) {
@@ -61,6 +87,15 @@ class WebAuthnClient {
             try {
                 onStatus('Preparing registration...', 'info');
                 
+                // Add browser info for debugging
+                const browserInfo = {
+                    userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : '',
+                    isChrome: this.isChrome(),
+                    isWindows: this.isWindows(),
+                    platform: typeof window !== 'undefined' ? window.navigator.platform : ''
+                };
+                console.log('🔍 Browser Info:', browserInfo);
+                
                 // Get registration options from server
                 const response = await fetchFn('/webauthn/register/begin', {
                     method: 'POST',
@@ -71,6 +106,7 @@ class WebAuthnClient {
                 if (!response.ok) throw new Error('Registration failed');
                 
                 const options = await response.json();
+                console.log('🔍 Server Options:', JSON.stringify(options, null, 2));
                 
                 if (!options.publicKey || !options.publicKey.challenge) {
                     const error = 'Server error - invalid options';
@@ -84,47 +120,87 @@ class WebAuthnClient {
                 options.publicKey.challenge = this.base64ToArrayBuffer(options.publicKey.challenge, atobFn);
                 options.publicKey.user.id = this.base64ToArrayBuffer(options.publicKey.user.id, atobFn);
                 
-                // Create credentials
-                const credential = await credentialsAPI.create(options);
-                
-                onStatus('Verifying...', 'info');
-                
-                // Convert ArrayBuffer to base64
-                const attestationObject = this.arrayBufferToBase64(credential.response.attestationObject, btoaFn);
-                const clientDataJSON = this.arrayBufferToBase64(credential.response.clientDataJSON, btoaFn);
-                
-                // Send registration data to server
-                const verificationResponse = await fetchFn('/webauthn/register/complete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: this.arrayBufferToBase64(credential.rawId, btoaFn),
-                        rawId: this.arrayBufferToBase64(credential.rawId, btoaFn),
-                        response: {
-                            attestationObject,
-                            clientDataJSON
-                        },
-                        type: credential.type,
-                        username,
-                        emoji
-                    })
-                });
-                
-                if (!verificationResponse.ok) {
-                    const errorResult = await verificationResponse.json().catch(() => ({}));
-                    if (errorResult.error && (errorResult.error.includes('disabled') || errorResult.error.includes('locked') || errorResult.error.includes('Account Lockout'))) {
-                        throw new Error('Account Lockout');
+                try {
+                    // Create credentials
+                    const credential = await credentialsAPI.create(options);
+                    
+                    onStatus('Verifying...', 'info');
+                    
+                    // Convert ArrayBuffer to base64
+                    const attestationObject = this.arrayBufferToBase64(credential.response.attestationObject, btoaFn);
+                    const clientDataJSON = this.arrayBufferToBase64(credential.response.clientDataJSON, btoaFn);
+                    
+                    // Send registration data to server
+                    const verificationResponse = await fetchFn('/webauthn/register/complete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: this.arrayBufferToBase64(credential.rawId, btoaFn),
+                            rawId: this.arrayBufferToBase64(credential.rawId, btoaFn),
+                            response: {
+                                attestationObject,
+                                clientDataJSON
+                            },
+                            type: credential.type,
+                            username,
+                            emoji
+                        })
+                    });
+                    
+                    if (!verificationResponse.ok) {
+                        const errorResult = await verificationResponse.json().catch(() => ({}));
+                        if (errorResult.error && (errorResult.error.includes('disabled') || errorResult.error.includes('locked') || errorResult.error.includes('Account Lockout'))) {
+                            throw new Error('Account Lockout');
+                        }
+                        throw new Error('Registration verification failed');
                     }
-                    throw new Error('Registration verification failed');
+                    
+                    onStatus('Registration successful', 'success');
+                    onSuccess({ username, emoji });
+                    return { success: true, username, emoji };
+                    
+                } catch (credentialError) {
+                    console.error('WebAuthn credential creation error:', credentialError);
+                    console.error('Error details:', {
+                        name: credentialError.name,
+                        message: credentialError.message,
+                        stack: credentialError.stack
+                    });
+                    
+                    // Handle Chrome-specific "device can't be used" error
+                    if (this.isChrome() && credentialError.name === 'NotAllowedError') {
+                        throw new Error('Chrome WebAuthn Issue\nYour device may not be compatible\nTry Firefox or Edge browser');
+                    } else if (this.isWindows() && credentialError.name === 'NotAllowedError') {
+                        throw new Error('Windows Hello Registration Failed\nPlease check Windows Hello setup\nSettings > Accounts > Sign-in options');
+                    } else if (credentialError.name === 'NotAllowedError') {
+                        if (credentialError.message && credentialError.message.includes('device')) {
+                            throw new Error('Device Not Compatible\nYour device may not support this\nTry a different browser or device');
+                        }
+                        throw new Error('Registration Not Allowed\nCheck browser permissions\nand privacy settings');
+                    } else if (credentialError.name === 'InvalidStateError') {
+                        throw new Error('Already Registered\nThis device is already registered\nTry logging in instead');
+                    } else if (credentialError.name === 'SecurityError') {
+                        throw new Error('Security Error\nPlease ensure secure connection\n(HTTPS required)');
+                    } else if (credentialError.name === 'AbortError') {
+                        throw new Error('Registration Cancelled\nPlease try again when ready');
+                    } else if (credentialError.name === 'TimeoutError') {
+                        throw new Error('Registration Timeout\nPlease try again\nCheck authenticator response');
+                    }
+                    
+                    throw credentialError;
                 }
-                
-                onStatus('Registration successful', 'success');
-                onSuccess({ username, emoji });
-                return { success: true, username, emoji };
                 
             } catch (error) {
                 console.error('WebAuthn registration error:', error);
-                const errorMsg = 'Registration failed';
+                let errorMsg = 'Registration failed';
+                
+                // Handle specific Windows 11 error messages
+                if (error.message && error.message.includes('Windows Hello')) {
+                    errorMsg = error.message;
+                } else if (error.message && error.message.includes('not allowed')) {
+                    errorMsg = 'Registration not allowed - check privacy settings';
+                }
+                
                 onError(errorMsg);
                 return { success: false, error: errorMsg };
             }
@@ -232,13 +308,21 @@ class WebAuthnClient {
         } catch (error) {
             console.error('WebAuthn authentication error:', error);
             
-            // Handle specific error cases
+            // Handle specific error cases with multi-line messages
             let errorMessage = 'Authentication failed';
             if (error.message === 'User cancelled' || 
                 error.name === 'NotAllowedError' ||
                 error.message.includes('cancelled') ||
                 error.message.includes('abort')) {
-                errorMessage = 'User cancelled';
+                errorMessage = 'Authentication Cancelled\nPlease try again when ready';
+            } else if (error.name === 'SecurityError') {
+                errorMessage = 'Security Error\nPlease ensure secure connection\n(HTTPS required)';
+            } else if (error.name === 'TimeoutError') {
+                errorMessage = 'Authentication Timeout\nPlease try again\nCheck authenticator response';
+            } else if (error.name === 'InvalidStateError') {
+                errorMessage = 'Invalid State\nPlease refresh and try again';
+            } else if (this.isWindows() && error.name === 'NotAllowedError') {
+                errorMessage = 'Windows Hello Authentication Failed\nCheck Windows Hello is enabled\nSettings > Accounts > Sign-in options';
             }
             
             onError(errorMessage);

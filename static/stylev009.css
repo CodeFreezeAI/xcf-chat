@@ -1295,15 +1295,15 @@ body {
 .user-emoji {
     font-size: 1.5rem;
     margin-right: 0.5rem;
-    line-height: 1;
+    line-height: 1.15;
     transition: all 0.3s ease;
     border-radius: 50%;
     padding: 4px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 28px;
-    min-height: 28px;
+    width: 37px;
+    height: 37px;
 }
 
 .username {
@@ -1586,16 +1586,45 @@ body {
     display: none;
     width: 100%;
     box-sizing: border-box;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
     opacity: 1;
     transition: opacity 0.1s ease-in-out;
     /* Ensure status message doesn't interfere with scrolling */
     position: relative;
     z-index: 1;
     flex-shrink: 0;
+    max-height: 120px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Status message scrollbar styling */
+.status-message::-webkit-scrollbar {
+    width: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.status-message::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.status-message::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.status-message::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
 }
 
 .status-message.fading {
@@ -2005,6 +2034,14 @@ body.admin #remove-room-btn {
     /* Additional spacing for mobile scrolling */
     .mobile-error-space {
         margin-bottom: 2rem;
+    }
+    
+    /* Mobile-specific status message adjustments */
+    .status-message {
+        font-size: 12px;
+        padding: 6px 12px;
+        max-height: 100px;
+        margin-bottom: 0.5rem;
     }
 }
 

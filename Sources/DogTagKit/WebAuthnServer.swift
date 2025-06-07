@@ -92,14 +92,24 @@ public class WebAuthnServer {
             return HTTPResponse.error("Invalid request body - username required")
         }
         
-        do {
-            let options = try manager.generateRegistrationOptions(username: username)
-            print("[WebAuthnServer] Registration options generated for: \(username)")
-            return HTTPResponse.json(options)
-        } catch {
-            print("[WebAuthnServer] Registration begin failed: \(error)")
-            return HTTPResponse.error("Failed to generate registration options: \(error.localizedDescription)")
+        // Check browser type and use compatible options
+        let userAgent = request.headers["user-agent"] ?? ""
+        let isChrome = userAgent.contains("Chrome") && !userAgent.contains("Edg") // Chrome but not Edge
+        let isWindows11 = userAgent.contains("Windows NT 10.0")
+        
+        let options: [String: Any]
+        if isChrome {
+            print("[WebAuthnServer] Using Chrome-compatible registration options for: \(username)")
+            options = manager.generateChromeCompatibleRegistrationOptions(username: username)
+        } else if isWindows11 {
+            print("[WebAuthnServer] Using Windows 11 compatible registration options for: \(username)")
+            options = manager.generateWindows11CompatibleRegistrationOptions(username: username)
+        } else {
+            options = manager.generateRegistrationOptions(username: username)
         }
+        
+        print("[WebAuthnServer] Registration options generated for: \(username)")
+        return HTTPResponse.json(options)
     }
     
     private func handleRegisterComplete(_ request: HTTPRequest) -> HTTPResponse {

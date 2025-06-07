@@ -663,30 +663,20 @@ public class WebAuthnManager {
         }
     }
     
-    public func generateRegistrationOptions(username: String, enablePasskeys: Bool = true) throws -> [String: Any] {
+    public func generateRegistrationOptions(username: String, displayName: String? = nil, userIconUrl: String = "", enablePasskeys: Bool = true) -> [String: Any] {
         let challenge = generateChallenge()
         let userId = generateUserId()
         
-        // Use configured icons or generate sensible defaults
-        // Prefer HTTPS for better passkey manager compatibility
-        let rpIconUrl = rpIcon ?? "https://\(rpId)/icon-192.png"
-        let userIconUrl = defaultUserIcon ?? generateUserIcon(for: username)
-        let displayName = rpName ?? rpId
-        
-        var rpData: [String: Any] = [
-            "name": displayName,
-            "id": rpId
+        let rpData: [String: Any] = [
+            "id": rpId,
+            "name": rpName ?? rpId,
         ]
         
-        // Only add icon if we have one
-        if !rpIconUrl.isEmpty {
-            rpData["icon"] = rpIconUrl
-        }
-        
+        let displayNameToUse = displayName ?? username
         var userData: [String: Any] = [
             "id": userId,
             "name": username,
-            "displayName": username
+            "displayName": displayNameToUse
         ]
         
         // Only add user icon if we have one
@@ -702,16 +692,16 @@ public class WebAuthnManager {
             ["type": "public-key", "alg": -36]   // ES512 (maximum security)
         ]
         
-        // Authenticator selection for passkey support
+        // Authenticator selection for passkey support (less strict for better compatibility)
         var authenticatorSelection: [String: Any] = [
-            "userVerification": "required"
+            "userVerification": "preferred" // Changed from "required" to "preferred"
         ]
         
         if enablePasskeys {
             // For passkeys, prefer platform authenticators and enable resident keys
             authenticatorSelection["authenticatorAttachment"] = "platform"
-            authenticatorSelection["requireResidentKey"] = true
-            authenticatorSelection["residentKey"] = "required"
+            authenticatorSelection["requireResidentKey"] = false // Changed from true to false
+            authenticatorSelection["residentKey"] = "preferred"   // Changed from "required" to "preferred"
         } else {
             // For security keys, allow cross-platform authenticators
             authenticatorSelection["authenticatorAttachment"] = "cross-platform"
@@ -726,32 +716,114 @@ public class WebAuthnManager {
                 "user": userData,
                 "pubKeyCredParams": pubKeyCredParams,
                 "timeout": 300000, // 5 minutes for passkey setup
-                "attestation": "direct", // Request attestation for security validation
+                "attestation": "none", // Use "none" for privacy and Windows 11 compatibility
                 "authenticatorSelection": authenticatorSelection
             ]
         ]
         
-        // Add extensions for enhanced passkey support
+        // Add minimal extensions for better Windows 11 compatibility
         var extensions: [String: Any] = [:]
         
-        // Apple Passkeys: Enable large blob storage for additional data
-        extensions["largeBlob"] = ["support": "required"]
+        // Only add credProtect with less aggressive settings for Windows 11
+        if enablePasskeys {
+            extensions["credProtect"] = [
+                "credentialProtectionPolicy": 1, // userVerificationOptional (less restrictive)
+                "enforceCredentialProtectionPolicy": false // Don't enforce strictly
+            ]
+        }
         
-        // Credential Protection Extension (for enhanced security)
-        extensions["credProtect"] = [
-            "credentialProtectionPolicy": 3, // userVerificationRequired
-            "enforceCredentialProtectionPolicy": true
-        ]
-        
-        // Enterprise Attestation (for corporate environments)
-        extensions["enterpriseAttestation"] = ["rp": rpId]
-        
+        // Only add extensions if we have any
         if !extensions.isEmpty {
             if var publicKey = options["publicKey"] as? [String: Any] {
                 publicKey["extensions"] = extensions
                 options["publicKey"] = publicKey
             }
         }
+        
+        return options
+    }
+    
+    // Windows 11 compatible registration with minimal settings
+    public func generateWindows11CompatibleRegistrationOptions(username: String, displayName: String? = nil) -> [String: Any] {
+        let challenge = generateChallenge()
+        let userId = generateUserId()
+        
+        let rpData: [String: Any] = [
+            "id": rpId,
+            "name": rpName ?? rpId,
+        ]
+        
+        let displayNameToUse = displayName ?? username
+        let userData: [String: Any] = [
+            "id": userId,
+            "name": username,
+            "displayName": displayNameToUse
+        ]
+        
+        // Minimal credential parameters - only ES256 and RS256 for Windows 11
+        let pubKeyCredParams: [[String: Any]] = [
+            ["type": "public-key", "alg": -7],   // ES256 (universal support)
+            ["type": "public-key", "alg": -257]  // RS256 (Windows Hello preferred)
+        ]
+        
+        // Windows 11 compatible authenticator selection
+        let authenticatorSelection: [String: Any] = [
+            "authenticatorAttachment": "platform",
+            "userVerification": "preferred", // Less strict than "required"
+            "requireResidentKey": false,      // Less strict
+            "residentKey": "preferred"        // Less strict than "required"
+        ]
+        
+        let options: [String: Any] = [
+            "publicKey": [
+                "challenge": challenge,
+                "rp": rpData,
+                "user": userData,
+                "pubKeyCredParams": pubKeyCredParams,
+                "timeout": 120000, // Shorter timeout for better UX
+                "attestation": "none", // No attestation for privacy
+                "authenticatorSelection": authenticatorSelection
+                // No extensions for maximum compatibility
+            ]
+        ]
+        
+        return options
+    }
+    
+    // Chrome-compatible registration with absolutely minimal settings
+    public func generateChromeCompatibleRegistrationOptions(username: String, displayName: String? = nil) -> [String: Any] {
+        let challenge = generateChallenge()
+        let userId = generateUserId()
+        
+        let rpData: [String: Any] = [
+            "id": rpId,
+            "name": rpName ?? rpId
+        ]
+        
+        let displayNameToUse = displayName ?? username
+        let userData: [String: Any] = [
+            "id": userId,
+            "name": username,
+            "displayName": displayNameToUse
+        ]
+        
+        // Only ES256 - most universally supported
+        let pubKeyCredParams: [[String: Any]] = [
+            ["type": "public-key", "alg": -7]   // ES256 only
+        ]
+        
+        // Absolutely minimal options - let Chrome decide everything
+        let options: [String: Any] = [
+            "publicKey": [
+                "challenge": challenge,
+                "rp": rpData,
+                "user": userData,
+                "pubKeyCredParams": pubKeyCredParams,
+                "timeout": 60000,
+                "attestation": "none"
+                // No authenticatorSelection, no extensions, no requirements
+            ]
+        ]
         
         return options
     }
