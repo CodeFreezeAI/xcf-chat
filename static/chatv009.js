@@ -948,7 +948,10 @@ class ChatClient {
             
             // Always scroll to bottom for new messages if user was already at bottom
             if (wasScrolledToBottom) {
-                this.scrollToBottom(container);
+                // Use requestAnimationFrame to ensure smooth scroll on both desktop and mobile
+                requestAnimationFrame(() => {
+                    this.scrollToBottom(container);
+                });
             }
         }
     }
@@ -1060,33 +1063,19 @@ class ChatClient {
                 let attachmentHTML = '';
                 if (message.attachment) {
                     const attachment = message.attachment;
-                    if (attachment.isImage) {
-                        const imageUrl = `/files/${attachment.id}/${encodeURIComponent(attachment.originalFileName)}`;
-                        attachmentHTML = `
-                            <div class="message-attachment">
-                                <img src="${imageUrl}" 
-                                     alt="${attachment.originalFileName}"
-                                     class="message-attachment-image"
-                                     onclick="window.open('${imageUrl}', '_blank')">
-                            </div>
-                        `;
-                    } else {
-                        const fileUrl = `/files/${attachment.id}/${encodeURIComponent(attachment.originalFileName)}`;
-                        attachmentHTML = `
-                            <div class="message-attachment">
-                                <a href="${fileUrl}" 
-                                   class="message-attachment-file" 
-                                   target="_blank" 
-                                   download="${attachment.originalFileName}">
-                                    <div class="message-attachment-icon">${this.getFileIcon(attachment.mimeType)}</div>
-                                    <div class="message-attachment-info">
-                                        <div class="message-attachment-name">${attachment.originalFileName}</div>
-                                        <div class="message-attachment-size">${this.formatFileSize(attachment.fileSize)}</div>
-                                    </div>
-                                </a>
-                            </div>
-                        `;
-                    }
+                    attachmentHTML = `
+                        <div class="message-attachment">
+                            <a href="${attachment.url}" class="message-attachment-file" target="_blank" rel="noopener noreferrer">
+                                <div class="message-attachment-icon">
+                                    ${this.getFileIcon(attachment.mimeType)}
+                                </div>
+                                <div class="message-attachment-info">
+                                    <div class="message-attachment-name">${this.escapeHtml(attachment.name)}</div>
+                                    <div class="message-attachment-size">${this.formatFileSize(attachment.size)}</div>
+                                </div>
+                            </a>
+                        </div>
+                    `;
                 }
                 
                 messageEl.innerHTML = `
@@ -1123,10 +1112,10 @@ class ChatClient {
             this.applyAllMessageEmojiStyling();
         }, 10); // Very short delay to ensure DOM is fully updated
         
-        // Enhanced mobile-friendly scroll to bottom
-        if (wasScrolledToBottom || this.messages.length === 1) {
+        // Always scroll to bottom after rendering to ensure latest messages are visible
+        requestAnimationFrame(() => {
             this.scrollToBottom(container);
-        }
+        });
     }
     
     updateRoomsList() {
@@ -1246,61 +1235,28 @@ class ChatClient {
     
     // Enhanced scroll to bottom that works reliably on mobile
     scrollToBottom(container) {
-        // Multiple approaches for maximum mobile compatibility
-        
-        // Method 1: Direct scroll
-        container.scrollTop = container.scrollHeight;
-        
-        // Method 2: Smooth scroll for modern browsers
+        // Use smooth scrolling for both desktop and mobile
         if (container.scrollTo) {
             container.scrollTo({
                 top: container.scrollHeight,
-                behavior: 'auto' // Use 'auto' instead of 'smooth' for immediate effect
+                behavior: 'smooth'
             });
+        } else {
+            // Fallback for older browsers
+            container.scrollTop = container.scrollHeight;
         }
-        
-        // Method 3: Mobile-specific handling with slight delay
+
+        // Ensure scroll completes on mobile after any layout changes
         if (window.innerWidth <= 768) {
-            // On mobile, ensure scroll happens after any keyboard/viewport changes
             requestAnimationFrame(() => {
-                container.scrollTop = container.scrollHeight;
-                
-                // Additional mobile scroll attempt after layout is stable
-                setTimeout(() => {
-                    container.scrollTop = container.scrollHeight;
-                }, 50);
-            });
-        }
-        
-        // Method 4: Force scroll for stubborn browsers
-        setTimeout(() => {
-            if (!this.isScrolledToBottom(container)) {
-                container.scrollTop = container.scrollHeight;
-                
-                // Final attempt with scrollIntoView if still not at bottom
-                const lastMessage = container.lastElementChild;
-                if (lastMessage) {
-                    lastMessage.scrollIntoView({ 
-                        behavior: 'auto', 
-                        block: 'end',
-                        inline: 'nearest'
+                if (container.scrollTo) {
+                    container.scrollTo({
+                        top: container.scrollHeight,
+                        behavior: 'smooth'
                     });
-                }
-            }
-        }, 100);
-        
-        // Method 5: Mobile-specific additional scroll handling
-        if (window.innerWidth <= 768) {
-            // Use requestAnimationFrame for smooth mobile scrolling
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
+                } else {
                     container.scrollTop = container.scrollHeight;
-                    
-                    // Force repaint to ensure scroll position is applied
-                    container.style.display = 'none';
-                    container.offsetHeight; // Trigger reflow
-                    container.style.display = 'flex';
-                });
+                }
             });
         }
     }
@@ -2143,6 +2099,10 @@ async function loginWithWebAuthn() {
         };
         
         const verifyResponse = await fetch('/webauthn/authenticate/complete', {
+
+            
+
+            
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(credential)

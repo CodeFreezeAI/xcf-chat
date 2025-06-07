@@ -1,5 +1,3 @@
-
-
 import Foundation
 import CryptoKit
 import SwiftData
@@ -693,6 +691,71 @@ public class WebAuthnManager {
         }
     }
     
+    private func updateSingleCredentialInSwiftData(credential: WebAuthnCredential) {
+        print("[WebAuthn] 🔄 Updating single credential for user: \(credential.username)")
+        
+        guard let container = modelContainer else {
+            print("[WebAuthn] ❌ CRITICAL: No model container available for updating credential!")
+            print("[WebAuthn] ❌ Falling back to full save...")
+            saveCredentialsToSwiftData()
+            return
+        }
+        
+        do {
+            let context = ModelContext(container)
+            print("[WebAuthn] ✅ Created context for updating single credential")
+            
+            // Find the existing credential model by username
+            let fetchDescriptor = FetchDescriptor<WebAuthnCredentialModel>(
+                predicate: #Predicate { model in model.username == credential.username }
+            )
+            
+            let existingModels = try context.fetch(fetchDescriptor)
+            
+            if let existingModel = existingModels.first {
+                // Update the existing model
+                existingModel.signCount = credential.signCount
+                existingModel.lastLoginIP = credential.lastLoginIP
+                existingModel.lastLoginAt = credential.lastLoginAt
+                existingModel.emoji = credential.emoji
+                existingModel.isEnabled = credential.isEnabled
+                existingModel.isAdmin = credential.isAdmin
+                
+                print("[WebAuthn] ✅ Updated existing credential model for user: \(credential.username)")
+            } else {
+                // Create new model if it doesn't exist
+                let newModel = WebAuthnCredentialModel(
+                    id: credential.id,
+                    publicKey: credential.publicKey,
+                    signCount: credential.signCount,
+                    username: credential.username,
+                    algorithm: credential.algorithm,
+                    protocolVersion: credential.protocolVersion,
+                    attestationFormat: credential.attestationFormat,
+                    aaguid: credential.aaguid,
+                    isDiscoverable: credential.isDiscoverable,
+                    backupEligible: credential.backupEligible,
+                    backupState: credential.backupState,
+                    emoji: credential.emoji,
+                    lastLoginIP: credential.lastLoginIP,
+                    lastLoginAt: credential.lastLoginAt,
+                    isEnabled: credential.isEnabled,
+                    isAdmin: credential.isAdmin
+                )
+                context.insert(newModel)
+                print("[WebAuthn] ✅ Created new credential model for user: \(credential.username)")
+            }
+            
+            try context.save()
+            print("[WebAuthn] ✅ Successfully updated single credential in Swift Data for user: \(credential.username)")
+            
+        } catch {
+            print("[WebAuthn] ❌ Failed to update single credential in Swift Data: \(error)")
+            print("[WebAuthn] ❌ Falling back to full save...")
+            saveCredentialsToSwiftData()
+        }
+    }
+    
     private func saveCredentialsToJSON() {
         let arr = Array(credentials.values)
         let url = URL(fileURLWithPath: credentialsFile)
@@ -1352,9 +1415,16 @@ public class WebAuthnManager {
         
         // Update user login information
         try? userManager.updateUserLogin(username: credential.username, signCount: newSignCount, clientIP: clientIP)
-        print("[WebAuthn] Updated user record for \(credential.username) with sign count \(newSignCount) and IP \(clientIP ?? "unknown")")
+        print("[WebAuthn] Login update for \(credential.username) handled by WebAuthn credentials")
         
-        saveCredentials()
+        // Use efficient single-credential update for SwiftData, full save for JSON
+        switch storageBackend {
+        case .swiftData:
+            updateSingleCredentialInSwiftData(credential: updatedCredential)
+        case .json:
+            saveCredentials()
+        }
+        
         print("[WebAuthn] ✅ Sign count update completed successfully")
     }
     
@@ -1836,7 +1906,14 @@ public class WebAuthnManager {
         
         // Update in memory and save
         credentials[username] = updatedCredential
-        saveCredentials()
+        
+        // Use efficient single-credential update for SwiftData, full save for JSON
+        switch storageBackend {
+        case .swiftData:
+            updateSingleCredentialInSwiftData(credential: updatedCredential)
+        case .json:
+            saveCredentials()
+        }
         
         print("[WebAuthn] Updated emoji for user \(username) to \(emoji)")
         return true
@@ -1872,7 +1949,14 @@ public class WebAuthnManager {
         
         // Update in memory and save
         credentials[username] = updatedCredential
-        saveCredentials()
+        
+        // Use efficient single-credential update for SwiftData, full save for JSON
+        switch storageBackend {
+        case .swiftData:
+            updateSingleCredentialInSwiftData(credential: updatedCredential)
+        case .json:
+            saveCredentials()
+        }
         
         print("[WebAuthn] Updated admin status for user \(username) to \(isAdmin)")
         return true
@@ -1908,7 +1992,14 @@ public class WebAuthnManager {
         
         // Update in memory and save
         credentials[username] = updatedCredential
-        saveCredentials()
+        
+        // Use efficient single-credential update for SwiftData, full save for JSON
+        switch storageBackend {
+        case .swiftData:
+            updateSingleCredentialInSwiftData(credential: updatedCredential)
+        case .json:
+            saveCredentials()
+        }
         
         print("[WebAuthn] Updated enabled status for user \(username) to \(isEnabled)")
         return true

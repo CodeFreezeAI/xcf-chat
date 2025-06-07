@@ -685,6 +685,8 @@ body {
     gap: 0.75rem;
     -webkit-overflow-scrolling: touch;
     min-height: 0;
+    scroll-behavior: smooth;
+    -webkit-scroll-behavior: smooth;
 }
 
 .welcome-message {
@@ -1078,8 +1080,8 @@ body {
         gap: 0.75rem;
         -webkit-overflow-scrolling: touch;
         overscroll-behavior: contain;
-        -webkit-scroll-behavior: smooth;
         scroll-behavior: smooth;
+        -webkit-scroll-behavior: smooth;
         min-height: 0;
         /* Improve mobile scrolling performance */
         transform: translateZ(0);
@@ -1939,7 +1941,6 @@ body.admin #remove-room-btn {
         width: 90%;
         max-width: none;
         margin: 1rem;
-        padding: 1.5rem;
     }
 
     .auth-options {
