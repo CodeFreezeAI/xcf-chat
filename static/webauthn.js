@@ -530,20 +530,26 @@ class WebAuthnClient {
             
             // Safari-specific handling - NUCLEAR OPTION: Force security key only
             if (isSafari) {
-                console.log('🍎 Safari detected: NUCLEAR SECURITY KEY ONLY MODE');
+                console.log('🍎 Safari detected: SECURITY KEY ONLY MODE');
                 
-                // Safari nuclear option: Remove ALL credentials to force external authenticator
+                // Safari requires specific configuration to properly prompt for YubiKey
                 securityKeyOptions = {
                     challenge: options.publicKey.challenge,
-                    timeout: 120000, // Extra long timeout
+                    timeout: 120000, // Extra long timeout for YubiKey insertion
                     rpId: options.publicKey.rpId,
                     userVerification: 'discouraged',
-                    // COMPLETELY REMOVE allowCredentials - this should force Safari to show security key prompt
-                    // allowCredentials: undefined (don't include this property at all)
+                    allowCredentials: [], // Empty array forces Safari to prompt for any external authenticator
+                    authenticatorSelection: {
+                        authenticatorAttachment: 'cross-platform',
+                        userVerification: 'discouraged'
+                    }
                 };
                 
-                console.log('🍎 Safari: NUCLEAR MODE - No allowCredentials, security key only');
-                onStatus('Safari: Should prompt for YubiKey directly now...', 'info');
+                console.log('🍎 Safari: Security key options configured for external authenticator');
+                onStatus('Safari: Insert and touch your YubiKey when it blinks...', 'info');
+                
+                // Add a small delay before calling get() to ensure Safari is ready
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
             }
             

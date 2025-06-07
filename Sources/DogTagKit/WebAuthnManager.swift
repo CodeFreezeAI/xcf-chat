@@ -695,22 +695,13 @@ public class WebAuthnManager {
             ["type": "public-key", "alg": -36]   // ES512 (maximum security)
         ]
         
-        // Authenticator selection for passkey support (less strict for better compatibility)
-        var authenticatorSelection: [String: Any] = [
-            "userVerification": "preferred" // Changed from "required" to "preferred"
+        // Universal authenticator selection - enables Safari "Other Options"
+        // By not specifying authenticatorAttachment, Safari shows both Touch ID and security key options
+        let authenticatorSelection: [String: Any] = [
+            "userVerification": "preferred",  // Flexible verification for all authenticator types
+            "requireResidentKey": false,      // Don't require resident keys
+            "residentKey": "preferred"        // Prefer but don't require resident keys for better compatibility
         ]
-        
-        if enablePasskeys {
-            // For passkeys, prefer platform authenticators and enable resident keys
-            authenticatorSelection["authenticatorAttachment"] = "platform"
-            authenticatorSelection["requireResidentKey"] = false // Changed from true to false
-            authenticatorSelection["residentKey"] = "preferred"   // Changed from "required" to "preferred"
-        } else {
-            // For security keys, allow cross-platform authenticators
-            authenticatorSelection["authenticatorAttachment"] = "cross-platform"
-            authenticatorSelection["requireResidentKey"] = false
-            authenticatorSelection["residentKey"] = "discouraged"
-        }
         
         var options: [String: Any] = [
             "publicKey": [
@@ -866,6 +857,45 @@ public class WebAuthnManager {
                 "rpId": rpId,
                 "allowCredentials": allowCredentials,
                 "userVerification": "preferred"  // Apple passkeys should use biometric, security keys flexible
+            ]
+        ]
+        
+        return options
+    }
+    
+    // Security key specific authentication options - optimized for external authenticators
+    public func generateSecurityKeyAuthenticationOptions(username: String?) throws -> [String: Any] {
+        let challenge = generateChallenge()
+        
+        var allowCredentials: [[String: Any]] = []
+        
+        if let username = username, !username.isEmpty {
+            // If username is provided, look for security key credentials for this user
+            guard let credential = getCredential(username: username) else {
+                throw WebAuthnError.credentialNotFound
+            }
+            allowCredentials = [[
+                "type": "public-key",
+                "id": credential.id,
+                "transports": ["usb", "nfc", "hybrid"] // External authenticator transports only
+            ]]
+        } else {
+            // For usernameless security key auth, use empty allowCredentials
+            // This forces the authenticator to use any available external authenticator
+            allowCredentials = []
+        }
+        
+        let options: [String: Any] = [
+            "publicKey": [
+                "challenge": challenge,
+                "timeout": 120000, // Longer timeout for security key insertion/setup
+                "rpId": rpId,
+                "allowCredentials": allowCredentials,
+                "userVerification": "discouraged", // Security keys typically don't need UV
+                "authenticatorSelection": [
+                    "authenticatorAttachment": "cross-platform",
+                    "userVerification": "discouraged"
+                ]
             ]
         ]
         

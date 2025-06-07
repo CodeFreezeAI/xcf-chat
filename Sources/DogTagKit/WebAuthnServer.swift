@@ -193,10 +193,18 @@ public class WebAuthnServer {
         }
         
         let username = json["username"] as? String // Optional for usernameless flow
+        let securityKeyOnly = json["securityKeyOnly"] as? Bool ?? false
         
         do {
-            let options = try manager.generateAuthenticationOptions(username: username)
-            print("[WebAuthnServer] Authentication options generated for: \(username ?? "usernameless")")
+            let options: [String: Any]
+            if securityKeyOnly {
+                // Generate security key specific authentication options
+                options = try manager.generateSecurityKeyAuthenticationOptions(username: username)
+                print("[WebAuthnServer] Security key authentication options generated for: \(username ?? "usernameless")")
+            } else {
+                options = try manager.generateAuthenticationOptions(username: username)
+                print("[WebAuthnServer] Standard authentication options generated for: \(username ?? "usernameless")")
+            }
             return HTTPResponse.json(options)
         } catch {
             print("[WebAuthnServer] Authentication begin failed: \(error)")
