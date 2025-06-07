@@ -1570,6 +1570,20 @@ function toggleRoomsList() {
     }
 }
 
+// Global unhandled promise rejection handler
+window.addEventListener('unhandledrejection', function(event) {
+    console.error('🔴 Unhandled Promise Rejection:', event.reason);
+    
+    // Show user-friendly error message
+    if (typeof showLoginStatus === 'function') {
+        const errorMessage = event.reason?.message || event.reason || 'An unexpected error occurred';
+        showLoginStatus(`❌ Error: ${errorMessage}`, 'error');
+    }
+    
+    // Prevent default browser error handling
+    event.preventDefault();
+});
+
 // Ensure initial state is correct on page load
 document.addEventListener('DOMContentLoaded', () => {
     // Mobile viewport fix for iOS Safari
@@ -2373,140 +2387,301 @@ if ('virtualKeyboard' in navigator) {
 // ===== WEBAUTHN WRAPPER FUNCTIONS =====
 // These functions handle DOM interactions and use the pure WebAuthn client
 
-async function registerWebAuthn() {
-    console.log('🔵 Starting WebAuthn registration...');
-    
-    // Get username from DOM
-    const usernameElement = document.getElementById('nickname-input');
-    const username = usernameElement ? usernameElement.value : '';
-    
-    console.log('🔵 Username:', username);
-    
-    // Get emoji from global variable (fallback to default)
-    const emoji = (typeof window !== 'undefined' && window.currentEmoji) ? window.currentEmoji : '👤';
-    
-    console.log('🔵 Emoji:', emoji);
-    
-    // Create browser API object
-    const browserAPI = {
-        fetch: window.fetch,
-        atob: window.atob,
-        btoa: window.btoa,
-        credentialsAPI: navigator.credentials
-    };
-    
-    const result = await webAuthnClient.register(username, emoji, {
-        onStatus: (message, type) => {
-            console.log('🔵 Status:', message, type);
-            showLoginStatus(message, type);
-        },
-        onError: (error) => {
-            console.log('🔴 Error:', error);
-            // Handle specific error cases for account lockout
-            let displayError = error;
-            if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
-                displayError = 'Account Lockout';
-            }
-            showLoginStatus(`❌ ${displayError}`, 'error');
-        },
-        onSuccess: () => {
-            console.log('🟢 Success!');
-            showLoginStatus('✅ Registration Success', 'success');
+// Synchronous wrapper for HTML onclick handlers
+function registerWebAuthnSync() {
+    registerWebAuthn().catch(error => {
+        console.error('🔴 Registration wrapper error:', error);
+        if (typeof showLoginStatus === 'function') {
+            showLoginStatus(`❌ Registration Error: ${error.message || error}`, 'error');
         }
-    }, browserAPI);
-    
-    console.log('🔵 Registration result:', result);
-    return result;
+    });
+}
+
+// Synchronous wrapper for HTML onclick handlers
+function loginWithWebAuthnSync() {
+    loginWithWebAuthn().catch(error => {
+        console.error('🔴 Login wrapper error:', error);
+        if (typeof showLoginStatus === 'function') {
+            showLoginStatus(`❌ Login Error: ${error.message || error}`, 'error');
+        }
+    });
+}
+
+// Synchronous wrapper for security key login
+function loginWithSecurityKeySync() {
+    loginWithSecurityKey().catch(error => {
+        console.error('🔴 Security key login wrapper error:', error);
+        if (typeof showLoginStatus === 'function') {
+            showLoginStatus(`❌ Security Key Error: ${error.message || error}`, 'error');
+        }
+    });
+}
+
+async function registerWebAuthn() {
+    try {
+        console.log('🔵 Starting WebAuthn registration...');
+        
+        // Get username from DOM
+        const usernameElement = document.getElementById('nickname-input');
+        const username = usernameElement ? usernameElement.value : '';
+        
+        console.log('🔵 Username:', username);
+        
+        // Get emoji from global variable (fallback to default)
+        const emoji = (typeof window !== 'undefined' && window.currentEmoji) ? window.currentEmoji : '👤';
+        
+        console.log('🔵 Emoji:', emoji);
+        
+        // Create browser API object
+        const browserAPI = {
+            fetch: window.fetch,
+            atob: window.atob,
+            btoa: window.btoa,
+            credentialsAPI: navigator.credentials
+        };
+        
+        const result = await webAuthnClient.register(username, emoji, {
+            onStatus: (message, type) => {
+                console.log('🔵 Status:', message, type);
+                showLoginStatus(message, type);
+            },
+            onError: (error) => {
+                console.log('🔴 Error:', error);
+                // Handle specific error cases for account lockout
+                let displayError = error;
+                if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
+                    displayError = 'Account Lockout';
+                }
+                showLoginStatus(`❌ ${displayError}`, 'error');
+            },
+            onSuccess: () => {
+                console.log('🟢 Success!');
+                showLoginStatus('✅ Registration Success', 'success');
+            }
+        }, browserAPI);
+        
+        console.log('🔵 Registration result:', result);
+        return result;
+        
+    } catch (error) {
+        console.error('🔴 Unhandled registration error:', error);
+        showLoginStatus(`❌ Registration Error: ${error.message || error}`, 'error');
+        return { success: false, error: error.message || error };
+    }
 }
 
 async function loginWithWebAuthn() {
-    console.log('🔵 Starting WebAuthn login...');
-    
-    // Get username from DOM
-    const usernameElement = document.getElementById('nickname-input');
-    const username = usernameElement ? usernameElement.value.trim() : '';
-    
-    // Use null for usernameless authentication if no username provided
-    const authUsername = username.length > 0 ? username : null;
-    
-    console.log('🔵 Username:', authUsername === null ? 'usernameless' : authUsername);
-    
-    // Create browser API object
-    const browserAPI = {
-        fetch: window.fetch,
-        atob: window.atob,
-        btoa: window.btoa,
-        credentialsAPI: navigator.credentials
-    };
+    try {
+        console.log('🔵 Starting WebAuthn login...');
+        
+        // Get username from DOM
+        const usernameElement = document.getElementById('nickname-input');
+        const username = usernameElement ? usernameElement.value.trim() : '';
+        
+        // Use null for usernameless authentication if no username provided
+        const authUsername = username.length > 0 ? username : null;
+        
+        console.log('🔵 Username:', authUsername === null ? 'usernameless' : authUsername);
+        
+        // Create browser API object
+        const browserAPI = {
+            fetch: window.fetch,
+            atob: window.atob,
+            btoa: window.btoa,
+            credentialsAPI: navigator.credentials
+        };
 
-    const result = await webAuthnClient.authenticate(authUsername, {
-        onStatus: (message, type) => {
-            console.log('🔵 Status:', message, type);
-            showLoginStatus(message, type);
-        },
-        onError: (error) => {
-            console.log('🔴 Error:', error);
-            // Handle specific error cases for account lockout
-            let displayError = error;
-            if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
-                displayError = 'Account Lockout';
-            } else if (authUsername === null) {
-                // Enhanced error messages for usernameless authentication
-                if (error.includes('No credentials available')) {
-                    displayError = 'No Passkeys Found\nPlease register a passkey first\nor enter a username to login';
-                } else if (error.includes('NotAllowedError') || error.includes('cancelled')) {
-                    displayError = 'Authentication Cancelled\nPlease try again or enter a username\nif this issue persists';
+        const result = await webAuthnClient.authenticate(authUsername, {
+            onStatus: (message, type) => {
+                console.log('🔵 Status:', message, type);
+                showLoginStatus(message, type);
+            },
+            onError: (error) => {
+                console.log('🔴 Error:', error);
+                // Handle specific error cases for account lockout
+                let displayError = error;
+                if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
+                    displayError = 'Account Lockout';
+                } else if (authUsername === null) {
+                    // Enhanced error messages for usernameless authentication
+                    if (error.includes('No credentials available')) {
+                        displayError = 'No Credentials Found\nPlease insert your security key\nor register a new credential';
+                    } else if (error.includes('NotAllowedError') || error.includes('cancelled')) {
+                        displayError = 'Authentication Cancelled\nPlease try again or enter a username\nif this issue persists';
+                    }
                 }
-            }
-            showLoginStatus(`❌ ${displayError}`, 'error');
-        },
-        onSuccess: (data) => {
-            console.log('🟢 Success!', data);
-            const successMessage = authUsername === null ? '✅ Passkey Authentication Success' : '✅ Login Success';
-            showLoginStatus(successMessage, 'success');
-            
-            // Update username field with the discovered username if it was usernameless auth
-            if (authUsername === null && data.username) {
-                const usernameElement = document.getElementById('nickname-input');
-                if (usernameElement) {
-                    usernameElement.value = data.username;
-                    console.log(`🏷️ Discovered username: ${data.username}`);
+                showLoginStatus(`❌ ${displayError}`, 'error');
+            },
+            onSuccess: (data) => {
+                console.log('🟢 Success!', data);
+                
+                // Determine success message based on authentication method
+                let successMessage = '✅ Login Success';
+                if (data.method === 'security-key') {
+                    successMessage = authUsername === null ? '✅ Security Key Authentication Success' : '✅ Security Key Login Success';
+                } else if (data.method === 'passkey') {
+                    successMessage = authUsername === null ? '✅ Passkey Authentication Success' : '✅ Passkey Login Success';
+                } else {
+                    successMessage = authUsername === null ? '✅ Authentication Success' : '✅ Login Success';
                 }
                 
-                // Load user's emoji if available
-                const userEmoji = localStorage.getItem(`userEmoji_${data.username}`);
-                if (userEmoji) {
-                    const selectedEmojiElement = document.getElementById('selected-emoji');
-                    if (selectedEmojiElement) {
-                        selectedEmojiElement.textContent = userEmoji;
+                showLoginStatus(successMessage, 'success');
+                
+                // Update username field with the discovered username if it was usernameless auth
+                if (authUsername === null && data.username) {
+                    const usernameElement = document.getElementById('nickname-input');
+                    if (usernameElement) {
+                        usernameElement.value = data.username;
+                        console.log(`🏷️ Discovered username: ${data.username}`);
                     }
                     
-                    // Update emoji picker selection
-                    document.querySelectorAll('.emoji-option').forEach(option => {
-                        option.classList.remove('selected');
-                        if (option.textContent === userEmoji) {
-                            option.classList.add('selected');
+                    // Load user's emoji if available
+                    const userEmoji = localStorage.getItem(`userEmoji_${data.username}`);
+                    if (userEmoji) {
+                        const selectedEmojiElement = document.getElementById('selected-emoji');
+                        if (selectedEmojiElement) {
+                            selectedEmojiElement.textContent = userEmoji;
                         }
-                    });
-                    
-                    window.currentEmoji = userEmoji;
-                    if (typeof currentEmoji !== 'undefined') {
-                        currentEmoji = userEmoji;
+                        
+                        // Update emoji picker selection
+                        document.querySelectorAll('.emoji-option').forEach(option => {
+                            option.classList.remove('selected');
+                            if (option.textContent === userEmoji) {
+                                option.classList.add('selected');
+                            }
+                        });
+                        
+                        window.currentEmoji = userEmoji;
+                        if (typeof currentEmoji !== 'undefined') {
+                            currentEmoji = userEmoji;
+                        }
                     }
                 }
+                
+                // Join the chat after successful authentication
+                setTimeout(() => {
+                    if (typeof joinChat === 'function') {
+                        joinChat();
+                    }
+                }, 1000);
             }
-            
-            // Join the chat after successful authentication
-            setTimeout(() => {
-                if (typeof joinChat === 'function') {
-                    joinChat();
-                }
-            }, 1000);
-        }
-    }, browserAPI);
+        }, browserAPI);
 
-    console.log('🔵 Login result:', result);
-    return result;
+        console.log('🔵 Login result:', result);
+        return result;
+        
+    } catch (error) {
+        console.error('🔴 Unhandled login error:', error);
+        showLoginStatus(`❌ Login Error: ${error.message || error}`, 'error');
+        return { success: false, error: error.message || error };
+    }
+}
+
+async function loginWithSecurityKey() {
+    try {
+        console.log('🔑 Starting security key login...');
+        
+        // Get username from DOM
+        const usernameElement = document.getElementById('nickname-input');
+        const username = usernameElement ? usernameElement.value.trim() : '';
+        
+        // Use null for usernameless authentication if no username provided
+        const authUsername = username.length > 0 ? username : null;
+        
+        console.log('🔑 Username:', authUsername === null ? 'usernameless' : authUsername);
+        
+        // Safari-specific pre-check
+        const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
+        if (isSafari && authUsername === null) {
+            console.log('🍎 Safari requires username for security key authentication');
+            showLoginStatus('Safari requires a username\nfor security key authentication', 'error');
+            return { success: false, error: 'Username required for Safari security key authentication' };
+        }
+        
+        // Create browser API object
+        const browserAPI = {
+            fetchFn: window.fetch,
+            atobFn: window.atob,
+            btoaFn: window.btoa,
+            credentialsAPI: navigator.credentials
+        };
+
+        const result = await webAuthnClient.trySecurityKeyAuthentication(authUsername, {
+            onStatus: (message, type) => {
+                console.log('🔑 Status:', message, type);
+                showLoginStatus(message, type);
+            },
+            onError: (error) => {
+                console.log('🔴 Error:', error);
+                // Handle specific error cases for account lockout
+                let displayError = error;
+                if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
+                    displayError = 'Account Lockout';
+                } else if (authUsername === null) {
+                    // Enhanced error messages for usernameless authentication
+                    if (error.includes('No credentials available') || error.includes('No security key credentials found')) {
+                        displayError = 'No Security Key Found\nPlease insert your YubiKey\nor security key and try again';
+                    } else if (error.includes('NotAllowedError') || error.includes('cancelled')) {
+                        displayError = 'Security Key Cancelled\nPlease try again or enter a username\nif this issue persists';
+                    }
+                }
+                showLoginStatus(`❌ ${displayError}`, 'error');
+            },
+            onSuccess: (data) => {
+                console.log('🟢 Success!', data);
+                
+                // Success message for security key
+                let successMessage = authUsername === null ? '✅ Security Key Authentication Success' : '✅ Security Key Login Success';
+                showLoginStatus(successMessage, 'success');
+                
+                // Update username field with the discovered username if it was usernameless auth
+                if (authUsername === null && data.username) {
+                    const usernameElement = document.getElementById('nickname-input');
+                    if (usernameElement) {
+                        usernameElement.value = data.username;
+                        console.log(`🏷️ Discovered username: ${data.username}`);
+                    }
+                    
+                    // Load user's emoji if available
+                    const userEmoji = localStorage.getItem(`userEmoji_${data.username}`);
+                    if (userEmoji) {
+                        const selectedEmojiElement = document.getElementById('selected-emoji');
+                        if (selectedEmojiElement) {
+                            selectedEmojiElement.textContent = userEmoji;
+                        }
+                        
+                        // Update emoji picker selection
+                        document.querySelectorAll('.emoji-option').forEach(option => {
+                            option.classList.remove('selected');
+                            if (option.textContent === userEmoji) {
+                                option.classList.add('selected');
+                            }
+                        });
+                        
+                        window.currentEmoji = userEmoji;
+                        if (typeof currentEmoji !== 'undefined') {
+                            currentEmoji = userEmoji;
+                        }
+                    }
+                }
+                
+                // Join the chat after successful authentication
+                setTimeout(() => {
+                    if (typeof joinChat === 'function') {
+                        joinChat();
+                    }
+                }, 1000);
+            }
+        }, browserAPI);
+
+        console.log('🔑 Security key result:', result);
+        return result;
+        
+    } catch (error) {
+        console.error('🔴 Unhandled security key error:', error);
+        showLoginStatus(`❌ Security Key Error: ${error.message || error}`, 'error');
+        return { success: false, error: error.message || error };
+    }
 }
 
 

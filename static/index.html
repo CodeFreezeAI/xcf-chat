@@ -117,8 +117,9 @@
                         <input type="text" id="nickname-input" placeholder="Enter your username" maxlength="20" autocomplete="username" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
                         <div class="auth-options" id="login-buttons-anchor">
                             <!-- WebAuthn buttons support Windows Hello, Touch ID, Face ID, and security keys -->
-                            <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
-                            <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
+                            <button id="webauthn-register-btn" onclick="registerWebAuthnSync()">Registration</button>
+                            <button id="webauthn-login-btn" onclick="loginWithWebAuthnSync()">Login with Passkey</button>
+                            <button id="webauthn-security-key-btn" onclick="loginWithSecurityKeySync()" style="background-color: #007AFF; color: white;">Use Security Key</button>
                             <div id="login-status" class="status-message mobile-error-space"></div>
                         </div>
                     </div>

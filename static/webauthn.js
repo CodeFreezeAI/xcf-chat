@@ -148,11 +148,15 @@ class WebAuthnClient {
     async register(username, emoji = '👤', callbacks = {}, browserAPI = {}) {
         console.log(`🚀 WebAuthn registration started for username: "${username}"`);
         
+        // Destructure callbacks early to ensure they're always available
+        const { onStatus = () => {}, onError = () => {}, onSuccess = () => {} } = callbacks;
+        
         // FIRST CHECK: Validate username for ALL flows and browsers
         if (!username || username.trim() === '') {
-            const { onStatus = () => {} } = callbacks;
             onStatus('Username required for registration', 'error');
-            throw new Error('Username Required\n\nPlease enter a username before registering.');
+            const error = new Error('Username Required\n\nPlease enter a username before registering.');
+            onError(error.message);
+            throw error;
         }
         
         // Clean username
@@ -162,11 +166,12 @@ class WebAuthnClient {
         try {
             if (this.inProgress) {
                 console.log('WebAuthn operation already in progress, ignoring duplicate call');
-                return { success: false, error: 'Operation in progress' };
+                const error = 'Operation in progress';
+                onError(error);
+                return { success: false, error };
             }
 
             this.inProgress = true;
-            const { onStatus = () => {}, onError = () => {}, onSuccess = () => {} } = callbacks;
             const { 
                 fetch: fetchFn = fetch, 
                 atob: atobFn = atob, 
@@ -393,15 +398,19 @@ class WebAuthnClient {
         }
     }
 
-    // Authenticate with existing WebAuthn credential
+    // Authenticate with existing WebAuthn credential - with fallback support
     async authenticate(username = null, callbacks = {}, browserAPI = {}) {
+        // Destructure callbacks early to ensure they're always available
+        const { onStatus = () => {}, onError = () => {}, onSuccess = () => {} } = callbacks;
+        
         if (this.inProgress) {
             console.log('WebAuthn operation already in progress, ignoring duplicate call');
-            return { success: false, error: 'Operation in progress' };
+            const error = 'Operation in progress';
+            onError(error);
+            return { success: false, error };
         }
 
         this.inProgress = true;
-        const { onStatus = () => {}, onError = () => {}, onSuccess = () => {} } = callbacks;
         const { 
             fetch: fetchFn = fetch, 
             atob: atobFn = atob, 
@@ -410,10 +419,70 @@ class WebAuthnClient {
         } = browserAPI;
 
         try {
-            onStatus('Preparing login...', 'info');
+            onStatus('Preparing passkey login...', 'info');
             
-            // Prepare request body - send null for usernameless authentication
-            const requestBody = username === null ? {} : { username: username };
+            // Only try passkey authentication (no automatic fallback to security keys)
+            const passkeyResult = await this.tryPasskeyAuthentication(username, { onStatus, onError, onSuccess }, { fetchFn, atobFn, btoaFn, credentialsAPI });
+            if (passkeyResult.success) {
+                return passkeyResult;
+            }
+            
+            // If passkey authentication failed, return specific error
+            const error = 'No passkey credentials available\nTry using the "Use Security Key" button\nor register a new credential';
+            onError(error);
+            return { success: false, error };
+            
+        } catch (error) {
+            console.error('WebAuthn passkey authentication error:', error);
+            
+            // Handle specific error cases with multi-line messages
+            let errorMessage = 'Passkey authentication failed';
+            if (error.message === 'User cancelled' || 
+                error.name === 'NotAllowedError' ||
+                error.message.includes('cancelled') ||
+                error.message.includes('abort')) {
+                errorMessage = 'Passkey Authentication Cancelled\nPlease try again when ready';
+            } else if (error.name === 'SecurityError') {
+                errorMessage = 'Security Error\nPlease ensure secure connection\n(HTTPS required)';
+            } else if (error.name === 'TimeoutError') {
+                errorMessage = 'Passkey Authentication Timeout\nPlease try again\nCheck authenticator response';
+            } else if (error.name === 'InvalidStateError') {
+                errorMessage = 'Invalid State\nPlease refresh and try again';
+            } else if (this.isWindows() && error.name === 'NotAllowedError') {
+                errorMessage = 'Windows Hello Authentication Failed\nCheck Windows Hello is enabled\nSettings > Accounts > Sign-in options';
+            }
+            
+            onError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            this.inProgress = false;
+        }
+    }
+
+    // Try authentication with security keys (cross-platform authenticators)
+    async trySecurityKeyAuthentication(username, callbacks, browserAPI) {
+        const { onStatus, onError, onSuccess } = callbacks;
+        const { fetchFn, atobFn, btoaFn, credentialsAPI } = browserAPI;
+        
+        try {
+            console.log('🔑 Attempting security key authentication...');
+            
+            // Check browser support first
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            if (isSafari) {
+                console.log('🍎 Safari detected - checking WebAuthn support...');
+                if (!window.PublicKeyCredential) {
+                    const error = 'Safari WebAuthn not supported\nPlease update Safari or use Chrome';
+                    onError(error);
+                    return { success: false, error };
+                }
+                onStatus('Safari: Insert your security key and touch when it blinks...', 'info');
+            } else {
+                onStatus('Insert your security key...', 'info');
+            }
+            
+            // Prepare request body - FORCE security key only by telling server
+            const requestBody = username === null ? { securityKeyOnly: true } : { username: username, securityKeyOnly: true };
             
             const optionsResponse = await fetchFn('/webauthn/authenticate/begin', {
                 method: 'POST',
@@ -428,30 +497,68 @@ class WebAuthnClient {
             const options = await optionsResponse.json();
             
             if (!options.publicKey || !options.publicKey.challenge) {
-                const error = 'Server error - invalid options';
-                onError(error);
-                return { success: false, error };
+                return { success: false, error: 'Server error - invalid options' };
             }
-            
-            onStatus('Authenticate with your passkey', 'info');
             
             // Convert challenge to ArrayBuffer
             options.publicKey.challenge = this.base64ToArrayBuffer(options.publicKey.challenge, atobFn);
-            // Convert each allowCredentials id to ArrayBuffer
+            
+            // CRITICAL: Filter credentials to ONLY security keys (remove Touch ID/passkeys)
             if (options.publicKey.allowCredentials) {
+                console.log('🔑 Original credentials:', options.publicKey.allowCredentials.length);
+                
+                // Convert credentials and prepare for security key only
                 options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(cred => ({
                     ...cred,
                     id: this.base64ToArrayBuffer(cred.id, atobFn)
                 }));
+                
+                console.log('🔑 Security key credentials ready:', options.publicKey.allowCredentials.length);
+            } else {
+                console.log('🔑 No allowCredentials - using usernameless security key auth');
             }
             
-            const assertion = await credentialsAPI.get({ publicKey: options.publicKey });
+            // Modify options to prefer cross-platform authenticators (security keys)
+            options.publicKey.timeout = 30000; // 30 seconds for security key
+            
+            // Safari-specific options for security keys
+            
+            let securityKeyOptions = {
+                ...options.publicKey,
+                userVerification: 'discouraged' // Don't require PIN for security keys
+            };
+            
+            // Safari-specific handling - NUCLEAR OPTION: Force security key only
+            if (isSafari) {
+                console.log('🍎 Safari detected: NUCLEAR SECURITY KEY ONLY MODE');
+                
+                // Safari nuclear option: Remove ALL credentials to force external authenticator
+                securityKeyOptions = {
+                    challenge: options.publicKey.challenge,
+                    timeout: 120000, // Extra long timeout
+                    rpId: options.publicKey.rpId,
+                    userVerification: 'discouraged',
+                    // COMPLETELY REMOVE allowCredentials - this should force Safari to show security key prompt
+                    // allowCredentials: undefined (don't include this property at all)
+                };
+                
+                console.log('🍎 Safari: NUCLEAR MODE - No allowCredentials, security key only');
+                onStatus('Safari: Should prompt for YubiKey directly now...', 'info');
+                
+            }
+            
+            console.log('🔑 Security key options:', securityKeyOptions);
+            
+            // Try to get assertion with security key preference
+            const assertion = await credentialsAPI.get({ 
+                publicKey: securityKeyOptions
+            });
             
             if (!assertion) {
-                throw new Error('User cancelled');
+                return { success: false, error: 'Security key authentication cancelled' };
             }
             
-            onStatus('Verifying...', 'info');
+            onStatus('Verifying security key...', 'info');
             
             const credential = {
                 id: assertion.id,
@@ -479,47 +586,130 @@ class WebAuthnClient {
             const result = await verifyResponse.json();
             
             if (result.success) {
-                onStatus('Login successful', 'success');
-                onSuccess({ username: result.username || username });
-                return { success: true, username: result.username || username };
+                console.log('✅ Security key authentication successful');
+                onStatus('Security key login successful', 'success');
+                onSuccess({ username: result.username || username, method: 'security-key' });
+                return { success: true, username: result.username || username, method: 'security-key' };
             } else {
-                // Check for specific error types
-                let error = 'Login failed';
-                if (result.error) {
-                    if (result.error.includes('disabled') || result.error.includes('locked') || result.error.includes('Account Lockout')) {
-                        error = 'Account Lockout';
-                    } else {
-                        error = result.error;
-                    }
-                }
-                onError(error);
-                return { success: false, error };
+                console.log('❌ Security key verification failed:', result.error);
+                return { success: false, error: result.error || 'Security key verification failed' };
             }
             
         } catch (error) {
-            console.error('WebAuthn authentication error:', error);
+            console.log('🔑 Security key authentication failed:', error.name, error.message);
             
-            // Handle specific error cases with multi-line messages
-            let errorMessage = 'Authentication failed';
-            if (error.message === 'User cancelled' || 
-                error.name === 'NotAllowedError' ||
-                error.message.includes('cancelled') ||
-                error.message.includes('abort')) {
-                errorMessage = 'Authentication Cancelled\nPlease try again when ready';
-            } else if (error.name === 'SecurityError') {
-                errorMessage = 'Security Error\nPlease ensure secure connection\n(HTTPS required)';
-            } else if (error.name === 'TimeoutError') {
-                errorMessage = 'Authentication Timeout\nPlease try again\nCheck authenticator response';
-            } else if (error.name === 'InvalidStateError') {
-                errorMessage = 'Invalid State\nPlease refresh and try again';
-            } else if (this.isWindows() && error.name === 'NotAllowedError') {
-                errorMessage = 'Windows Hello Authentication Failed\nCheck Windows Hello is enabled\nSettings > Accounts > Sign-in options';
+            // Enhanced Safari error handling
+            const isSafariBrowser = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            
+            let errorMessage = error.message;
+            if (isSafariBrowser) {
+                console.log('🍎 Safari security key error:', error);
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = 'Safari Security Key Error\nPlease ensure:\n1. Security key is inserted\n2. You have registered with this key\n3. Touch the key when it blinks';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage = 'Safari does not support this security key\nTry using a different key or browser';
+                } else if (error.name === 'InvalidStateError') {
+                    errorMessage = 'Security key in invalid state\nPlease remove and reinsert the key';
+                }
+                onError(errorMessage);
             }
             
-            onError(errorMessage);
+            // Don't show errors for expected failures in other browsers
+            if (error.name === 'NotAllowedError' && error.message.includes('not allowed')) {
+                return { success: false, error: 'No security key credentials found' };
+            }
+            
             return { success: false, error: errorMessage };
-        } finally {
-            this.inProgress = false;
+        }
+    }
+
+    // Try authentication with passkeys (platform authenticators)
+    async tryPasskeyAuthentication(username, callbacks, browserAPI) {
+        const { onStatus, onError, onSuccess } = callbacks;
+        const { fetchFn, atobFn, btoaFn, credentialsAPI } = browserAPI;
+        
+        try {
+            console.log('🔐 Attempting passkey authentication...');
+            onStatus('Authenticate with your passkey...', 'info');
+            
+            // Prepare request body - send null for usernameless authentication
+            const requestBody = username === null ? {} : { username: username };
+            
+            const optionsResponse = await fetchFn('/webauthn/authenticate/begin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!optionsResponse.ok) {
+                throw new Error('Failed to get authentication options');
+            }
+            
+            const options = await optionsResponse.json();
+            
+            if (!options.publicKey || !options.publicKey.challenge) {
+                return { success: false, error: 'Server error - invalid options' };
+            }
+            
+            // Convert challenge to ArrayBuffer
+            options.publicKey.challenge = this.base64ToArrayBuffer(options.publicKey.challenge, atobFn);
+            // Convert each allowCredentials id to ArrayBuffer
+            if (options.publicKey.allowCredentials) {
+                options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(cred => ({
+                    ...cred,
+                    id: this.base64ToArrayBuffer(cred.id, atobFn)
+                }));
+            }
+            
+            // Modify options to prefer platform authenticators (passkeys)
+            options.publicKey.timeout = 60000; // 60 seconds for passkeys
+            
+            const assertion = await credentialsAPI.get({ publicKey: options.publicKey });
+            
+            if (!assertion) {
+                return { success: false, error: 'Passkey authentication cancelled' };
+            }
+            
+            onStatus('Verifying passkey...', 'info');
+            
+            const credential = {
+                id: assertion.id,
+                rawId: this.arrayBufferToBase64(assertion.rawId, btoaFn),
+                type: assertion.type,
+                response: {
+                    clientDataJSON: this.arrayBufferToBase64(assertion.response.clientDataJSON, btoaFn),
+                    authenticatorData: this.arrayBufferToBase64(assertion.response.authenticatorData, btoaFn),
+                    signature: this.arrayBufferToBase64(assertion.response.signature, btoaFn),
+                    userHandle: assertion.response.userHandle ? this.arrayBufferToBase64(assertion.response.userHandle, btoaFn) : null
+                }
+            };
+            
+            // Only include username in credential if it was provided
+            if (username !== null) {
+                credential.username = username;
+            }
+            
+            const verifyResponse = await fetchFn('/webauthn/authenticate/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(credential)
+            });
+            
+            const result = await verifyResponse.json();
+            
+            if (result.success) {
+                console.log('✅ Passkey authentication successful');
+                onStatus('Passkey login successful', 'success');
+                onSuccess({ username: result.username || username, method: 'passkey' });
+                return { success: true, username: result.username || username, method: 'passkey' };
+            } else {
+                console.log('❌ Passkey verification failed:', result.error);
+                return { success: false, error: result.error || 'Passkey verification failed' };
+            }
+            
+        } catch (error) {
+            console.log('🔐 Passkey authentication failed:', error.message);
+            return { success: false, error: error.message };
         }
     }
 
@@ -582,4 +772,16 @@ class WebAuthnClient {
 }
 
 // Export the WebAuthn client class
-const webAuthnClient = new WebAuthnClient(); 
+const webAuthnClient = new WebAuthnClient();
+
+// Export for Node.js testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { WebAuthnClient, webAuthnClient };
+}
+
+// Make available globally for browser use
+if (typeof window !== 'undefined') {
+    window.webAuthnClient = webAuthnClient;
+} else if (typeof global !== 'undefined') {
+    global.webAuthnClient = webAuthnClient;
+} 
