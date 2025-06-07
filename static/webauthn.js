@@ -30,7 +30,7 @@ class WebAuthnClient {
 
     // Browser and platform detection
     isChrome() {
-        return navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Edg');
+        return navigator.userAgent.includes('Chrome'); //&& !navigator.userAgent.includes('Edg');
     }
     
     isFirefox() {
@@ -153,39 +153,36 @@ class WebAuthnClient {
     }
 
     // Register with automatic platform detection
-    async register(options = {}) {
-        if (this.inProgress) {
-            console.log('WebAuthn operation already in progress, ignoring duplicate call');
-            return { success: false, error: 'Operation in progress' };
+    async register(username, emoji = '👤', callbacks = {}, browserAPI = {}) {
+        // FIRST CHECK: Validate username for ALL flows and browsers
+        if (!username || username.trim() === '') {
+            const { onStatus = () => {} } = callbacks;
+            onStatus('Username required for registration', 'error');
+            throw new Error('Username Required\n\nPlease enter a username before registering.');
         }
-
-        this.inProgress = true;
         
-        const {
-            fetchFn = fetch,
-            atobFn = atob,
-            btoaFn = btoa,
-            onStatus = () => {},
-            onSuccess = () => {},
-            onError = () => {},
-            credentialsAPI = navigator.credentials
-        } = options;
-
+        // Clean username
+        username = username.trim();
+        
         try {
-            // Collect username before starting registration
-            let username = options.username;
-            if (!username) {
-                username = prompt('👤 Enter your username:');
-                if (!username || username.trim() === '') {
-                    throw new Error('Username is required for registration');
-                }
-                username = username.trim();
+            if (this.inProgress) {
+                console.log('WebAuthn operation already in progress, ignoring duplicate call');
+                return { success: false, error: 'Operation in progress' };
             }
+
+            this.inProgress = true;
+            const { onStatus = () => {}, onError = () => {}, onSuccess = () => {} } = callbacks;
+            const { 
+                fetch: fetchFn = fetch, 
+                atob: atobFn = atob, 
+                btoa: btoaFn = btoa,
+                credentialsAPI = navigator.credentials
+            } = browserAPI;
             
-            onStatus('Detecting platform...', 'info');
+            onStatus('Starting registration...', 'info');
             
-            // Determine registration strategy
-            const strategy = this.getBestRegistrationStrategy();
+            // Determine best registration strategy
+            const strategy = await this.getBestRegistrationStrategy();
             console.log(`🎯 Selected registration strategy: ${strategy}`);
             
             let endpoint = '/webauthn/register/begin';
@@ -278,7 +275,7 @@ class WebAuthnClient {
                     },
                     type: credential.type,
                     username,
-                    emoji: options.emoji || '👤'
+                    emoji
                 };
                 
                 const verificationResponse = await fetchFn('/webauthn/register/complete', {
@@ -296,8 +293,8 @@ class WebAuthnClient {
                 }
                 
                 onStatus('Registration successful', 'success');
-                onSuccess({ username, emoji: options.emoji || '👤' });
-                return { success: true, username, emoji: options.emoji || '👤' };
+                onSuccess({ username, emoji });
+                return { success: true, username, emoji };
                 
             } catch (credentialError) {
                 console.error('WebAuthn credential creation error:', credentialError);
@@ -310,64 +307,7 @@ class WebAuthnClient {
                 // Special handling for Firefox Linux software mode ONLY
                 if (this.isFirefox() && this.isLinux() && strategy === 'linux-choice' && linuxChoice === 'software') {
                     if (credentialError.name === 'NotAllowedError') {
-                        // Only try fallback if this seems like a genuine software authentication failure
-                        if (credentialError.message && 
-                            (credentialError.message.includes('security key') || 
-                             credentialError.message.includes('authenticator') ||
-                             credentialError.message.includes('U2F'))) {
-                            
-                            console.log('🦊 Firefox Linux: Detected hardware key prompt - attempting true software fallback...');
-                            
-                            try {
-                                // Get fresh options with absolute minimum configuration
-                                const firefoxResponse = await fetchFn('/webauthn/register/begin/linux-software', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ username })
-                                });
-                                
-                                if (firefoxResponse.ok) {
-                                    const firefoxOptions = await firefoxResponse.json();
-                                    
-                                    // Firefox Linux specific modifications
-                                    firefoxOptions.publicKey.challenge = this.base64ToArrayBuffer(firefoxOptions.publicKey.challenge, atobFn);
-                                    firefoxOptions.publicKey.user.id = this.base64ToArrayBuffer(firefoxOptions.publicKey.user.id, atobFn);
-                                    
-                                    // Try with manual credential creation bypassing Firefox's hardware detection
-                                    const manualCredential = await this.createFirefoxLinuxCredential(firefoxOptions);
-                                    
-                                    if (manualCredential) {
-                                        const verificationData = {
-                                            id: manualCredential.id,
-                                            rawId: this.arrayBufferToBase64(manualCredential.rawId, btoaFn),
-                                            response: {
-                                                attestationObject: this.arrayBufferToBase64(manualCredential.response.attestationObject, btoaFn),
-                                                clientDataJSON: this.arrayBufferToBase64(manualCredential.response.clientDataJSON, btoaFn)
-                                            },
-                                            type: manualCredential.type,
-                                            username,
-                                            emoji: options.emoji || '👤'
-                                        };
-                                        
-                                        const verificationResponse = await fetchFn('/webauthn/register/complete', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify(verificationData)
-                                        });
-                                        
-                                        if (verificationResponse.ok) {
-                                            onStatus('🦊 Firefox Linux software authentication successful!', 'success');
-                                            onSuccess({ username, emoji: options.emoji || '👤' });
-                                            return { success: true, username, emoji: options.emoji || '👤' };
-                                        }
-                                    }
-                                }
-                            } catch (firefoxError) {
-                                console.error('🦊 Firefox Linux fallback failed:', firefoxError);
-                            }
-                        }
-                        
-                        throw new Error('🦊 Firefox Linux Software Mode Failed\n\nFirefox on Linux may not support pure software authentication.\n\nTry:\n1. Chrome/Chromium browser (better Linux support)\n2. Use hardware security key option instead\n3. Disconnect any USB security keys and retry');
+                        throw new Error('🦊 Firefox Linux Software Authentication Failed\n\nFirefox on Linux may not support browser-stored credentials.\n\nTry:\n1. Use "Security Key" option instead\n2. Try Chrome/Chromium browser\n3. Disconnect any USB security keys and restart Firefox');
                     }
                 }
                 
@@ -565,10 +505,9 @@ class WebAuthnClient {
     async createFirefoxLinuxCredential(options) {
         // Firefox Linux specific workaround
         try {
-            console.log('🦊 Firefox Linux: Attempting TRUE software-only authentication...');
+            console.log('🦊 Firefox Linux: Attempting bypass of hardware detection...');
             
-            // For Firefox Linux, completely remove authenticatorSelection
-            // This forces Firefox to use whatever is available without hardware preference
+            // Strip out ALL possible hardware triggers for Firefox Linux
             const cleanOptions = {
                 publicKey: {
                     challenge: options.publicKey.challenge,
@@ -576,14 +515,17 @@ class WebAuthnClient {
                     user: options.publicKey.user,
                     pubKeyCredParams: options.publicKey.pubKeyCredParams,
                     timeout: 30000,  // Shorter timeout
-                    attestation: "none"
-                    // NO authenticatorSelection AT ALL - let Firefox choose software
-                    // NO extensions
-                    // NO userVerification settings
+                    attestation: "none",
+                    authenticatorSelection: {
+                        userVerification: "discouraged"  // NO PIN, biometric, or password required
+                    }
+                    // Absolutely NO authenticatorAttachment restriction
+                    // Absolutely NO extensions
+                    // Absolutely NO residentKey requirements
                 }
             };
             
-            console.log('🦊 Firefox Linux: Using completely minimal options (no authenticator restrictions)', cleanOptions);
+            console.log('🦊 Firefox Linux: Using ultra-minimal options', cleanOptions);
             
             // Try with navigator.credentials.create directly
             const credential = await navigator.credentials.create(cleanOptions);

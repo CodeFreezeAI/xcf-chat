@@ -865,7 +865,41 @@ public class WebAuthnManager {
                 "timeout": 60000,
                 "rpId": rpId,
                 "allowCredentials": allowCredentials,
-                "userVerification": "required"
+                "userVerification": "preferred"  // Apple passkeys should use biometric, security keys flexible
+            ]
+        ]
+        
+        return options
+    }
+    
+    // Firefox Linux specific authentication options - no biometric required
+    public func generateLinuxSoftwareAuthenticationOptions(username: String?) throws -> [String: Any] {
+        let challenge = generateChallenge()
+        
+        var allowCredentials: [[String: Any]] = []
+        
+        if let username = username, !username.isEmpty {
+            // If username is provided, only allow that specific credential
+            guard let credential = getCredential(username: username) else {
+                throw WebAuthnError.credentialNotFound
+            }
+            allowCredentials = [[
+                "type": "public-key",
+                "id": credential.id,
+                "transports": ["internal"]
+            ]]
+        } else {
+            // If no username provided, use empty allowCredentials for discoverable credentials
+            allowCredentials = []
+        }
+        
+        let options: [String: Any] = [
+            "publicKey": [
+                "challenge": challenge,
+                "timeout": 60000,
+                "rpId": rpId,
+                "allowCredentials": allowCredentials,
+                "userVerification": "discouraged"  // NO PIN, biometric, or password required (Firefox Linux only)
             ]
         ]
         
@@ -2346,9 +2380,10 @@ public class WebAuthnManager {
                 "user": userData,
                 "pubKeyCredParams": pubKeyCredParams,
                 "timeout": 60000,           // Standard timeout
-                "attestation": "none"       // No attestation required
-                // NO authenticatorSelection - complete freedom for browser to choose
-                // NO userVerification - let browser use whatever is available
+                "attestation": "none",      // No attestation required
+                "authenticatorSelection": [
+                    "userVerification": "discouraged"  // NO PIN, biometric, or password required
+                ]
                 // NO authenticatorAttachment - let browser choose any available method
                 // NO residentKey requirements - maximum compatibility
             ]

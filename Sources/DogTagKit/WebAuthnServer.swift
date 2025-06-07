@@ -79,6 +79,8 @@ public class WebAuthnServer {
             return handleRegisterComplete(request)
         case ("POST", "/webauthn/authenticate/begin"):
             return handleAuthenticateBegin(request)
+        case ("POST", "/webauthn/authenticate/begin/linux-software"):
+            return handleAuthenticateBeginLinuxSoftware(request)
         case ("POST", "/webauthn/authenticate/complete"):
             return handleAuthenticateComplete(request)
         case ("POST", "/webauthn/username/check"):
@@ -100,7 +102,7 @@ public class WebAuthnServer {
         
         // Check browser type and use compatible options
         let userAgent = request.headers["user-agent"] ?? ""
-        let isChrome = userAgent.contains("Chrome") && !userAgent.contains("Edg") // Chrome but not Edge
+        let isChrome = userAgent.contains("Chrome"); // && !userAgent.contains("Edge") // Chrome but not Edge
         let isWindows11 = userAgent.contains("Windows NT 10.0")
         
         let options: [String: Any]
@@ -198,6 +200,25 @@ public class WebAuthnServer {
             return HTTPResponse.json(options)
         } catch {
             print("[WebAuthnServer] Authentication begin failed: \(error)")
+            return HTTPResponse.error("Failed to generate authentication options: \(error.localizedDescription)")
+        }
+    }
+    
+    private func handleAuthenticateBeginLinuxSoftware(_ request: HTTPRequest) -> HTTPResponse {
+        guard let body = request.body,
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
+            print("[WebAuthnServer] Firefox Linux authentication begin: Invalid request body")
+            return HTTPResponse.error("Invalid request body")
+        }
+        
+        let username = json["username"] as? String // Optional for usernameless flow
+        
+        do {
+            let options = try manager.generateLinuxSoftwareAuthenticationOptions(username: username)
+            print("[WebAuthnServer] Firefox Linux authentication options generated for: \(username ?? "usernameless")")
+            return HTTPResponse.json(options)
+        } catch {
+            print("[WebAuthnServer] Firefox Linux authentication begin failed: \(error)")
             return HTTPResponse.error("Failed to generate authentication options: \(error.localizedDescription)")
         }
     }
@@ -402,6 +423,12 @@ extension WebAuthnServer {
             return self.httpResponseToVaporResponse(httpResponse)
         }
         
+        app.post("webauthn", "authenticate", "begin", "linux-software") { req -> Response in
+            let httpRequest = try self.vaporRequestToHTTPRequest(req)
+            let httpResponse = self.handleRequest(httpRequest)
+            return self.httpResponseToVaporResponse(httpResponse)
+        }
+        
         app.post("webauthn", "authenticate", "complete") { req -> Response in
             let httpRequest = try self.vaporRequestToHTTPRequest(req)
             let httpResponse = self.handleRequest(httpRequest)
@@ -475,6 +502,10 @@ extension WebAuthnServer {
         }
         
         router.addRoute(method: "POST", path: "/webauthn/authenticate/begin") { request in
+            return self.handleRequest(request)
+        }
+        
+        router.addRoute(method: "POST", path: "/webauthn/authenticate/begin/linux-software") { request in
             return self.handleRequest(request)
         }
         
