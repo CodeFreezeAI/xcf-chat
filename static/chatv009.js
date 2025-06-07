@@ -323,6 +323,14 @@ class ChatClient {
                 
                 this.updateMessagesDisplay();
 
+                // Ensure history is fully scrolled into view (instant) after messages render
+                requestAnimationFrame(() => {
+                    const container = document.getElementById('messages-container');
+                    if (container) {
+                        this.scrollToBottom(container); // smooth scroll
+                    }
+                });
+
                 // Show/hide remove and clear history buttons based on admin status
                 this.updateRoomActionButtons();
 
@@ -1233,32 +1241,19 @@ class ChatClient {
         return container.scrollTop + container.clientHeight >= container.scrollHeight - threshold;
     }
     
-    // Enhanced scroll to bottom that works reliably on mobile
+    // Enhanced scroll to bottom that works reliably on all devices
     scrollToBottom(container) {
-        // Use smooth scrolling for both desktop and mobile
-        if (container.scrollTo) {
-            container.scrollTo({
-                top: container.scrollHeight,
-                behavior: 'smooth'
-            });
-        } else {
-            // Fallback for older browsers
-            container.scrollTop = container.scrollHeight;
-        }
+        const doScroll = () => {
+            if (container.scrollTo) {
+                container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+            } else {
+                container.scrollTop = container.scrollHeight;
+            }
+        };
 
-        // Ensure scroll completes on mobile after any layout changes
-        if (window.innerWidth <= 768) {
-            requestAnimationFrame(() => {
-                if (container.scrollTo) {
-                    container.scrollTo({
-                        top: container.scrollHeight,
-                        behavior: 'smooth'
-                    });
-                } else {
-                    container.scrollTop = container.scrollHeight;
-                }
-            });
-        }
+        // Immediate smooth scroll, then one more after layout settles
+        doScroll();
+        setTimeout(doScroll, 100);
     }
 
     showTemporarySystemMessage(content, durationMs) {
