@@ -2005,10 +2005,6 @@ async function loginWithWebAuthn() {
         };
         
         const verifyResponse = await fetch('/webauthn/authenticate/complete', {
-
-            
-
-            
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(credential)
