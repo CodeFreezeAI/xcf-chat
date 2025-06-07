@@ -22,6 +22,18 @@ class ChatClient {
         this.reconnectTimeout = null; // Add reconnect timeout tracker
         
         this.initializeEventListeners();
+        
+        // Emoji analysis cache to prevent duplicate API calls
+        this.emojiCache = new Map(); // Cache for completed analysis results
+        this.emojiAnalysisInProgress = new Set(); // Track ongoing analysis requests
+        
+        // Transfer any existing global cache to instance cache
+        if (typeof globalEmojiCache !== 'undefined') {
+            for (const [emoji, colors] of globalEmojiCache) {
+                this.emojiCache.set(emoji, colors);
+            }
+            console.log(`🎨 Transferred ${globalEmojiCache.size} cached emoji analyses to ChatClient`);
+        }
     }
     
     initializeEventListeners() {
@@ -1061,14 +1073,14 @@ class ChatClient {
                 
                 // Apply emoji styling to message emojis immediately
                 if (message.emoji) {
-                    // Apply fallback styling first, then load dynamic styling
+                    // Apply fallback styling first
                     const emojiElements = messageEl.querySelectorAll('.user-emoji');
                     emojiElements.forEach(emojiElement => {
                         if (emojiElement.textContent === message.emoji) {
                             this.applyFallbackEmojiStyling(emojiElement);
                         }
                     });
-                    this.loadEmojiStyling(message.emoji);
+                    // Note: We'll load styling for all unique emojis after the loop, not per message
                 }
             }
             
@@ -1291,11 +1303,25 @@ class ChatClient {
     }
     
     loadEmojiStyling(emoji) {
-        // Check if we have cached colors for this emoji
+        // Check in-memory cache first
+        if (this.emojiCache.has(emoji)) {
+            const colors = this.emojiCache.get(emoji);
+            this.applyEmojiStyling(emoji, colors.contrastColor, colors.textColor);
+            return;
+        }
+        
+        // Check if analysis is already in progress
+        if (this.emojiAnalysisInProgress.has(emoji)) {
+            return; // Don't start duplicate requests
+        }
+        
+        // Check localStorage cache
         const cachedColors = localStorage.getItem(`emojiColors_${emoji}`);
         if (cachedColors) {
             try {
                 const colors = JSON.parse(cachedColors);
+                // Store in memory cache for faster future access
+                this.emojiCache.set(emoji, colors);
                 this.applyEmojiStyling(emoji, colors.contrastColor, colors.textColor);
                 return;
             } catch (error) {
@@ -1303,7 +1329,7 @@ class ChatClient {
             }
         }
         
-        // If no cached colors, analyze them
+        // If no cached colors, analyze them (only if not already in progress)
         this.analyzeEmojiColors(emoji);
     }
 
@@ -1316,11 +1342,13 @@ class ChatClient {
                 uniqueEmojis.add(emoji);
                 
                 // ALWAYS apply immediate fallback styling first
-                    this.applyFallbackEmojiStyling(emojiElement);
+                this.applyFallbackEmojiStyling(emojiElement);
             }
         });
         
         // Apply dynamic styling to each unique emoji (this will override fallback)
+        // The loadEmojiStyling method now has proper caching to prevent duplicate API calls
+        console.log(`🎨 Processing ${uniqueEmojis.size} unique emojis for styling`);
         uniqueEmojis.forEach(emoji => {
             this.loadEmojiStyling(emoji);
         });
@@ -1345,7 +1373,11 @@ class ChatClient {
     }
     
     async analyzeEmojiColors(emoji) {
+        // Mark as in progress to prevent duplicate requests
+        this.emojiAnalysisInProgress.add(emoji);
+        
         try {
+            console.log(`🎨 Analyzing emoji colors for: ${emoji}`);
             const response = await fetch('/emoji/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1355,20 +1387,35 @@ class ChatClient {
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
+                    const colors = {
+                        contrastColor: result.contrastColor,
+                        textColor: result.textColor
+                    };
+                    
+                    // Store in both caches
+                    this.emojiCache.set(emoji, colors);
+                    localStorage.setItem(`emojiColors_${emoji}`, JSON.stringify(colors));
+                    
                     // Apply the contrasting background color to emoji elements
                     this.applyEmojiStyling(emoji, result.contrastColor, result.textColor);
                     
-                    // Save colors to localStorage for this emoji
-                    localStorage.setItem(`emojiColors_${emoji}`, JSON.stringify({
-                        contrastColor: result.contrastColor,
-                        textColor: result.textColor
-                    }));
+                    console.log(`✅ Emoji analysis complete for: ${emoji}`);
                 }
+            } else {
+                throw new Error(`HTTP ${response.status}`);
             }
         } catch (error) {
             console.log('Emoji color analysis failed:', error);
-            // Fallback to default styling
-            this.applyEmojiStyling(emoji, '#f0f0f0', '#000000');
+            // Fallback to default styling and cache the fallback
+            const fallbackColors = {
+                contrastColor: '#f0f0f0',
+                textColor: '#000000'
+            };
+            this.emojiCache.set(emoji, fallbackColors);
+            this.applyEmojiStyling(emoji, fallbackColors.contrastColor, fallbackColors.textColor);
+        } finally {
+            // Remove from in-progress tracking
+            this.emojiAnalysisInProgress.delete(emoji);
         }
     }
     
@@ -1838,9 +1885,43 @@ function onMobileEmojiSequence() {
     }, 60);
 }
 
+// Global emoji analysis cache for standalone functions (before ChatClient is initialized)
+const globalEmojiCache = new Map();
+const globalEmojiAnalysisInProgress = new Set();
+
 // Standalone emoji color analysis for when chatClient isn't available
 async function analyzeEmojiColorsStandalone(emoji) {
+    // Check global in-memory cache first
+    if (globalEmojiCache.has(emoji)) {
+        const colors = globalEmojiCache.get(emoji);
+        applyEmojiStylingStandalone(emoji, colors.contrastColor, colors.textColor);
+        return;
+    }
+    
+    // Check if analysis is already in progress
+    if (globalEmojiAnalysisInProgress.has(emoji)) {
+        return; // Don't start duplicate requests
+    }
+    
+    // Check localStorage cache
+    const cachedColors = localStorage.getItem(`emojiColors_${emoji}`);
+    if (cachedColors) {
+        try {
+            const colors = JSON.parse(cachedColors);
+            // Store in global memory cache for faster future access
+            globalEmojiCache.set(emoji, colors);
+            applyEmojiStylingStandalone(emoji, colors.contrastColor, colors.textColor);
+            return;
+        } catch (error) {
+            console.log('Failed to parse cached emoji colors:', error);
+        }
+    }
+    
+    // Mark as in progress to prevent duplicate requests
+    globalEmojiAnalysisInProgress.add(emoji);
+    
     try {
+        console.log(`🎨 [Standalone] Analyzing emoji colors for: ${emoji}`);
         const response = await fetch('/emoji/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1850,20 +1931,35 @@ async function analyzeEmojiColorsStandalone(emoji) {
         if (response.ok) {
             const result = await response.json();
             if (result.success) {
+                const colors = {
+                    contrastColor: result.contrastColor,
+                    textColor: result.textColor
+                };
+                
+                // Store in both caches
+                globalEmojiCache.set(emoji, colors);
+                localStorage.setItem(`emojiColors_${emoji}`, JSON.stringify(colors));
+                
                 // Apply the contrasting background color to emoji elements
                 applyEmojiStylingStandalone(emoji, result.contrastColor, result.textColor);
                 
-                // Save colors to localStorage for this emoji
-                localStorage.setItem(`emojiColors_${emoji}`, JSON.stringify({
-                    contrastColor: result.contrastColor,
-                    textColor: result.textColor
-                }));
+                console.log(`✅ [Standalone] Emoji analysis complete for: ${emoji}`);
             }
+        } else {
+            throw new Error(`HTTP ${response.status}`);
         }
     } catch (error) {
         console.log('Standalone emoji color analysis failed:', error);
-        // Fallback to default styling
-        applyEmojiStylingStandalone(emoji, '#f0f0f0', '#000000');
+        // Fallback to default styling and cache the fallback
+        const fallbackColors = {
+            contrastColor: '#f0f0f0',
+            textColor: '#000000'
+        };
+        globalEmojiCache.set(emoji, fallbackColors);
+        applyEmojiStylingStandalone(emoji, fallbackColors.contrastColor, fallbackColors.textColor);
+    } finally {
+        // Remove from in-progress tracking
+        globalEmojiAnalysisInProgress.delete(emoji);
     }
 }
 
@@ -2313,9 +2409,12 @@ async function loginWithWebAuthn() {
     
     // Get username from DOM
     const usernameElement = document.getElementById('nickname-input');
-    const username = usernameElement ? (usernameElement.value.trim() || null) : null;
+    const username = usernameElement ? usernameElement.value.trim() : '';
     
-    console.log('🔵 Username:', username);
+    // Use null for usernameless authentication if no username provided
+    const authUsername = username.length > 0 ? username : null;
+    
+    console.log('🔵 Username:', authUsername === null ? 'usernameless' : authUsername);
     
     // Create browser API object
     const browserAPI = {
@@ -2325,7 +2424,7 @@ async function loginWithWebAuthn() {
         credentialsAPI: navigator.credentials
     };
 
-    const result = await webAuthnClient.authenticate(username, {
+    const result = await webAuthnClient.authenticate(authUsername, {
         onStatus: (message, type) => {
             console.log('🔵 Status:', message, type);
             showLoginStatus(message, type);
@@ -2336,68 +2435,23 @@ async function loginWithWebAuthn() {
             let displayError = error;
             if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
                 displayError = 'Account Lockout';
+            } else if (authUsername === null) {
+                // Enhanced error messages for usernameless authentication
+                if (error.includes('No credentials available')) {
+                    displayError = 'No Passkeys Found\nPlease register a passkey first\nor enter a username to login';
+                } else if (error.includes('NotAllowedError') || error.includes('cancelled')) {
+                    displayError = 'Authentication Cancelled\nPlease try again or enter a username\nif this issue persists';
+                }
             }
             showLoginStatus(`❌ ${displayError}`, 'error');
         },
         onSuccess: (data) => {
             console.log('🟢 Success!', data);
-            showLoginStatus('✅ Login Success', 'success');
-            // Update username if provided by server
-            if (data.username) {
-                const usernameElement = document.getElementById('nickname-input');
-                if (usernameElement) {
-                    usernameElement.value = data.username;
-                }
-            }
-            // Join the chat after successful authentication
-            setTimeout(() => {
-                if (typeof joinChat === 'function') {
-                    joinChat();
-                }
-            }, 1000);
-        }
-    }, browserAPI);
-
-    console.log('🔵 Login result:', result);
-    return result;
-}
-
-// Usernameless passkey sign-in function
-async function signInWithPasskey() {
-    console.log('🔑 Starting usernameless passkey sign-in...');
-    
-    // Create browser API object
-    const browserAPI = {
-        fetch: window.fetch,
-        atob: window.atob,
-        btoa: window.btoa,
-        credentialsAPI: navigator.credentials
-    };
-
-    const result = await webAuthnClient.authenticate(null, {
-        onStatus: (message, type) => {
-            console.log('🔑 Status:', message, type);
-            showLoginStatus(message, type);
-        },
-        onError: (error) => {
-            console.log('🔴 Error:', error);
-            // Handle specific error cases for account lockout
-            let displayError = error;
-            if (error.includes('disabled') || error.includes('locked') || error === 'Account Lockout') {
-                displayError = 'Account Lockout';
-            } else if (error.includes('No credentials available')) {
-                displayError = 'No Passkeys Found\nPlease register a passkey first\nor use "Login with Username"';
-            } else if (error.includes('NotAllowedError') || error.includes('cancelled')) {
-                displayError = 'Authentication Cancelled\nPlease try again or contact support\nif this issue persists';
-            }
-            showLoginStatus(`❌ ${displayError}`, 'error');
-        },
-        onSuccess: (data) => {
-            console.log('🟢 Usernameless sign-in success!', data);
-            showLoginStatus('✅ Passkey Authentication Success', 'success');
+            const successMessage = authUsername === null ? '✅ Passkey Authentication Success' : '✅ Login Success';
+            showLoginStatus(successMessage, 'success');
             
-            // Update username field with the discovered username
-            if (data.username) {
+            // Update username field with the discovered username if it was usernameless auth
+            if (authUsername === null && data.username) {
                 const usernameElement = document.getElementById('nickname-input');
                 if (usernameElement) {
                     usernameElement.value = data.username;
@@ -2436,9 +2490,11 @@ async function signInWithPasskey() {
         }
     }, browserAPI);
 
-    console.log('🔑 Usernameless sign-in result:', result);
+    console.log('🔵 Login result:', result);
     return result;
 }
+
+
 
 // Test function to verify status display is working
 function testStatusDisplay() {

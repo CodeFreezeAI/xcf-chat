@@ -651,7 +651,7 @@ public enum WebAuthnContent {
                 <input type="text" 
                        id="webauthn-username" 
                        class="webauthn-input" 
-                       placeholder="Enter your username (optional)"
+                       placeholder="Enter username"
                        maxlength="20">
                 
                 <button type="button" 

@@ -116,16 +116,9 @@
                     <div class="login-input-container" id="login-input-container">
                         <input type="text" id="nickname-input" placeholder="Enter your username" maxlength="20" autocomplete="username" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
                         <div class="auth-options" id="login-buttons-anchor">
-                            <!-- Discoverable credential login (no username required) -->
-                            <button id="webauthn-signin-btn" onclick="signInWithPasskey()" class="primary-auth-btn">Sign in with Passkey</button>
-                            <div class="auth-divider">
-                                <span>or</span>
-                            </div>
-                            <!-- Username-based authentication -->
-                            <div class="username-auth-section">
-                                <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
-                                <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Username</button>
-                            </div>
+                            <!-- WebAuthn buttons support Windows Hello, Touch ID, Face ID, and security keys -->
+                            <button id="webauthn-register-btn" onclick="registerWebAuthn()">Register with Passkey</button>
+                            <button id="webauthn-login-btn" onclick="loginWithWebAuthn()">Login with Passkey</button>
                             <div id="login-status" class="status-message mobile-error-space"></div>
                         </div>
                     </div>
