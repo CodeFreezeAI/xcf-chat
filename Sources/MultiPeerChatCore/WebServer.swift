@@ -316,6 +316,9 @@ public class WebServer: ObservableObject {
         case ("GET", "/webauthn.js"):
             response = generateWebAuthnJS()
             contentType = "application/javascript"
+        case ("GET", "/emoji.js"):
+            response = generateEmojiJS()
+            contentType = "application/javascript"
         case ("GET", "/stylev009.css"):
             response = generateCSS()
             contentType = "text/css"

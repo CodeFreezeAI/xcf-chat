@@ -2258,12 +2258,18 @@ if ('virtualKeyboard' in navigator) {
 // These functions handle DOM interactions and use the pure WebAuthn client
 
 async function registerWebAuthn() {
+    console.log('🔵 Starting WebAuthn registration...');
+    
     // Get username from DOM
     const usernameElement = document.getElementById('nickname-input');
     const username = usernameElement ? usernameElement.value : '';
     
+    console.log('🔵 Username:', username);
+    
     // Get emoji from global variable (fallback to default)
     const emoji = (typeof window !== 'undefined' && window.currentEmoji) ? window.currentEmoji : '👤';
+    
+    console.log('🔵 Emoji:', emoji);
     
     // Create browser API object
     const browserAPI = {
@@ -2274,18 +2280,32 @@ async function registerWebAuthn() {
     };
     
     const result = await webAuthnClient.register(username, emoji, {
-        onStatus: (message, type) => showLoginStatus(message, type),
-        onError: (error) => showLoginStatus(`❌ ${error}`, 'error'),
-        onSuccess: () => showLoginStatus('✅ Registration Success', 'success')
+        onStatus: (message, type) => {
+            console.log('🔵 Status:', message, type);
+            showLoginStatus(message, type);
+        },
+        onError: (error) => {
+            console.log('🔴 Error:', error);
+            showLoginStatus(`❌ ${error}`, 'error');
+        },
+        onSuccess: () => {
+            console.log('🟢 Success!');
+            showLoginStatus('✅ Registration Success', 'success');
+        }
     }, browserAPI);
     
+    console.log('🔵 Registration result:', result);
     return result;
 }
 
 async function loginWithWebAuthn() {
+    console.log('🔵 Starting WebAuthn login...');
+    
     // Get username from DOM
     const usernameElement = document.getElementById('nickname-input');
     const username = usernameElement ? (usernameElement.value.trim() || null) : null;
+    
+    console.log('🔵 Username:', username);
     
     // Create browser API object
     const browserAPI = {
@@ -2296,9 +2316,16 @@ async function loginWithWebAuthn() {
     };
     
     const result = await webAuthnClient.authenticate(username, {
-        onStatus: (message, type) => showLoginStatus(message, type),
-        onError: (error) => showLoginStatus(`❌ ${error}`, 'error'),
+        onStatus: (message, type) => {
+            console.log('🔵 Status:', message, type);
+            showLoginStatus(message, type);
+        },
+        onError: (error) => {
+            console.log('🔴 Error:', error);
+            showLoginStatus(`❌ ${error}`, 'error');
+        },
         onSuccess: (data) => {
+            console.log('🟢 Success!', data);
             showLoginStatus('✅ Login Success', 'success');
             // Update username if provided by server
             if (data.username) {
@@ -2316,7 +2343,16 @@ async function loginWithWebAuthn() {
         }
     }, browserAPI);
     
+    console.log('🔵 Login result:', result);
     return result;
+}
+
+// Test function to verify status display is working
+function testStatusDisplay() {
+    console.log('🔧 Testing status display...');
+    showLoginStatus('Test message - info', 'info');
+    setTimeout(() => showLoginStatus('Test message - error', 'error'), 1000);
+    setTimeout(() => showLoginStatus('Test message - success', 'success'), 2000);
 }
 
 // Status message functions (DOM manipulation)
@@ -2324,8 +2360,31 @@ function showLoginStatus(message, type = 'info') {
     const statusEl = document.getElementById('login-status');
     if (!statusEl) return;
     
+    // Clear any existing timeouts
+    if (window.statusTimeout) {
+        clearTimeout(window.statusTimeout);
+        window.statusTimeout = null;
+    }
+    if (window.statusFadeTimeout) {
+        clearTimeout(window.statusFadeTimeout);
+        window.statusFadeTimeout = null;
+    }
+    
     statusEl.textContent = message;
     statusEl.className = `status-message ${type}`;
+    statusEl.style.display = 'block';
+    statusEl.style.opacity = '1';
+    
+    // Auto-hide success/error messages after a delay
+    if (type === 'success' || type === 'error') {
+        window.statusTimeout = setTimeout(() => {
+            statusEl.style.opacity = '0';
+            window.statusFadeTimeout = setTimeout(() => {
+                statusEl.style.display = 'none';
+                statusEl.textContent = '';
+            }, 300);
+        }, 3000);
+    }
 }
 
 function clearLoginStatus() {
@@ -2343,7 +2402,8 @@ function clearLoginStatus() {
     }
     
     statusEl.classList.remove('fading');
-    statusEl.className = 'status-message';
+    statusEl.className = 'status-message mobile-error-space';
     statusEl.textContent = '';
     statusEl.style.display = 'none';
+    statusEl.style.opacity = '1';
 }

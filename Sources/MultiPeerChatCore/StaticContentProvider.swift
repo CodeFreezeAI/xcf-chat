@@ -87,6 +87,7 @@ private func generateFallbackHTML() -> String {
                 </div>
             </div>
         </div>
+        <script src="/emoji.js"></script>
         <script src="/webauthn.js"></script>
         <script src="/chatv009.js"></script>
     </body>
@@ -324,6 +325,55 @@ private func generateFallbackWebAuthnJS() -> String {
             loginForm.appendChild(errorMsg);
         }
     });
+    """
+}
+
+public func generateEmojiJS() -> String {
+    // Try to read from external file first, fallback to default if not found
+    let possiblePaths = [
+        "static/emoji.js",
+        "./static/emoji.js",
+        "../../static/emoji.js",
+        FileManager.default.currentDirectoryPath + "/static/emoji.js"
+    ]
+    
+    for staticJSPath in possiblePaths {
+        if let jsContent = try? String(contentsOfFile: staticJSPath) {
+            print("😀 Loaded Emoji JavaScript from: \\(staticJSPath)")
+            return jsContent
+        }
+    }
+    
+    print("⚠️ Static Emoji JavaScript file not found, using fallback")
+    return generateFallbackEmojiJS()
+}
+
+private func generateFallbackEmojiJS() -> String {
+    return """
+    // Basic fallback Emoji JavaScript
+    console.log('XCF Chat - Loading basic fallback Emoji JavaScript');
+    
+    // Basic emoji data
+    const EMOJI_DATA = ['👤', '🐶', '🐱', '🐭', '🐹', '🐰'];
+    
+    function populateEmojiGrid(containerSelector, onClickHandler) {
+        console.log('Emoji grid population not available - static files missing');
+    }
+    
+    // Basic emoji functions
+    function selectEmoji(emoji) {
+        console.log('Select emoji:', emoji);
+    }
+    
+    function changeUserEmoji(emoji) {
+        console.log('Change user emoji:', emoji);
+    }
+    
+    // Export basic functionality
+    if (typeof window !== 'undefined') {
+        window.EMOJI_DATA = EMOJI_DATA;
+        window.populateEmojiGrid = populateEmojiGrid;
+    }
     """
 }
 
