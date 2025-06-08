@@ -2380,8 +2380,8 @@ public class WebAuthnManager {
         return options
     }
     
-    // Universal registration options - works on all platforms
-    public func generateUniversalRegistrationOptions(username: String, displayName: String? = nil) -> [String: Any] {
+    // Universal registration options - supports both QR code/phone passkey AND security keys
+    public func generateHybridRegistrationOptions(username: String, displayName: String? = nil) -> [String: Any] {
         let challenge = generateChallenge()
         let userId = generateUserId()
         
@@ -2403,11 +2403,12 @@ public class WebAuthnManager {
             ["type": "public-key", "alg": -257], // RS256 (Windows Hello)
             ["type": "public-key", "alg": -8],   // EdDSA (modern keys)
             ["type": "public-key", "alg": -35],  // ES384 (enhanced security)
-            ["type": "public-key", "alg": -36],  // ES512 (maximum security)
-            ["type": "public-key", "alg": -37]   // PS256 (RSASSA-PSS)
+            ["type": "public-key", "alg": -36]   // ES512 (maximum security)
         ]
         
-        // No authenticator restrictions - let user/browser choose
+        // COMPLETELY remove authenticatorSelection to force Chrome to show ALL options
+        // This is more aggressive than just omitting authenticatorAttachment
+        
         let options: [String: Any] = [
             "publicKey": [
                 "challenge": challenge,
@@ -2416,8 +2417,10 @@ public class WebAuthnManager {
                 "pubKeyCredParams": pubKeyCredParams,
                 "timeout": 300000,      // Longer timeout for user choice
                 "attestation": "none",  // Privacy-friendly
-                "userVerification": "preferred" // Flexible verification
-                // No authenticatorSelection - allow any authenticator type
+                "extensions": [
+                    "credProps": true   // Enable credential properties extension for debugging
+                ]
+                // COMPLETELY NO authenticatorSelection - forces Chrome to show all available options!
             ]
         ]
         
@@ -2476,6 +2479,42 @@ public class WebAuthnManager {
             print("[WebAuthn] Using hardware security key authentication for Linux user: \(username)")
             return generateLinuxCompatibleRegistrationOptions(username: username, displayName: displayName)
         }
+    }
+    
+    // Hybrid authentication options - supports both platform authenticators (QR code) and security keys
+    public func generateHybridAuthenticationOptions(username: String?) throws -> [String: Any] {
+        let challenge = generateChallenge()
+        
+        var allowCredentials: [[String: Any]] = []
+        
+        if let username = username, !username.isEmpty {
+            // If username is provided, allow that specific credential
+            guard let credential = getCredential(username: username) else {
+                throw WebAuthnError.credentialNotFound
+            }
+            allowCredentials = [[
+                "type": "public-key",
+                "id": credential.id,
+                "transports": ["internal", "usb", "nfc", "ble", "hybrid"] // All transport types including BLE for maximum compatibility
+            ]]
+        } else {
+            // If no username provided, use empty allowCredentials for discoverable credentials
+            allowCredentials = []
+        }
+        
+        let options: [String: Any] = [
+            "publicKey": [
+                "challenge": challenge,
+                "timeout": 300000,      // Longer timeout for user choice
+                "rpId": rpId,
+                "allowCredentials": allowCredentials,
+                "userVerification": "discouraged"  // Discouraged to allow more authenticator types
+                // COMPLETELY NO authenticatorSelection - forces Chrome to show all available options!
+                // NO extensions for authentication - credProps is only for registration
+            ]
+        ]
+        
+        return options
     }
 }
 

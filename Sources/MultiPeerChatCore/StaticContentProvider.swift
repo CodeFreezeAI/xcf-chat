@@ -1,4 +1,3 @@
-
 import Foundation
 
 // MARK: - Static Content Provider
@@ -441,6 +440,26 @@ public func generateEmojiJS() -> String {
     return generateFallbackEmojiJS()
 }
 
+public func generateHybridWebAuthnTestHTML() -> String {
+    // Try to read from external file first, fallback to default if not found
+    let possiblePaths = [
+        "static/hybrid-webauthn-test.html",
+        "./static/hybrid-webauthn-test.html", 
+        "../../static/hybrid-webauthn-test.html",
+        FileManager.default.currentDirectoryPath + "/static/hybrid-webauthn-test.html"
+    ]
+    
+    for staticHTMLPath in possiblePaths {
+        if let htmlContent = try? String(contentsOfFile: staticHTMLPath) {
+            print("🔐 Loaded Hybrid WebAuthn Test HTML from: \(staticHTMLPath)")
+            return htmlContent
+        }
+    }
+    
+    print("⚠️ Static Hybrid WebAuthn Test HTML file not found, using fallback")
+    return generateFallbackHybridWebAuthnTestHTML()
+}
+
 private func generateFallbackEmojiJS() -> String {
     return """
     // Basic fallback Emoji JavaScript
@@ -506,5 +525,140 @@ private func generateFallbackJS() -> String {
             chatScreen.appendChild(errorMsg);
         }
     });
+    """
+}
+
+private func generateFallbackHybridWebAuthnTestHTML() -> String {
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hybrid WebAuthn Test - QR Code + Security Key</title>
+        <style>
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                max-width: 800px; 
+                margin: 40px auto; 
+                padding: 20px;
+                background: #f5f5f5;
+            }
+            .container {
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            h1 { 
+                color: #333; 
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .feature-box {
+                background: #e8f4ff;
+                border: 2px solid #007bff;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+            }
+            .test-section {
+                margin: 30px 0;
+                padding: 20px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                background: #fafafa;
+            }
+            input[type="text"] {
+                width: 100%;
+                padding: 12px;
+                margin: 10px 0;
+                border: 2px solid #ddd;
+                border-radius: 6px;
+                font-size: 16px;
+            }
+            button {
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 16px;
+                margin: 5px;
+            }
+            button:hover { background: #0056b3; }
+            button:disabled { background: #ccc; cursor: not-allowed; }
+            .status {
+                margin: 15px 0;
+                padding: 10px;
+                border-radius: 6px;
+                font-weight: 500;
+            }
+            .status.info { background: #cce5ff; color: #004085; }
+            .status.success { background: #d4edda; color: #155724; }
+            .status.error { background: #f8d7da; color: #721c24; }
+            .log {
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                padding: 15px;
+                margin: 15px 0;
+                font-family: monospace;
+                font-size: 14px;
+                max-height: 300px;
+                overflow-y: auto;
+            }
+            .highlight {
+                background: #fff3cd;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 15px 0;
+                border-left: 4px solid #ffc107;
+            }
+            .error-message {
+                background: #f8d7da;
+                border: 1px solid #f5c6cb;
+                color: #721c24;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 20px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔐 Hybrid WebAuthn Test (Fallback)</h1>
+            
+            <div class="error-message">
+                <h3>⚠️ Static File Not Found</h3>
+                <p>The hybrid WebAuthn test HTML file could not be loaded from the static directory.</p>
+                <p><strong>To use the full test:</strong></p>
+                <ul>
+                    <li>Ensure <code>static/hybrid-webauthn-test.html</code> exists</li>
+                    <li>Restart the server</li>
+                    <li>The full test will load automatically</li>
+                </ul>
+            </div>
+
+            <div class="feature-box">
+                <h3>✨ Hybrid WebAuthn Support</h3>
+                <p><strong>This implementation supports BOTH options simultaneously:</strong></p>
+                <ul>
+                    <li>📱 <strong>QR Code/Phone Passkey</strong> - Scan QR code to use your phone as authenticator</li>
+                    <li>🔑 <strong>Security Key</strong> - Insert USB/NFC security key (YubiKey, etc.)</li>
+                    <li>💻 <strong>Platform Authenticators</strong> - Touch ID, Face ID, Windows Hello</li>
+                </ul>
+                <p><em>Chrome will present all available options when the full test is loaded!</em></p>
+            </div>
+            
+            <div class="highlight">
+                <h4>📁 File Location</h4>
+                <p>Place the test file at: <code>static/hybrid-webauthn-test.html</code></p>
+                <p>Server will automatically load the full test interface.</p>
+            </div>
+        </div>
+    </body>
+    </html>
     """
 } 

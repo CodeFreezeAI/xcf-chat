@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid WebAuthn Test - QR Code + Security Key</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px; 
+            margin: 40px auto; 
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .feature-box {
+            background: #e8f4ff;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .status {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .status.info { background: #cce5ff; color: #004085; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Hybrid WebAuthn Test</h1>
+        
+        <div class="feature-box">
+            <h3>✨ What's New: Hybrid WebAuthn Support</h3>
+            <p><strong>This implementation supports BOTH options simultaneously:</strong></p>
+            <ul>
+                <li>📱 <strong>QR Code/Phone Passkey</strong> - Scan QR code to use your phone as authenticator</li>
+                <li>🔑 <strong>Security Key</strong> - Insert USB/NFC security key (YubiKey, etc.)</li>
+                <li>💻 <strong>Platform Authenticators</strong> - Touch ID, Face ID, Windows Hello</li>
+            </ul>
+            <p><em>Chrome will present all available options - choose what works best for you!</em></p>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Test Registration (Hybrid Mode)</h3>
+            <input type="text" id="regUsername" placeholder="Enter username" value="testuser">
+            <button onclick="testHybridRegistration()">Register with Hybrid WebAuthn</button>
+            <div id="regStatus" class="status" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔓 Test Authentication (Hybrid Mode)</h3>
+            <input type="text" id="authUsername" placeholder="Enter username (optional for usernameless)" value="testuser">
+            <button onclick="testHybridAuthentication()">Authenticate with Hybrid WebAuthn</button>
+            <div id="authStatus" class="status" style="display: none;"></div>
+        </div>
+
+        <div class="highlight">
+            <h4>🎯 Expected Chrome Behavior:</h4>
+            <p>When you click register/authenticate, Chrome should show a dialog with multiple options:</p>
+            <ul>
+                <li><strong>"Use your phone"</strong> - Shows QR code to scan with your phone</li>
+                <li><strong>"Use a security key"</strong> - For USB/NFC security keys</li>
+                <li><strong>Platform options</strong> - Touch ID (Mac), Windows Hello, etc.</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Debug Log</h3>
+            <button onclick="clearLog()">Clear Log</button>
+            <div id="debugLog" class="log"></div>
+        </div>
+    </div>
+
+    <script src="/static/hybrid-webauthn.js"></script>
+    <script>
+        const webauthn = new HybridWebAuthnClient();
+        
+        function log(message) {
+            const logDiv = document.getElementById('debugLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function clearLog() {
+            document.getElementById('debugLog').innerHTML = '';
+        }
+        
+        function showStatus(elementId, message, type) {
+            const statusDiv = document.getElementById(elementId);
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+            log(`Status (${type}): ${message}`);
+        }
+        
+        async function testHybridRegistration() {
+            const username = document.getElementById('regUsername').value.trim();
+            if (!username) {
+                showStatus('regStatus', 'Please enter a username', 'error');
+                return;
+            }
+            
+            log(`🚀 Starting hybrid registration for: ${username}`);
+            
+            try {
+                const result = await webauthn.register(username, '🧪', {
+                    onStatus: (message, type) => {
+                        showStatus('regStatus', message, type);
+                    },
+                    onSuccess: (data) => {
+                        log(`✅ Hybrid registration successful!`);
+                        log(`Username: ${data.username}, Emoji: ${data.emoji}`);
+                        showStatus('regStatus', 'Hybrid registration successful!', 'success');
+                    },
+                    onError: (error) => {
+                        log(`❌ Hybrid registration error: ${error}`);
+                        showStatus('regStatus', `Error: ${error}`, 'error');
+                    }
+                });
+                
+                if (result.success) {
+                    log(`🎉 Registration completed successfully!`);
+                }
+                
+            } catch (error) {
+                log(`❌ Registration failed: ${error.message}`);
+                showStatus('regStatus', `❌ Registration failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testHybridAuthentication() {
+            const username = document.getElementById('authUsername').value.trim();
+            
+            log(`🔓 Starting hybrid authentication for: ${username || 'usernameless'}`);
+            
+            try {
+                const result = await webauthn.authenticate(username || null, {
+                    onStatus: (message, type) => {
+                        showStatus('authStatus', message, type);
+                    },
+                    onSuccess: (data) => {
+                        log(`✅ Hybrid authentication successful!`);
+                        log(`User: ${data.username || 'usernameless'}`);
+                        showStatus('authStatus', 'Hybrid authentication successful!', 'success');
+                    },
+                    onError: (error) => {
+                        log(`❌ Hybrid authentication error: ${error}`);
+                        showStatus('authStatus', `Error: ${error}`, 'error');
+                    }
+                });
+                
+                if (result.success) {
+                    log(`🎉 Authentication completed successfully!`);
+                }
+                
+            } catch (error) {
+                log(`❌ Authentication failed: ${error.message}`);
+                showStatus('authStatus', `❌ Authentication failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Helper functions for base64 conversion
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+        
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+        
+        // Initialize
+        log('🔐 Hybrid WebAuthn Test Page Loaded');
+        log(`Browser: ${navigator.userAgent}`);
+        log(`Platform: ${navigator.platform}`);
+        log(`WebAuthn Support: ${webauthn.isSupported()}`);
+        
+        // Check for specific browser capabilities
+        log(`Chrome: ${webauthn.isChrome()}`);
+        log(`Firefox: ${webauthn.isFirefox()}`);
+        log(`Mac: ${webauthn.isMac()}`);
+        log(`Windows: ${webauthn.isWindows()}`);
+        log(`Linux: ${webauthn.isLinux()}`);
+        
+        // Check for platform authenticator availability
+        if (typeof PublicKeyCredential !== 'undefined' && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+            PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(available => {
+                log(`Platform Authenticator Available: ${available}`);
+                if (available && webauthn.isMac()) {
+                    log('🍎 Touch ID may be available - this might affect Chrome behavior');
+                }
+            });
+        }
+        
+        if (webauthn.isSupported()) {
+            log('✅ WebAuthn is supported in this browser');
+        } else {
+            log('❌ WebAuthn is NOT supported in this browser');
+        }
+        
+        // Test hybrid endpoint directly
+        log('🧪 Testing hybrid endpoint directly...');
+        fetch('/webauthn/register/begin/hybrid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'debug-test-user' })
+        }).then(response => response.json()).then(options => {
+            log('📋 Direct hybrid endpoint test - Server Options:');
+            log(JSON.stringify(options, null, 2));
+            
+            // Check for key hybrid characteristics
+            if (options.publicKey && options.publicKey.authenticatorSelection) {
+                const authSel = options.publicKey.authenticatorSelection;
+                if ('authenticatorAttachment' in authSel) {
+                    log(`⚠️ authenticatorAttachment is present: ${authSel.authenticatorAttachment}`);
+                    log('❌ This may prevent hybrid mode from working properly');
+                } else {
+                    log('✅ authenticatorAttachment is missing - good for hybrid mode');
+                }
+            }
+        }).catch(error => {
+            log(`❌ Failed to test hybrid endpoint: ${error}`);
+        });
+    </script>
+</body>
+</html> 

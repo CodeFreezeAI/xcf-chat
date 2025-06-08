@@ -90,14 +90,18 @@ class WebAuthnClient {
                 // Firefox on Linux: Use hardware key automatically (works well)
                 strategy = 'linux-hardware';
                 console.log('🐧 Firefox on Linux detected - using hardware security key mode');
+            } else if (this.isChrome()) {
+                // Chrome on Linux: Use hybrid mode for registration (QR code + security key options)
+                strategy = 'hybrid';
+                console.log('🐧 Chrome on Linux detected - using hybrid registration mode');
             } else {
-                // All other browsers on Linux: Use software authentication
+                // Other browsers on Linux: Use software authentication
                 strategy = 'linux-software';
                 console.log('🐧 Linux detected - using browser-based authentication');
             }
         } else if (this.isWindows()) {
             strategy = 'windows';
-            console.log('�� Windows detected - using Windows authenticators');
+            console.log('💻 Windows detected - using Windows authenticators');
         } else if (this.isMac()) {
             strategy = 'mac';
             console.log('🖥️ Mac detected - preparing Touch ID registration');
@@ -223,6 +227,10 @@ class WebAuthnClient {
                 endpoint = '/webauthn/register/begin';  // Windows Hello compatible
             } else if (strategy === 'cross-platform') {
                 endpoint = '/webauthn/register/begin/universal';
+            } else if (strategy === 'hybrid') {
+                endpoint = '/webauthn/register/begin/hybrid';  // Hybrid endpoint for both QR code and security key
+            } else {
+                endpoint = '/webauthn/register/begin';  // Default endpoint
             }
             
             onStatus('Preparing registration...', 'info');
@@ -268,6 +276,8 @@ class WebAuthnClient {
                 onStatus('Insert security key', 'info');
             } else if (strategy === 'platform') {
                 onStatus('Create passkey with biometrics', 'info');
+            } else if (strategy === 'hybrid') {
+                onStatus('Choose: QR code (phone) or security key', 'info');
             } else {
                 onStatus('Create passkey', 'info');
             }
@@ -477,14 +487,28 @@ class WebAuthnClient {
                     return { success: false, error };
                 }
                 onStatus('Safari: Insert security key', 'info');
+            } else if (this.isChrome() && this.isLinux()) {
+                onStatus('Choose: QR code (phone) or security key', 'info');
             } else {
                 onStatus('Insert security key', 'info');
             }
             
-            // Prepare request body - FORCE security key only by telling server
-            const requestBody = username === null ? { securityKeyOnly: true } : { username: username, securityKeyOnly: true };
+            // Use hybrid endpoint for Chrome on Linux, otherwise use regular security key endpoint
+            let endpoint = '/webauthn/authenticate/begin';
+            let requestBody;
             
-            const optionsResponse = await fetchFn('/webauthn/authenticate/begin', {
+            if (this.isChrome() && this.isLinux()) {
+                // Chrome on Linux: Use hybrid endpoint for QR code + security key options
+                endpoint = '/webauthn/authenticate/begin/hybrid';
+                requestBody = username === null ? {} : { username: username };
+                console.log('🐧 Chrome Linux: Using hybrid authentication endpoint');
+            } else {
+                // Other browsers: Use regular security key endpoint
+                requestBody = username === null ? { securityKeyOnly: true } : { username: username, securityKeyOnly: true };
+                console.log('🔑 Using security key authentication endpoint');
+            }
+            
+            const optionsResponse = await fetchFn(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)
@@ -503,30 +527,53 @@ class WebAuthnClient {
             // Convert challenge to ArrayBuffer
             options.publicKey.challenge = this.base64ToArrayBuffer(options.publicKey.challenge, atobFn);
             
-            // CRITICAL: Filter credentials to ONLY security keys (remove Touch ID/passkeys)
+            // Convert credentials to ArrayBuffer
             if (options.publicKey.allowCredentials) {
                 console.log('🔑 Original credentials:', options.publicKey.allowCredentials.length);
                 
-                // Convert credentials and prepare for security key only
+                // Just convert credentials, don't filter for hybrid mode
                 options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(cred => ({
                     ...cred,
                     id: this.base64ToArrayBuffer(cred.id, atobFn)
                 }));
                 
-                console.log('🔑 Security key credentials ready:', options.publicKey.allowCredentials.length);
+                if (this.isChrome() && this.isLinux()) {
+                    console.log('🐧 Chrome Linux: Hybrid credentials ready:', options.publicKey.allowCredentials.length);
+                } else {
+                    console.log('🔑 Security key credentials ready:', options.publicKey.allowCredentials.length);
+                }
             } else {
-                console.log('🔑 No allowCredentials - using usernameless security key auth');
+                if (this.isChrome() && this.isLinux()) {
+                    console.log('🐧 Chrome Linux: No allowCredentials - using usernameless hybrid auth');
+                } else {
+                    console.log('🔑 No allowCredentials - using usernameless security key auth');
+                }
             }
             
-            // Modify options to prefer cross-platform authenticators (security keys)
-            options.publicKey.timeout = 30000; // 30 seconds for security key
+            // Set timeout based on mode
+            if (this.isChrome() && this.isLinux()) {
+                options.publicKey.timeout = 60000; // 60 seconds for hybrid (phone + security key)
+            } else {
+                options.publicKey.timeout = 30000; // 30 seconds for security key only
+            }
             
             // Safari-specific options for security keys
             
-            let securityKeyOptions = {
-                ...options.publicKey,
-                userVerification: 'discouraged' // Don't require PIN for security keys
-            };
+            let securityKeyOptions;
+            
+            if (this.isChrome() && this.isLinux()) {
+                // Chrome Linux: Use hybrid options as-is from server (don't modify for security key preference)
+                securityKeyOptions = {
+                    ...options.publicKey
+                };
+                console.log('🐧 Chrome Linux: Using hybrid options unchanged');
+            } else {
+                // Other browsers: Apply security key optimizations
+                securityKeyOptions = {
+                    ...options.publicKey,
+                    userVerification: 'discouraged' // Don't require PIN for security keys
+                };
+            }
             
             // Safari-specific handling - Security key mode
             if (isSafari) {
@@ -645,10 +692,12 @@ class WebAuthnClient {
             console.log('🔐 Attempting passkey authentication...');
             onStatus('Authenticate with passkey', 'info');
             
-            // Prepare request body - send null for usernameless authentication
+            // Always use regular passkey endpoint (no hybrid for passkey button)
+            let endpoint = '/webauthn/authenticate/begin';
             const requestBody = username === null ? {} : { username: username };
+            console.log('🔐 Using regular passkey authentication endpoint');
             
-            const optionsResponse = await fetchFn('/webauthn/authenticate/begin', {
+            const optionsResponse = await fetchFn(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)

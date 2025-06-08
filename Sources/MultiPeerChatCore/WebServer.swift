@@ -313,6 +313,9 @@ public class WebServer: ObservableObject, AdminManagerDelegate {
         case ("GET", "/webauthn.css"):
             response = generateWebAuthnCSS()
             contentType = "text/css"
+        case ("GET", "/hybrid-webauthn-test.html"):
+            response = generateHybridWebAuthnTestHTML()
+            contentType = "text/html"
         // Admin Routes - REQUIRES AUTHENTICATION
         case ("GET", "/admin/index.html"), ("GET", "/admin/"), ("GET", "/admin"):
             // ALWAYS show login page first - no exceptions
@@ -468,6 +471,9 @@ public class WebServer: ObservableObject, AdminManagerDelegate {
             return
         case ("GET", let path) where path.hasPrefix("/files/"):
             handleFileServing(connection, path: path)
+            return
+        case ("GET", let path) where path.hasPrefix("/static/"):
+            handleStaticFileServing(connection, path: path)
             return
         case ("GET", let path) where path.hasPrefix("/thumbnails/"):
             handleThumbnailServing(connection, path: path)
@@ -1305,6 +1311,72 @@ public class WebServer: ObservableObject, AdminManagerDelegate {
             }
         } catch {
             sendErrorResponse(connection, error: "Failed to read thumbnail", statusCode: "500 Internal Server Error")
+        }
+    }
+    
+    private func handleStaticFileServing(_ connection: NWConnection, path: String) {
+        // Remove /static/ prefix and get the actual file path
+        let fileName = String(path.dropFirst("/static/".count))
+        
+        // Try various locations for the static file
+        let possiblePaths = [
+            "static/\(fileName)",
+            "./static/\(fileName)",
+            "../../static/\(fileName)",
+            FileManager.default.currentDirectoryPath + "/static/\(fileName)"
+        ]
+        
+        for staticFilePath in possiblePaths {
+            if FileManager.default.fileExists(atPath: staticFilePath) {
+                do {
+                    let fileData = try Data(contentsOf: URL(fileURLWithPath: staticFilePath))
+                    
+                    // Determine MIME type based on file extension
+                    let mimeType = getMimeType(for: fileName)
+                    
+                    print("📁 Serving static file: \(staticFilePath)")
+                    sendFileResponse(connection, data: fileData, mimeType: mimeType, fileName: fileName)
+                    return
+                } catch {
+                    print("❌ Failed to read static file \(staticFilePath): \(error)")
+                    continue
+                }
+            }
+        }
+        
+        // File not found
+        print("❌ Static file not found: \(fileName)")
+        sendErrorResponse(connection, error: "Static file not found: \(fileName)", statusCode: "404 Not Found")
+    }
+    
+    private func getMimeType(for fileName: String) -> String {
+        let pathExtension = (fileName as NSString).pathExtension.lowercased()
+        
+        switch pathExtension {
+        case "html", "htm":
+            return "text/html"
+        case "css":
+            return "text/css"
+        case "js":
+            return "application/javascript"
+        case "json":
+            return "application/json"
+        case "png":
+            return "image/png"
+        case "jpg", "jpeg":
+            return "image/jpeg"
+        case "gif":
+            return "image/gif"
+        case "svg":
+            return "image/svg+xml"
+        case "ico":
+            return "image/x-icon"
+        case "txt":
+            return "text/plain"
+        case "pdf":
+            return "application/pdf"
+        default:
+            return "application/octet-stream"
         }
     }
     

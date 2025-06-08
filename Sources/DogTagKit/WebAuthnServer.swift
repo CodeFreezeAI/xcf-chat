@@ -75,12 +75,16 @@ public class WebAuthnServer {
             return handleRegisterBeginLinuxSoftware(request)
         case ("POST", "/webauthn/register/begin/universal"):
             return handleRegisterBeginUniversal(request)
+        case ("POST", "/webauthn/register/begin/hybrid"):
+            return handleRegisterBeginHybrid(request)
         case ("POST", "/webauthn/register/complete"):
             return handleRegisterComplete(request)
         case ("POST", "/webauthn/authenticate/begin"):
             return handleAuthenticateBegin(request)
         case ("POST", "/webauthn/authenticate/begin/linux-software"):
             return handleAuthenticateBeginLinuxSoftware(request)
+        case ("POST", "/webauthn/authenticate/begin/hybrid"):
+            return handleAuthenticateBeginHybrid(request)
         case ("POST", "/webauthn/authenticate/complete"):
             return handleAuthenticateComplete(request)
         case ("POST", "/webauthn/username/check"):
@@ -158,10 +162,25 @@ public class WebAuthnServer {
             return HTTPResponse.error("Invalid request body - username required")
         }
         
-        print("[WebAuthnServer] Using universal registration options for: \(username)")
-        let options = manager.generateUniversalRegistrationOptions(username: username)
+        print("[WebAuthnServer] Using hybrid registration options for: \(username)")
+        let options = manager.generateHybridRegistrationOptions(username: username)
         
-        print("[WebAuthnServer] Universal registration options generated for: \(username)")
+        print("[WebAuthnServer] Hybrid registration options generated for: \(username)")
+        return HTTPResponse.json(options)
+    }
+    
+    private func handleRegisterBeginHybrid(_ request: HTTPRequest) -> HTTPResponse {
+        guard let body = request.body,
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let username = json["username"] as? String else {
+            print("[WebAuthnServer] Hybrid registration begin: Invalid request body")
+            return HTTPResponse.error("Invalid request body - username required")
+        }
+        
+        print("[WebAuthnServer] Using hybrid registration options for: \(username)")
+        let options = manager.generateHybridRegistrationOptions(username: username)
+        
+        print("[WebAuthnServer] Hybrid registration options generated for: \(username)")
         return HTTPResponse.json(options)
     }
     
@@ -227,6 +246,25 @@ public class WebAuthnServer {
             return HTTPResponse.json(options)
         } catch {
             print("[WebAuthnServer] Firefox Linux authentication begin failed: \(error)")
+            return HTTPResponse.error("Failed to generate authentication options: \(error.localizedDescription)")
+        }
+    }
+    
+    private func handleAuthenticateBeginHybrid(_ request: HTTPRequest) -> HTTPResponse {
+        guard let body = request.body,
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
+            print("[WebAuthnServer] Hybrid authentication begin: Invalid request body")
+            return HTTPResponse.error("Invalid request body")
+        }
+        
+        let username = json["username"] as? String // Optional for usernameless flow
+        
+        do {
+            let options = try manager.generateHybridAuthenticationOptions(username: username)
+            print("[WebAuthnServer] Hybrid authentication options generated for: \(username ?? "usernameless")")
+            return HTTPResponse.json(options)
+        } catch {
+            print("[WebAuthnServer] Hybrid authentication begin failed: \(error)")
             return HTTPResponse.error("Failed to generate authentication options: \(error.localizedDescription)")
         }
     }
@@ -419,6 +457,12 @@ extension WebAuthnServer {
             return self.httpResponseToVaporResponse(httpResponse)
         }
         
+        app.post("webauthn", "register", "begin", "hybrid") { req -> Response in
+            let httpRequest = try self.vaporRequestToHTTPRequest(req)
+            let httpResponse = self.handleRequest(httpRequest)
+            return self.httpResponseToVaporResponse(httpResponse)
+        }
+        
         app.post("webauthn", "register", "complete") { req -> Response in
             let httpRequest = try self.vaporRequestToHTTPRequest(req)
             let httpResponse = self.handleRequest(httpRequest)
@@ -432,6 +476,12 @@ extension WebAuthnServer {
         }
         
         app.post("webauthn", "authenticate", "begin", "linux-software") { req -> Response in
+            let httpRequest = try self.vaporRequestToHTTPRequest(req)
+            let httpResponse = self.handleRequest(httpRequest)
+            return self.httpResponseToVaporResponse(httpResponse)
+        }
+        
+        app.post("webauthn", "authenticate", "begin", "hybrid") { req -> Response in
             let httpRequest = try self.vaporRequestToHTTPRequest(req)
             let httpResponse = self.handleRequest(httpRequest)
             return self.httpResponseToVaporResponse(httpResponse)
@@ -505,6 +555,10 @@ extension WebAuthnServer {
             return self.handleRequest(request)
         }
         
+        router.addRoute(method: "POST", path: "/webauthn/register/begin/hybrid") { request in
+            return self.handleRequest(request)
+        }
+        
         router.addRoute(method: "POST", path: "/webauthn/register/complete") { request in
             return self.handleRequest(request)
         }
@@ -514,6 +568,10 @@ extension WebAuthnServer {
         }
         
         router.addRoute(method: "POST", path: "/webauthn/authenticate/begin/linux-software") { request in
+            return self.handleRequest(request)
+        }
+        
+        router.addRoute(method: "POST", path: "/webauthn/authenticate/begin/hybrid") { request in
             return self.handleRequest(request)
         }
         
