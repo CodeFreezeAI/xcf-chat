@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 WebAuthn Super Test - Complete FIDO1/FIDO2/Passkey Testing Lab</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 2.5em; }
+        .header p { margin: 10px 0 0 0; opacity: 0.9; }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            min-height: 80vh;
+        }
+        
+        .sidebar {
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .content-area {
+            padding: 30px;
+            overflow-y: auto;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        
+        .section h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            margin: 0;
+            font-weight: normal;
+        }
+        
+        .checkbox-group input {
+            width: auto;
+            margin-right: 5px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px 5px 5px 0;
+            transition: background 0.2s;
+        }
+        
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .btn-large {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #1e7e34; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-warning:hover { background: #e0a800; }
+        
+        .status {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: 500;
+            white-space: pre-wrap;
+        }
+        .status.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .debug-info {
+            background: #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .capabilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .capability-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        
+        .capability-card h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .nav-menu li {
+            margin-bottom: 5px;
+        }
+        
+        .nav-menu a {
+            display: block;
+            padding: 10px 15px;
+            color: #495057;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: #007bff;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .settings-export {
+            background: #e7f3ff;
+            border: 1px solid #b3d4fc;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                order: 2;
+                border-right: none;
+                border-top: 1px solid #dee2e6;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 WebAuthn Super Test Lab</h1>
+            <p>Complete FIDO1/FIDO2/WebAuthn Testing & Troubleshooting Platform</p>
+            <p>🔬 Test Everything • 🐛 Debug Issues • 💾 Save Working Configs • 🚀 Production Ready</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <ul class="nav-menu">
+                    <li><a href="#" onclick="showTab('browser-info')" class="active">🔍 Browser Info</a></li>
+                    <li><a href="#" onclick="showTab('registration-test')">📝 Registration Tests</a></li>
+                    <li><a href="#" onclick="showTab('authentication-test')">🔐 Authentication Tests</a></li>
+                    <li><a href="#" onclick="showTab('advanced-options')">⚙️ Advanced Options</a></li>
+                    <li><a href="#" onclick="showTab('transport-test')">🚀 Transport Tests</a></li>
+                    <li><a href="#" onclick="showTab('algorithm-test')">🔢 Algorithm Tests</a></li>
+                    <li><a href="#" onclick="showTab('passkey-test')">🔑 Passkey Tests</a></li>
+                    <li><a href="#" onclick="showTab('hardware-test')">🔧 Hardware Tests</a></li>
+                    <li><a href="#" onclick="showTab('fido-test')">🏆 FIDO1/FIDO2 Tests</a></li>
+                    <li><a href="#" onclick="showTab('debug-tools')">🐛 Debug Tools</a></li>
+                    <li><a href="#" onclick="showTab('settings-export')">💾 Export Settings</a></li>
+                </ul>
+            </div>
+            
+            <div class="content-area">
+                <!-- Browser Information Tab -->
+                <div id="browser-info" class="tab-content active">
+                    <div class="section">
+                        <h3>🔍 Browser & Platform Detection</h3>
+                        <div id="browser-detection" class="debug-info">Loading browser information...</div>
+                        <button onclick="refreshBrowserInfo()">🔄 Refresh Info</button>
+                        <button onclick="runCapabilityTests()">🧪 Run Capability Tests</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>🛠️ WebAuthn Capabilities</h3>
+                        <div id="webauthn-capabilities" class="capabilities-grid">Loading capabilities...</div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>📊 Platform Authenticator Status</h3>
+                        <div id="platform-status" class="debug-info">Checking platform authenticator...</div>
+                    </div>
+                </div>
+
+                <!-- Registration Tests Tab -->
+                <div id="registration-test" class="tab-content">
+                    <div class="section">
+                        <h3>📝 Registration Configuration</h3>
+                        <div class="form-group">
+                            <label>Username:</label>
+                            <input type="text" id="reg-username" value="testuser">
+                        </div>
+                        <div class="form-group">
+                            <label>Authenticator Attachment:</label>
+                            <select id="reg-attachment">
+                                <option value="">Any (Hybrid Mode)</option>
+                                <option value="platform">Platform (Touch ID, Windows Hello)</option>
+                                <option value="cross-platform">Cross-Platform (USB, NFC Keys)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>User Verification:</label>
+                            <select id="reg-user-verification">
+                                <option value="preferred">Preferred (Default)</option>
+                                <option value="required">Required (PIN/Biometric)</option>
+                                <option value="discouraged">Discouraged (No PIN)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Resident Key:</label>
+                            <select id="reg-resident-key">
+                                <option value="preferred">Preferred (Passkey if possible)</option>
+                                <option value="required">Required (Must be Passkey)</option>
+                                <option value="discouraged">Discouraged (No Passkey)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Attestation:</label>
+                            <select id="reg-attestation">
+                                <option value="none">None (Privacy-friendly)</option>
+                                <option value="indirect">Indirect</option>
+                                <option value="direct">Direct (Full attestation)</option>
+                                <option value="enterprise">Enterprise</option>
+                            </select>
+                        </div>
+                        <button onclick="testRegistration()" class="btn-large btn-success">🔐 Test Registration</button>
+                        <div id="reg-status" class="status" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Authentication Tests Tab -->
+                <div id="authentication-test" class="tab-content">
+                    <div class="section">
+                        <h3>🔐 Authentication Testing</h3>
+                        <div class="form-group">
+                            <label>Username (leave empty for usernameless):</label>
+                            <input type="text" id="auth-username" value="testuser">
+                        </div>
+                        <div class="form-group">
+                            <label>Authentication Type:</label>
+                            <select id="auth-type">
+                                <option value="hybrid">Hybrid (QR + Security Key)</option>
+                                <option value="hybrid-force">Hybrid (Force Non-Platform)</option>
+                                <option value="passkey">Passkey Only</option>
+                                <option value="security-key">Security Key Only</option>
+                                <option value="platform">Platform Only</option>
+                                <option value="usernameless">Usernameless</option>
+                                <option value="apple-override">Apple Override (No Touch ID)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Apple Device Overrides:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="force-cross-platform"> Force Cross-Platform (No Touch ID/Face ID)</label>
+                                <label><input type="checkbox" id="disable-platform-auth"> Disable Platform Authenticator</label>
+                                <label><input type="checkbox" id="prioritize-external"> Prioritize External Keys</label>
+                            </div>
+                        </div>
+                        <button onclick="testAuthentication()" class="btn-large btn-success">🔓 Test Authentication</button>
+                        <div id="auth-status" class="status" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Advanced Options Tab -->
+                <div id="advanced-options" class="tab-content">
+                    <div class="section">
+                        <h3>⚙️ Advanced WebAuthn Configuration</h3>
+                        <div class="form-group">
+                            <label>Timeout (milliseconds):</label>
+                            <input type="number" id="advanced-timeout" value="60000" min="10000" max="300000">
+                        </div>
+                        <div class="form-group">
+                            <label>Challenge Size (bytes):</label>
+                            <input type="number" id="advanced-challenge-size" value="32" min="16" max="64">
+                        </div>
+                        <div class="form-group">
+                            <label>Supported Algorithms:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" value="-7" checked> ES256 (ECDSA P-256)</label>
+                                <label><input type="checkbox" value="-35"> ES384 (ECDSA P-384)</label>
+                                <label><input type="checkbox" value="-36"> ES512 (ECDSA P-521)</label>
+                                <label><input type="checkbox" value="-257"> RS256 (RSA PKCS#1)</label>
+                                <label><input type="checkbox" value="-258"> RS384 (RSA PKCS#1)</label>
+                                <label><input type="checkbox" value="-259"> RS512 (RSA PKCS#1)</label>
+                                <label><input type="checkbox" value="-37"> PS256 (RSA PSS)</label>
+                                <label><input type="checkbox" value="-38"> PS384 (RSA PSS)</label>
+                                <label><input type="checkbox" value="-39"> PS512 (RSA PSS)</label>
+                                <label><input type="checkbox" value="-8"> EdDSA</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Transport Methods:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" value="usb" checked> USB</label>
+                                <label><input type="checkbox" value="nfc" checked> NFC</label>
+                                <label><input type="checkbox" value="ble" checked> Bluetooth</label>
+                                <label><input type="checkbox" value="internal" checked> Internal/Platform</label>
+                                <label><input type="checkbox" value="hybrid" checked> Hybrid (QR Code)</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Extensions:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="ext-credProps"> credProps</label>
+                                <label><input type="checkbox" id="ext-largeBlobKey"> largeBlobKey</label>
+                                <label><input type="checkbox" id="ext-credProtect"> credProtect</label>
+                                <label><input type="checkbox" id="ext-hmacSecret"> hmac-secret</label>
+                                <label><input type="checkbox" id="ext-devicePubKey"> devicePubKey</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>🍎 Apple/Safari Override Options:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="safari-force-external"> Force External Authenticators</label>
+                                <label><input type="checkbox" id="safari-exclude-platform"> Exclude Platform Credentials</label>
+                                <label><input type="checkbox" id="safari-prefer-usb"> Prefer USB/NFC Keys</label>
+                                <label><input type="checkbox" id="safari-disable-touchid"> Disable Touch ID Preference</label>
+                            </div>
+                        </div>
+                        <button onclick="applyAdvancedSettings()">✅ Apply Settings</button>
+                        <button onclick="resetAdvancedSettings()">🔄 Reset to Defaults</button>
+                        <div id="advanced-status" class="status" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Transport Tests Tab -->
+                <div id="transport-test" class="tab-content">
+                    <div class="section">
+                        <h3>🚀 Transport Method Tests</h3>
+                        <div class="capabilities-grid">
+                            <div class="capability-card">
+                                <h4>🔌 USB Transport</h4>
+                                <button onclick="testUSBTransport()">Test USB Keys</button>
+                                <div id="usb-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>📡 NFC Transport</h4>
+                                <button onclick="testNFCTransport()">Test NFC Keys</button>
+                                <div id="nfc-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>📱 Bluetooth Transport</h4>
+                                <button onclick="testBLETransport()">Test BLE Keys</button>
+                                <div id="ble-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>🔗 Hybrid Transport</h4>
+                                <button onclick="testHybridTransport()">Test QR Code</button>
+                                <div id="hybrid-status" class="status" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>🔄 Hybrid WebAuthn Testing</h3>
+                        <p>Test hybrid authentication scenarios that present multiple options to users.</p>
+                        <div class="capabilities-grid">
+                            <div class="capability-card">
+                                <h4>📱 QR Code + Security Key</h4>
+                                <button onclick="testFullHybrid()">Test Full Hybrid</button>
+                                <div id="full-hybrid-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>🍎 Apple Device Hybrid</h4>
+                                <button onclick="testAppleHybrid()">Test Apple Hybrid</button>
+                                <div id="apple-hybrid-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>🔄 Force Non-Platform</h4>
+                                <button onclick="testForceExternal()">Force External Auth</button>
+                                <div id="force-external-status" class="status" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hardware Tests Tab -->
+                <div id="hardware-test" class="tab-content">
+                    <div class="section">
+                        <h3>🔧 Hardware Key Tests</h3>
+                        <div class="capabilities-grid">
+                            <div class="capability-card">
+                                <h4>🔑 YubiKey Tests</h4>
+                                <button onclick="testYubiKey()">Test YubiKey</button>
+                                <div id="yubikey-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>🛡️ FIDO2 Security Keys</h4>
+                                <button onclick="testFIDO2Keys()">Test FIDO2</button>
+                                <div id="fido2-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>📟 FIDO1/U2F Keys</h4>
+                                <button onclick="testU2FKeys()">Test U2F</button>
+                                <div id="u2f-status" class="status" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Passkey Tests Tab -->
+                <div id="passkey-test" class="tab-content">
+                    <div class="section">
+                        <h3>🔑 Passkey Platform Tests</h3>
+                        <div class="capabilities-grid">
+                            <div class="capability-card">
+                                <h4>🍎 Apple Passkeys</h4>
+                                <button onclick="testApplePasskeys()">Test Touch ID/Face ID</button>
+                                <div id="apple-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>🤖 Google Passkeys</h4>
+                                <button onclick="testGooglePasskeys()">Test Android</button>
+                                <div id="google-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>💻 Windows Hello</h4>
+                                <button onclick="testWindowsHello()">Test Windows Hello</button>
+                                <div id="windows-status" class="status" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Debug Tools Tab -->
+                <div id="debug-tools" class="tab-content">
+                    <div class="section">
+                        <h3>🐛 Debug Console</h3>
+                        <button onclick="clearDebugLog()">🗑️ Clear Log</button>
+                        <button onclick="exportDebugInfo()">📄 Export Debug Info</button>
+                        <div id="debug-log" class="code-block" style="height: 300px;">Debug log will appear here...</div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>🔍 Raw WebAuthn Testing</h3>
+                        <textarea id="custom-options" class="code-block" style="height: 200px;" placeholder="Paste custom WebAuthn options JSON here..."></textarea>
+                        <button onclick="testCustomOptions()">🧪 Test Custom Options</button>
+                        <div id="custom-status" class="status" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Algorithm Tests Tab -->
+                <div id="algorithm-test" class="tab-content">
+                    <div class="section">
+                        <h3>🔢 Cryptographic Algorithm Tests</h3>
+                        <div class="capabilities-grid">
+                            <div class="capability-card">
+                                <h4>🔐 ECDSA Algorithms</h4>
+                                <button onclick="testECDSAAlgorithms()">Test ES256/384/512</button>
+                                <div id="ecdsa-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>🔑 RSA Algorithms</h4>
+                                <button onclick="testRSAAlgorithms()">Test RS/PS 256/384/512</button>
+                                <div id="rsa-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>📝 EdDSA Algorithm</h4>
+                                <button onclick="testEdDSAAlgorithm()">Test EdDSA</button>
+                                <div id="eddsa-status" class="status" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FIDO Tests Tab -->
+                <div id="fido-test" class="tab-content">
+                    <div class="section">
+                        <h3>🏆 FIDO1/FIDO2 Compliance Tests</h3>
+                        <div class="capabilities-grid">
+                            <div class="capability-card">
+                                <h4>🔧 CTAP1 (U2F) Tests</h4>
+                                <button onclick="testCTAP1()">Test CTAP1</button>
+                                <div id="ctap1-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>🚀 CTAP2 Tests</h4>
+                                <button onclick="testCTAP2()">Test CTAP2</button>
+                                <div id="ctap2-status" class="status" style="display: none;"></div>
+                            </div>
+                            <div class="capability-card">
+                                <h4>📋 CBOR Encoding Tests</h4>
+                                <button onclick="testCBOREncoding()">Test CBOR</button>
+                                <div id="cbor-status" class="status" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Export Tab -->
+                <div id="settings-export" class="tab-content">
+                    <div class="section">
+                        <h3>💾 Export/Import Settings</h3>
+                        <div class="settings-export">
+                            <h4>📤 Export Working Configuration</h4>
+                            <p>Save your current working WebAuthn configuration to share with others or use in production:</p>
+                            <button onclick="exportSettings()" class="btn-success">📋 Export Current Settings</button>
+                            <button onclick="exportTestResults()" class="btn-warning">📊 Export All Test Results</button>
+                        </div>
+                        
+                        <div class="settings-export">
+                            <h4>📥 Import Configuration</h4>
+                            <textarea id="import-settings" class="code-block" style="height: 150px;" placeholder="Paste exported settings JSON here..."></textarea>
+                            <button onclick="importSettings()">📥 Import Settings</button>
+                            <div id="import-status" class="status" style="display: none;"></div>
+                        </div>
+                        
+                        <div class="settings-export">
+                            <h4>🔧 DogTagKit Integration</h4>
+                            <p>Generate Swift code for DogTagKit based on your working configuration:</p>
+                            <button onclick="generateDogTagKitCode()" class="btn-warning">🐕 Generate DogTagKit Code</button>
+                            <div id="dogtagkit-code" class="code-block" style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/webauthn-super-test.js"></script>
+</body>
+</html> 

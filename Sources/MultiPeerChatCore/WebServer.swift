@@ -316,6 +316,12 @@ public class WebServer: ObservableObject, AdminManagerDelegate {
         case ("GET", "/hybrid-webauthn-test.html"):
             response = generateHybridWebAuthnTestHTML()
             contentType = "text/html"
+        case ("GET", "/webauthn-super-test.html"):
+            response = generateWebAuthnSuperTestHTML()
+            contentType = "text/html"
+        case ("GET", "/webauthn-super-test.js"):
+            response = generateWebAuthnSuperTestJS()
+            contentType = "application/javascript"
         // Admin Routes - REQUIRES AUTHENTICATION
         case ("GET", "/admin/index.html"), ("GET", "/admin/"), ("GET", "/admin"):
             // ALWAYS show login page first - no exceptions
@@ -2319,6 +2325,524 @@ public class WebServer: ObservableObject, AdminManagerDelegate {
             self?.adminManager.cleanupExpiredSessions()
             self?.startPeriodicCleanup() // Schedule next cleanup
         }
+    }
+    
+    // MARK: - WebAuthn Super Test Content Generation
+    
+    private func generateWebAuthnSuperTestHTML() -> String {
+        // Try to read from static file first, otherwise return embedded content
+        let staticPaths = [
+            "static/webauthn-super-test.html",
+            "./static/webauthn-super-test.html",
+            FileManager.default.currentDirectoryPath + "/static/webauthn-super-test.html"
+        ]
+        
+        for path in staticPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                do {
+                    let content = try String(contentsOfFile: path, encoding: .utf8)
+                    print("📁 Serving webauthn-super-test.html from: \(path)")
+                    return content
+                } catch {
+                    print("❌ Failed to read webauthn-super-test.html from \(path): \(error)")
+                    continue
+                }
+            }
+        }
+        
+        print("⚠️ Static webauthn-super-test.html not found, using embedded version")
+        return getEmbeddedWebAuthnSuperTestHTML()
+    }
+    
+    private func generateWebAuthnSuperTestJS() -> String {
+        // Try to read from static file first, otherwise return embedded content
+        let staticPaths = [
+            "static/webauthn-super-test.js",
+            "./static/webauthn-super-test.js",
+            FileManager.default.currentDirectoryPath + "/static/webauthn-super-test.js"
+        ]
+        
+        for path in staticPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                do {
+                    let content = try String(contentsOfFile: path, encoding: .utf8)
+                    print("📁 Serving webauthn-super-test.js from: \(path)")
+                    return content
+                } catch {
+                    print("❌ Failed to read webauthn-super-test.js from \(path): \(error)")
+                    continue
+                }
+            }
+        }
+        
+        print("⚠️ Static webauthn-super-test.js not found, using embedded version")
+        return getEmbeddedWebAuthnSuperTestJS()
+    }
+    
+    private func getEmbeddedWebAuthnSuperTestHTML() -> String {
+        return """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🔐 WebAuthn Super Test - Complete FIDO1/FIDO2/Passkey Testing Lab</title>
+            <style>
+                * { box-sizing: border-box; }
+                body { 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    margin: 0; padding: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                }
+                .container {
+                    max-width: 1400px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                    overflow: hidden;
+                }
+                .header {
+                    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                }
+                .header h1 { margin: 0; font-size: 2.5em; }
+                .header p { margin: 10px 0 0 0; opacity: 0.9; }
+                
+                .main-content {
+                    display: grid;
+                    grid-template-columns: 300px 1fr;
+                    min-height: 80vh;
+                }
+                
+                .sidebar {
+                    background: #f8f9fa;
+                    border-right: 1px solid #dee2e6;
+                    padding: 20px;
+                    overflow-y: auto;
+                }
+                
+                .content-area {
+                    padding: 30px;
+                    overflow-y: auto;
+                }
+                
+                .section {
+                    margin-bottom: 30px;
+                    padding: 20px;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    background: #fafafa;
+                }
+                
+                .section h3 {
+                    margin: 0 0 15px 0;
+                    color: #333;
+                    border-bottom: 2px solid #007bff;
+                    padding-bottom: 5px;
+                }
+                
+                .form-group {
+                    margin-bottom: 15px;
+                }
+                
+                .form-group label {
+                    display: block;
+                    margin-bottom: 5px;
+                    font-weight: 500;
+                    color: #555;
+                }
+                
+                .form-group select,
+                .form-group input {
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                }
+                
+                .checkbox-group {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 10px;
+                    margin-top: 5px;
+                }
+                
+                .checkbox-group label {
+                    display: flex;
+                    align-items: center;
+                    margin: 0;
+                    font-weight: normal;
+                }
+                
+                .checkbox-group input {
+                    width: auto;
+                    margin-right: 5px;
+                }
+                
+                button {
+                    background: #007bff;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    margin: 5px 5px 5px 0;
+                    transition: background 0.2s;
+                }
+                
+                button:hover { background: #0056b3; }
+                button:disabled { background: #6c757d; cursor: not-allowed; }
+                
+                .btn-large {
+                    padding: 15px 30px;
+                    font-size: 16px;
+                    font-weight: 600;
+                }
+                
+                .btn-success { background: #28a745; }
+                .btn-success:hover { background: #1e7e34; }
+                .btn-danger { background: #dc3545; }
+                .btn-danger:hover { background: #c82333; }
+                .btn-warning { background: #ffc107; color: #212529; }
+                .btn-warning:hover { background: #e0a800; }
+                
+                .status {
+                    margin: 15px 0;
+                    padding: 12px;
+                    border-radius: 6px;
+                    font-weight: 500;
+                    white-space: pre-wrap;
+                }
+                .status.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+                .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+                .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+                .status.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+                
+                .code-block {
+                    background: #f8f9fa;
+                    border: 1px solid #e9ecef;
+                    border-radius: 6px;
+                    padding: 15px;
+                    font-family: 'Monaco', 'Consolas', monospace;
+                    font-size: 12px;
+                    max-height: 300px;
+                    overflow-y: auto;
+                    margin: 10px 0;
+                }
+                
+                .debug-info {
+                    background: #e9ecef;
+                    border-radius: 6px;
+                    padding: 15px;
+                    margin: 10px 0;
+                }
+                
+                .capabilities-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                    gap: 15px;
+                    margin-top: 15px;
+                }
+                
+                .capability-card {
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    padding: 15px;
+                }
+                
+                .capability-card h4 {
+                    margin: 0 0 10px 0;
+                    color: #495057;
+                }
+                
+                .nav-menu {
+                    list-style: none;
+                    padding: 0;
+                    margin: 0;
+                }
+                
+                .nav-menu li {
+                    margin-bottom: 5px;
+                }
+                
+                .nav-menu a {
+                    display: block;
+                    padding: 10px 15px;
+                    color: #495057;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    transition: background 0.2s;
+                }
+                
+                .nav-menu a:hover,
+                .nav-menu a.active {
+                    background: #007bff;
+                    color: white;
+                }
+                
+                .tab-content {
+                    display: none;
+                }
+                
+                .tab-content.active {
+                    display: block;
+                }
+                
+                .settings-export {
+                    background: #e7f3ff;
+                    border: 1px solid #b3d4fc;
+                    border-radius: 6px;
+                    padding: 15px;
+                    margin: 20px 0;
+                }
+                
+                @media (max-width: 1024px) {
+                    .main-content {
+                        grid-template-columns: 1fr;
+                    }
+                    .sidebar {
+                        order: 2;
+                        border-right: none;
+                        border-top: 1px solid #dee2e6;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🔐 WebAuthn Super Test Lab</h1>
+                    <p>Complete FIDO1/FIDO2/WebAuthn Testing & Troubleshooting Platform</p>
+                    <p>🔬 Test Everything • 🐛 Debug Issues • 💾 Save Working Configs • 🚀 Production Ready</p>
+                </div>
+                
+                <div class="main-content">
+                    <div class="sidebar">
+                        <ul class="nav-menu">
+                            <li><a href="#" onclick="showTab('browser-info')" class="active">🔍 Browser Info</a></li>
+                            <li><a href="#" onclick="showTab('registration-test')">📝 Registration Tests</a></li>
+                            <li><a href="#" onclick="showTab('authentication-test')">🔐 Authentication Tests</a></li>
+                            <li><a href="#" onclick="showTab('advanced-options')">⚙️ Advanced Options</a></li>
+                            <li><a href="#" onclick="showTab('transport-test')">🚀 Transport Tests</a></li>
+                            <li><a href="#" onclick="showTab('algorithm-test')">🔢 Algorithm Tests</a></li>
+                            <li><a href="#" onclick="showTab('passkey-test')">🔑 Passkey Tests</a></li>
+                            <li><a href="#" onclick="showTab('hardware-test')">🔧 Hardware Tests</a></li>
+                            <li><a href="#" onclick="showTab('fido-test')">🏆 FIDO1/FIDO2 Tests</a></li>
+                            <li><a href="#" onclick="showTab('debug-tools')">🐛 Debug Tools</a></li>
+                            <li><a href="#" onclick="showTab('settings-export')">💾 Export Settings</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="content-area">
+                        <!-- All the tab content would go here - this is a condensed version -->
+                        <div id="browser-info" class="tab-content active">
+                            <div class="section">
+                                <h3>🔍 Browser & Platform Detection</h3>
+                                <div id="browser-detection" class="debug-info">Loading browser information...</div>
+                                <button onclick="refreshBrowserInfo()">🔄 Refresh Info</button>
+                                <button onclick="runCapabilityTests()">🧪 Run Capability Tests</button>
+                            </div>
+                        </div>
+                        <!-- Other tabs would be included here in the full version -->
+                    </div>
+                </div>
+            </div>
+
+            <script src="/webauthn-super-test.js"></script>
+        </body>
+        </html>
+        """
+    }
+    
+    private func getEmbeddedWebAuthnSuperTestJS() -> String {
+        return """
+        // WebAuthn Super Test JavaScript
+        console.log('🔐 WebAuthn Super Test Lab loading...');
+        
+        class WebAuthnSuperTest {
+            constructor() {
+                this.settings = this.getDefaultSettings();
+                this.testResults = [];
+                this.debugLog = [];
+                this.browserInfo = {};
+            }
+            
+            getDefaultSettings() {
+                return {
+                    timeout: 60000,
+                    challengeSize: 32,
+                    algorithms: [-7],
+                    transports: ['usb', 'nfc', 'ble', 'internal', 'hybrid'],
+                    extensions: {}
+                };
+            }
+            
+            async init() {
+                console.log('🚀 Initializing WebAuthn Super Test...');
+                this.detectBrowser();
+                await this.checkCapabilities();
+                this.updateBrowserDisplay();
+                this.updateCapabilitiesDisplay();
+                this.log('WebAuthn Super Test Lab initialized successfully');
+            }
+            
+            detectBrowser() {
+                const ua = navigator.userAgent;
+                this.browserInfo = {
+                    userAgent: ua,
+                    platform: navigator.platform,
+                    language: navigator.language,
+                    cookieEnabled: navigator.cookieEnabled,
+                    onLine: navigator.onLine,
+                    webAuthnSupported: this.isWebAuthnSupported()
+                };
+            }
+            
+            isWebAuthnSupported() {
+                return !!(navigator.credentials && navigator.credentials.create && navigator.credentials.get);
+            }
+            
+            async checkCapabilities() {
+                if (!this.isWebAuthnSupported()) {
+                    this.browserInfo.capabilities = { error: 'WebAuthn not supported' };
+                    return;
+                }
+                
+                try {
+                    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                    this.browserInfo.capabilities = {
+                        platformAuthenticator: available,
+                        conditionalUI: PublicKeyCredential.isConditionalMediationAvailable ? await PublicKeyCredential.isConditionalMediationAvailable() : false
+                    };
+                } catch (error) {
+                    this.browserInfo.capabilities = { error: error.message };
+                }
+            }
+            
+            updateBrowserDisplay() {
+                const element = document.getElementById('browser-detection');
+                if (element) {
+                    element.innerHTML = `
+                        <div><strong>Browser:</strong> \${this.getBrowserName()}</div>
+                        <div><strong>Platform:</strong> \${this.browserInfo.platform}</div>
+                        <div><strong>WebAuthn Support:</strong> \${this.browserInfo.webAuthnSupported ? '✅ Yes' : '❌ No'}</div>
+                        <div><strong>User Agent:</strong> \${this.browserInfo.userAgent}</div>
+                    `;
+                }
+            }
+            
+            getBrowserName() {
+                const ua = this.browserInfo.userAgent;
+                if (ua.includes('Chrome')) return 'Chrome';
+                if (ua.includes('Firefox')) return 'Firefox';
+                if (ua.includes('Safari')) return 'Safari';
+                if (ua.includes('Edge')) return 'Edge';
+                return 'Unknown';
+            }
+            
+            updateCapabilitiesDisplay() {
+                const element = document.getElementById('webauthn-capabilities');
+                if (element && this.browserInfo.capabilities) {
+                    if (this.browserInfo.capabilities.error) {
+                        element.innerHTML = `<div class="capability-card"><h4>Error</h4><p>\${this.browserInfo.capabilities.error}</p></div>`;
+                    } else {
+                        element.innerHTML = `
+                            <div class="capability-card">
+                                <h4>Platform Authenticator</h4>
+                                <p>\${this.browserInfo.capabilities.platformAuthenticator ? '✅ Available' : '❌ Not Available'}</p>
+                            </div>
+                            <div class="capability-card">
+                                <h4>Conditional UI</h4>
+                                <p>\${this.browserInfo.capabilities.conditionalUI ? '✅ Supported' : '❌ Not Supported'}</p>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            log(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = `[\${timestamp}] \${message}`;
+                this.debugLog.push(logEntry);
+                console.log(logEntry);
+                
+                const debugElement = document.getElementById('debug-log');
+                if (debugElement) {
+                    debugElement.textContent = this.debugLog.join('\\n');
+                    debugElement.scrollTop = debugElement.scrollHeight;
+                }
+            }
+            
+            showStatus(elementId, message, type = 'info') {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = message;
+                    element.className = `status \${type}`;
+                    element.style.display = 'block';
+                }
+                this.log(`[\${type.toUpperCase()}] \${message}`);
+            }
+        }
+        
+        // Global instance
+        let superTest;
+        
+        // Initialization function
+        function initSuperTest() {
+            superTest = new WebAuthnSuperTest();
+            superTest.init();
+        }
+        
+        function showTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all nav links
+            document.querySelectorAll('.nav-menu a').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const selectedTab = document.getElementById(tabId);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+            
+            // Add active class to clicked nav link
+            event.target.classList.add('active');
+        }
+        
+        function refreshBrowserInfo() {
+            if (superTest) {
+                superTest.detectBrowser();
+                superTest.updateBrowserDisplay();
+                superTest.log('Browser information refreshed');
+            }
+        }
+        
+        function runCapabilityTests() {
+            if (superTest) {
+                superTest.checkCapabilities().then(() => {
+                    superTest.updateCapabilitiesDisplay();
+                    superTest.log('Capability tests completed');
+                });
+            }
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initSuperTest);
+        
+        console.log('🔐 WebAuthn Super Test Lab loaded successfully');
+        """
     }
 }
 
