@@ -2726,17 +2726,17 @@ public class WebServer: ObservableObject, AdminManagerDelegate {
                 }
             }
             
-            updateBrowserDisplay() {
-                const element = document.getElementById('browser-detection');
-                if (element) {
-                    element.innerHTML = `
-                        <div><strong>Browser:</strong> \${this.getBrowserName()}</div>
-                        <div><strong>Platform:</strong> \${this.browserInfo.platform}</div>
-                        <div><strong>WebAuthn Support:</strong> \${this.browserInfo.webAuthnSupported ? '✅ Yes' : '❌ No'}</div>
-                        <div><strong>User Agent:</strong> \${this.browserInfo.userAgent}</div>
-                    `;
-                }
-            }
+                         updateBrowserDisplay() {
+                 const element = document.getElementById('browser-detection');
+                 if (element) {
+                     element.innerHTML = `
+                         <div><strong>Browser:</strong> \\${this.getBrowserName()}</div>
+                         <div><strong>Platform:</strong> \\${this.browserInfo.platform}</div>
+                         <div><strong>WebAuthn Support:</strong> \\${this.browserInfo.webAuthnSupported ? '✅ Yes' : '❌ No'}</div>
+                         <div><strong>User Agent:</strong> \\${this.browserInfo.userAgent}</div>
+                     `;
+                 }
+             }
             
             getBrowserName() {
                 const ua = this.browserInfo.userAgent;
@@ -2747,48 +2747,48 @@ public class WebServer: ObservableObject, AdminManagerDelegate {
                 return 'Unknown';
             }
             
-            updateCapabilitiesDisplay() {
-                const element = document.getElementById('webauthn-capabilities');
-                if (element && this.browserInfo.capabilities) {
-                    if (this.browserInfo.capabilities.error) {
-                        element.innerHTML = `<div class="capability-card"><h4>Error</h4><p>\${this.browserInfo.capabilities.error}</p></div>`;
-                    } else {
-                        element.innerHTML = `
-                            <div class="capability-card">
-                                <h4>Platform Authenticator</h4>
-                                <p>\${this.browserInfo.capabilities.platformAuthenticator ? '✅ Available' : '❌ Not Available'}</p>
-                            </div>
-                            <div class="capability-card">
-                                <h4>Conditional UI</h4>
-                                <p>\${this.browserInfo.capabilities.conditionalUI ? '✅ Supported' : '❌ Not Supported'}</p>
-                            </div>
-                        `;
-                    }
-                }
-            }
+                         updateCapabilitiesDisplay() {
+                 const element = document.getElementById('webauthn-capabilities');
+                 if (element && this.browserInfo.capabilities) {
+                     if (this.browserInfo.capabilities.error) {
+                         element.innerHTML = `<div class="capability-card"><h4>Error</h4><p>\\${this.browserInfo.capabilities.error}</p></div>`;
+                     } else {
+                         element.innerHTML = `
+                             <div class="capability-card">
+                                 <h4>Platform Authenticator</h4>
+                                 <p>\\${this.browserInfo.capabilities.platformAuthenticator ? '✅ Available' : '❌ Not Available'}</p>
+                             </div>
+                             <div class="capability-card">
+                                 <h4>Conditional UI</h4>
+                                 <p>\\${this.browserInfo.capabilities.conditionalUI ? '✅ Supported' : '❌ Not Supported'}</p>
+                             </div>
+                         `;
+                     }
+                 }
+             }
             
-            log(message) {
-                const timestamp = new Date().toLocaleTimeString();
-                const logEntry = `[\${timestamp}] \${message}`;
-                this.debugLog.push(logEntry);
-                console.log(logEntry);
-                
-                const debugElement = document.getElementById('debug-log');
-                if (debugElement) {
-                    debugElement.textContent = this.debugLog.join('\\n');
-                    debugElement.scrollTop = debugElement.scrollHeight;
-                }
-            }
+                         log(message) {
+                 const timestamp = new Date().toLocaleTimeString();
+                 const logEntry = `[\\${timestamp}] \\${message}`;
+                 this.debugLog.push(logEntry);
+                 console.log(logEntry);
+                 
+                 const debugElement = document.getElementById('debug-log');
+                 if (debugElement) {
+                     debugElement.textContent = this.debugLog.join('\\n');
+                     debugElement.scrollTop = debugElement.scrollHeight;
+                 }
+             }
             
-            showStatus(elementId, message, type = 'info') {
-                const element = document.getElementById(elementId);
-                if (element) {
-                    element.textContent = message;
-                    element.className = `status \${type}`;
-                    element.style.display = 'block';
-                }
-                this.log(`[\${type.toUpperCase()}] \${message}`);
-            }
+                         showStatus(elementId, message, type = 'info') {
+                 const element = document.getElementById(elementId);
+                 if (element) {
+                     element.textContent = message;
+                     element.className = `status \\${type}`;
+                     element.style.display = 'block';
+                 }
+                 this.log(`[\\${type.toUpperCase()}] \\${message}`);
+             }
         }
         
         // Global instance

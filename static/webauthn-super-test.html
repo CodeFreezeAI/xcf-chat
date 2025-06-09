@@ -243,278 +243,334 @@
         <div class="main-content">
             <div class="sidebar">
                 <ul class="nav-menu">
-                    <li><a href="#" onclick="showTab('browser-info')" class="active">🔍 Browser Info</a></li>
-                    <li><a href="#" onclick="showTab('registration-test')">📝 Registration Tests</a></li>
-                    <li><a href="#" onclick="showTab('authentication-test')">🔐 Authentication Tests</a></li>
-                    <li><a href="#" onclick="showTab('advanced-options')">⚙️ Advanced Options</a></li>
-                    <li><a href="#" onclick="showTab('transport-test')">🚀 Transport Tests</a></li>
-                    <li><a href="#" onclick="showTab('algorithm-test')">🔢 Algorithm Tests</a></li>
-                    <li><a href="#" onclick="showTab('passkey-test')">🔑 Passkey Tests</a></li>
-                    <li><a href="#" onclick="showTab('hardware-test')">🔧 Hardware Tests</a></li>
-                    <li><a href="#" onclick="showTab('fido-test')">🏆 FIDO1/FIDO2 Tests</a></li>
+                    <li><a href="#" onclick="showTab('registration-test')" class="active">📝 Registration Testing</a></li>
+                    <li><a href="#" onclick="showTab('authentication-test')">🔐 Authentication Testing</a></li>
+                    <li><a href="#" onclick="showTab('browser-info')">🌐 Browser & Platform Info</a></li>
                     <li><a href="#" onclick="showTab('debug-tools')">🐛 Debug Tools</a></li>
-                    <li><a href="#" onclick="showTab('settings-export')">💾 Export Settings</a></li>
                 </ul>
             </div>
             
             <div class="content-area">
-                <!-- Browser Information Tab -->
-                <div id="browser-info" class="tab-content active">
-                    <div class="section">
-                        <h3>🔍 Browser & Platform Detection</h3>
-                        <div id="browser-detection" class="debug-info">Loading browser information...</div>
-                        <button onclick="refreshBrowserInfo()">🔄 Refresh Info</button>
-                        <button onclick="runCapabilityTests()">🧪 Run Capability Tests</button>
-                    </div>
-                    
-                    <div class="section">
-                        <h3>🛠️ WebAuthn Capabilities</h3>
-                        <div id="webauthn-capabilities" class="capabilities-grid">Loading capabilities...</div>
-                    </div>
-                    
-                    <div class="section">
-                        <h3>📊 Platform Authenticator Status</h3>
-                        <div id="platform-status" class="debug-info">Checking platform authenticator...</div>
-                    </div>
-                </div>
+                <!-- Registration Testing Tab -->
+                <div id="registration-test" class="tab-content active">
 
-                <!-- Registration Tests Tab -->
-                <div id="registration-test" class="tab-content">
+                    <!-- Registration Configuration -->
                     <div class="section">
                         <h3>📝 Registration Configuration</h3>
-                        <div class="form-group">
-                            <label>Username:</label>
-                            <input type="text" id="reg-username" value="testuser">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                            
+                            <!-- Basic Settings -->
+                            <div>
+                                <h4>👤 Basic Settings</h4>
+                                <div class="form-group">
+                                    <label>Username:</label>
+                                    <input type="text" id="reg-username" value="testuser">
+                                </div>
+                                <div class="form-group">
+                                    <label>Authenticator Attachment:</label>
+                                    <select id="reg-attachment">
+                                        <option value="">Any (Hybrid Mode)</option>
+                                        <option value="platform">Platform (Touch ID, Windows Hello)</option>
+                                        <option value="cross-platform">Cross-Platform (USB, NFC Keys)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>User Verification:</label>
+                                    <select id="reg-user-verification">
+                                        <option value="preferred">Preferred (Default)</option>
+                                        <option value="required">Required (PIN/Biometric)</option>
+                                        <option value="discouraged">Discouraged (No PIN)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Resident Key:</label>
+                                    <select id="reg-resident-key">
+                                        <option value="preferred">Preferred (Passkey if possible)</option>
+                                        <option value="required">Required (Must be Passkey)</option>
+                                        <option value="discouraged">Discouraged (No Passkey)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Attestation:</label>
+                                    <select id="reg-attestation">
+                                        <option value="none">None (Privacy-friendly)</option>
+                                        <option value="indirect">Indirect</option>
+                                        <option value="direct">Direct (Full attestation)</option>
+                                        <option value="enterprise">Enterprise</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Timeout (milliseconds):</label>
+                                    <input type="number" id="advanced-timeout" value="60000" min="10000" max="300000">
+                                </div>
+                            </div>
+
+                            <!-- Algorithms -->
+                            <div>
+                                <h4>🔢 Cryptographic Algorithms</h4>
+                                <div class="checkbox-group">
+                                    <label><input type="checkbox" value="-7" checked> ES256 (ECDSA P-256)</label>
+                                    <label><input type="checkbox" value="-35"> ES384 (ECDSA P-384)</label>
+                                    <label><input type="checkbox" value="-36"> ES512 (ECDSA P-521)</label>
+                                    <label><input type="checkbox" value="-257"> RS256 (RSA PKCS#1)</label>
+                                    <label><input type="checkbox" value="-258"> RS384 (RSA PKCS#1)</label>
+                                    <label><input type="checkbox" value="-259"> RS512 (RSA PKCS#1)</label>
+                                    <label><input type="checkbox" value="-37"> PS256 (RSA PSS)</label>
+                                    <label><input type="checkbox" value="-38"> PS384 (RSA PSS)</label>
+                                    <label><input type="checkbox" value="-39"> PS512 (RSA PSS)</label>
+                                    <label><input type="checkbox" value="-8"> EdDSA</label>
+                                </div>
+
+                                <h4 style="margin-top: 20px;">🔧 Extensions</h4>
+                                <div class="checkbox-group">
+                                    <label><input type="checkbox" id="ext-credProps"> credProps</label>
+                                    <label><input type="checkbox" id="ext-largeBlobKey"> largeBlobKey</label>
+                                    <label><input type="checkbox" id="ext-credProtect"> credProtect</label>
+                                    <label><input type="checkbox" id="ext-hmacSecret"> hmac-secret</label>
+                                    <label><input type="checkbox" id="ext-devicePubKey"> devicePubKey</label>
+                                </div>
+                            </div>
+
+                            <!-- Transport Methods -->
+                            <div>
+                                <h4>🚀 Transport Methods</h4>
+                                <div class="checkbox-group">
+                                    <label><input type="checkbox" value="usb" checked> USB</label>
+                                    <label><input type="checkbox" value="nfc" checked> NFC</label>
+                                    <label><input type="checkbox" value="ble" checked> Bluetooth</label>
+                                    <label><input type="checkbox" value="internal" checked> Internal/Platform</label>
+                                    <label><input type="checkbox" value="hybrid" checked> Hybrid (QR Code)</label>
+                                </div>
+
+                                <h4 style="margin-top: 20px;">🍎 Apple/macOS Options</h4>
+                                <div class="checkbox-group">
+                                    <label><input type="checkbox" id="reg-apple-cancellation"> 🍎 Use Apple Cancellation (macOS Chrome)</label>
+                                    <label><input type="checkbox" id="safari-force-external"> Force External Authenticators</label>
+                                    <label><input type="checkbox" id="safari-exclude-platform"> Exclude Platform Credentials</label>
+                                    <label><input type="checkbox" id="safari-prefer-usb"> Prefer USB/NFC Keys</label>
+                                    <label><input type="checkbox" id="safari-disable-touchid"> Disable Touch ID Preference</label>
+                                </div>
+
+                                <h4 style="margin-top: 20px;">⚙️ Advanced Options</h4>
+                                <div class="form-group">
+                                    <label>Challenge Size (bytes):</label>
+                                    <input type="number" id="advanced-challenge-size" value="32" min="16" max="64">
+                                </div>
+                                <div class="form-group">
+                                    <label>RP Name:</label>
+                                    <input type="text" id="rp-name" value="WebAuthn Test">
+                                </div>
+                                <div class="form-group">
+                                    <label>RP ID:</label>
+                                    <input type="text" id="rp-id" value="localhost">
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Authenticator Attachment:</label>
-                            <select id="reg-attachment">
-                                <option value="">Any (Hybrid Mode)</option>
-                                <option value="platform">Platform (Touch ID, Windows Hello)</option>
-                                <option value="cross-platform">Cross-Platform (USB, NFC Keys)</option>
-                            </select>
+                    </div>
+
+                    <!-- Registration Testing Buttons -->
+                    <div class="section">
+                        <h3>🧪 Registration Testing</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <h4>📝 Basic Registration Tests</h4>
+                                <button onclick="testRegistration()" class="btn-large btn-success" style="width: 100%; margin-bottom: 10px;">🔐 Test Registration (All Settings)</button>
+                                <button onclick="testChromeBypassRegistration()" class="btn-large btn-warning" style="width: 100%; margin-bottom: 10px;">🔑 Security Key Only (Force Cross-Platform)</button>
+                                <div id="reg-status" class="status" style="display: none; margin-top: 10px;"></div>
+                            </div>
+
+                            <div>
+                                <h4>🌍 Real-World Registration Scenarios</h4>
+                                <button onclick="testHybridQR()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #17a2b8; color: white;">📱 Mobile Cross-Device (QR)</button>
+                                <button onclick="testHardwareKeys()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #28a745; color: white;">🔑 Hardware Security Keys</button>
+                                <button onclick="testPlatformAuth()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #6f42c1; color: white;">🆔 Platform Authenticators</button>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                                    <button onclick="testAlgorithms()" class="btn-large" style="background: #fd7e14; color: white;">📊 Test Algorithms</button>
+                                    <button onclick="testTransports()" class="btn-large" style="background: #20c997; color: white;">🔧 Test Transports</button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>User Verification:</label>
-                            <select id="reg-user-verification">
-                                <option value="preferred">Preferred (Default)</option>
-                                <option value="required">Required (PIN/Biometric)</option>
-                                <option value="discouraged">Discouraged (No PIN)</option>
-                            </select>
+
+                        <!-- Status displays for real-world tests -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 20px;">
+                            <div id="hybrid-qr-status" class="status" style="display: none;"></div>
+                            <div id="hardware-keys-status" class="status" style="display: none;"></div>
+                            <div id="platform-auth-status" class="status" style="display: none;"></div>
+                            <div id="algorithms-status" class="status" style="display: none;"></div>
+                            <div id="transports-status" class="status" style="display: none;"></div>
                         </div>
-                        <div class="form-group">
-                            <label>Resident Key:</label>
-                            <select id="reg-resident-key">
-                                <option value="preferred">Preferred (Passkey if possible)</option>
-                                <option value="required">Required (Must be Passkey)</option>
-                                <option value="discouraged">Discouraged (No Passkey)</option>
-                            </select>
+
+                        <!-- macOS Chrome Notice -->
+                        <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px;">
+                            <h4>🍎 macOS Chrome Issues</h4>
+                            <p><strong>Known Issue:</strong> Apple intercepts WebAuthn on macOS, preventing Chrome from showing its provider selection.</p>
+                            <p><strong>Reliable Solution:</strong> Use "🔑 Security Key Only" button - forces cross-platform authentication which bypasses Apple's interception.</p>
+                            <p><strong>What works:</strong> All buttons here include Apple cancellation + use your selected settings above.</p>
                         </div>
-                        <div class="form-group">
-                            <label>Attestation:</label>
-                            <select id="reg-attestation">
-                                <option value="none">None (Privacy-friendly)</option>
-                                <option value="indirect">Indirect</option>
-                                <option value="direct">Direct (Full attestation)</option>
-                                <option value="enterprise">Enterprise</option>
-                            </select>
-                        </div>
-                        <button onclick="testRegistration()" class="btn-large btn-success">🔐 Test Registration</button>
-                        <div id="reg-status" class="status" style="display: none;"></div>
                     </div>
                 </div>
 
-                <!-- Authentication Tests Tab -->
+                <!-- Authentication Testing Tab -->
                 <div id="authentication-test" class="tab-content">
+                    <!-- Authentication Configuration -->
                     <div class="section">
-                        <h3>🔐 Authentication Testing</h3>
-                        <div class="form-group">
-                            <label>Username (leave empty for usernameless):</label>
-                            <input type="text" id="auth-username" value="testuser">
-                        </div>
-                        <div class="form-group">
-                            <label>Authentication Type:</label>
-                            <select id="auth-type">
-                                <option value="hybrid">Hybrid (QR + Security Key)</option>
-                                <option value="hybrid-force">Hybrid (Force Non-Platform)</option>
-                                <option value="passkey">Passkey Only</option>
-                                <option value="security-key">Security Key Only</option>
-                                <option value="platform">Platform Only</option>
-                                <option value="usernameless">Usernameless</option>
-                                <option value="apple-override">Apple Override (No Touch ID)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Apple Device Overrides:</label>
-                            <div class="checkbox-group">
-                                <label><input type="checkbox" id="force-cross-platform"> Force Cross-Platform (No Touch ID/Face ID)</label>
-                                <label><input type="checkbox" id="disable-platform-auth"> Disable Platform Authenticator</label>
-                                <label><input type="checkbox" id="prioritize-external"> Prioritize External Keys</label>
+                        <h3>🔐 Authentication Configuration</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                            
+                            <!-- Basic Settings -->
+                            <div>
+                                <h4>👤 Basic Settings</h4>
+                                <div class="form-group">
+                                    <label>Username (leave empty for usernameless):</label>
+                                    <input type="text" id="auth-username" value="testuser">
+                                </div>
+                                <div class="form-group">
+                                    <label>Authentication Type:</label>
+                                    <select id="auth-type">
+                                        <option value="hybrid">Hybrid (QR + Security Key)</option>
+                                        <option value="passkey">Passkey Only</option>
+                                        <option value="security-key">Security Key Only</option>
+                                        <option value="platform">Platform Only</option>
+                                        <option value="usernameless">Usernameless</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>User Verification:</label>
+                                    <select id="auth-user-verification">
+                                        <option value="preferred">Preferred (Default)</option>
+                                        <option value="required">Required (PIN/Biometric)</option>
+                                        <option value="discouraged">Discouraged (No PIN)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Timeout (milliseconds):</label>
+                                    <input type="number" id="auth-timeout" value="60000" min="10000" max="300000">
+                                </div>
+                                <div class="form-group">
+                                    <label>Authenticator Attachment:</label>
+                                    <select id="auth-attachment">
+                                        <option value="">Any (Hybrid Mode)</option>
+                                        <option value="platform">Platform (Touch ID, Windows Hello)</option>
+                                        <option value="cross-platform">Cross-Platform (USB, NFC Keys)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Credential Selection -->
+                            <div>
+                                <h4>🔑 Credential Selection</h4>
+                                <div class="form-group">
+                                    <label>Allow Credentials (JSON array or empty for usernameless):</label>
+                                    <textarea id="allow-credentials" rows="8" placeholder='[{"id":"base64CredentialId","type":"public-key","transports":["usb","nfc"]}]'>[]</textarea>
+                                </div>
+                                <div class="checkbox-group">
+                                    <label><input type="checkbox" id="auth-include-hybrid"> Include Hybrid Transport</label>
+                                    <label><input type="checkbox" id="auth-include-usb" checked> Include USB Transport</label>
+                                    <label><input type="checkbox" id="auth-include-nfc" checked> Include NFC Transport</label>
+                                    <label><input type="checkbox" id="auth-include-ble"> Include BLE Transport</label>
+                                    <label><input type="checkbox" id="auth-include-internal"> Include Internal Transport</label>
+                                </div>
+                            </div>
+
+                            <!-- Apple/macOS & Advanced -->
+                            <div>
+                                <h4>🍎 Apple/macOS Options</h4>
+                                <div class="checkbox-group">
+                                    <label><input type="checkbox" id="auth-apple-cancellation"> 🍎 Use Apple Cancellation (macOS Chrome)</label>
+                                    <label><input type="checkbox" id="auth-force-cross-platform"> Force Cross-Platform (No Touch ID/Face ID)</label>
+                                    <label><input type="checkbox" id="auth-disable-platform-auth"> Disable Platform Authenticator</label>
+                                    <label><input type="checkbox" id="auth-prioritize-external"> Prioritize External Keys</label>
+                                    <label><input type="checkbox" id="auth-exclude-platform"> Exclude Platform Credentials</label>
+                                </div>
+
+                                <h4 style="margin-top: 20px;">⚙️ Advanced Authentication</h4>
+                                <div class="form-group">
+                                    <label>Challenge Size (bytes):</label>
+                                    <input type="number" id="auth-challenge-size" value="32" min="16" max="64">
+                                </div>
+                                <div class="form-group">
+                                    <label>RP ID:</label>
+                                    <input type="text" id="auth-rp-id" value="localhost">
+                                </div>
+                                <div class="checkbox-group">
+                                    <label><input type="checkbox" id="auth-conditional-mediation"> Use Conditional Mediation</label>
+                                    <label><input type="checkbox" id="auth-prevent-silent-access"> Prevent Silent Access</label>
+                                </div>
+
+                                <h4 style="margin-top: 20px;">🔧 Extensions</h4>
+                                <div class="checkbox-group">
+                                    <label><input type="checkbox" id="auth-ext-largeBlob"> largeBlob</label>
+                                    <label><input type="checkbox" id="auth-ext-appid"> appid (U2F compatibility)</label>
+                                    <label><input type="checkbox" id="auth-ext-uvm"> uvm (User Verification Methods)</label>
+                                </div>
                             </div>
                         </div>
-                        <button onclick="testAuthentication()" class="btn-large btn-success">🔓 Test Authentication</button>
-                        <div id="auth-status" class="status" style="display: none;"></div>
+                    </div>
+
+                    <!-- Authentication Testing Buttons -->
+                    <div class="section">
+                        <h3>🧪 Authentication Testing</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <h4>🔓 Basic Authentication Tests</h4>
+                                <button onclick="testAuthentication()" class="btn-large btn-success" style="width: 100%; margin-bottom: 10px;">🔓 Test Authentication (All Settings)</button>
+                                <button onclick="testChromeBypassAuthentication()" class="btn-large btn-warning" style="width: 100%; margin-bottom: 10px;">🔑 Security Key Only (Force Cross-Platform)</button>
+                                <button onclick="testUsernameless()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #6f42c1; color: white;">🔄 Usernameless Authentication</button>
+                                <div id="auth-status" class="status" style="display: none; margin-top: 10px;"></div>
+                            </div>
+
+                            <div>
+                                <h4>🌍 Real-World Authentication Scenarios</h4>
+                                <button onclick="testConditionalUI()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #17a2b8; color: white;">🔀 Conditional UI (Autofill)</button>
+                                <button onclick="testPlatformAuth()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #28a745; color: white;">🆔 Platform Auth Only</button>
+                                <button onclick="testHybridAuth()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #fd7e14; color: white;">📱 Hybrid/QR Auth</button>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                                    <button onclick="testU2FAuth()" class="btn-large" style="background: #dc3545; color: white;">📟 U2F Legacy</button>
+                                    <button onclick="testMultiDevice()" class="btn-large" style="background: #20c997; color: white;">📱 Multi-Device</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status displays for authentication tests -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 20px;">
+                            <div id="usernameless-status" class="status" style="display: none;"></div>
+                            <div id="conditional-ui-status" class="status" style="display: none;"></div>
+                            <div id="hybrid-auth-status" class="status" style="display: none;"></div>
+                            <div id="u2f-auth-status" class="status" style="display: none;"></div>
+                            <div id="multi-device-status" class="status" style="display: none;"></div>
+                        </div>
+
+                        <!-- Authentication Results -->
+                        <div style="margin-top: 30px; padding: 15px; background: #e7f3ff; border: 1px solid #b3d4fc; border-radius: 6px;">
+                            <h4>📊 Authentication Test Results</h4>
+                            <div id="auth-results" style="font-family: monospace; white-space: pre-wrap; max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+                                Authentication results will appear here...
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Advanced Options Tab -->
-                <div id="advanced-options" class="tab-content">
+                <!-- Browser & Platform Info Tab -->
+                <div id="browser-info" class="tab-content">
                     <div class="section">
-                        <h3>⚙️ Advanced WebAuthn Configuration</h3>
-                        <div class="form-group">
-                            <label>Timeout (milliseconds):</label>
-                            <input type="number" id="advanced-timeout" value="60000" min="10000" max="300000">
-                        </div>
-                        <div class="form-group">
-                            <label>Challenge Size (bytes):</label>
-                            <input type="number" id="advanced-challenge-size" value="32" min="16" max="64">
-                        </div>
-                        <div class="form-group">
-                            <label>Supported Algorithms:</label>
-                            <div class="checkbox-group">
-                                <label><input type="checkbox" value="-7" checked> ES256 (ECDSA P-256)</label>
-                                <label><input type="checkbox" value="-35"> ES384 (ECDSA P-384)</label>
-                                <label><input type="checkbox" value="-36"> ES512 (ECDSA P-521)</label>
-                                <label><input type="checkbox" value="-257"> RS256 (RSA PKCS#1)</label>
-                                <label><input type="checkbox" value="-258"> RS384 (RSA PKCS#1)</label>
-                                <label><input type="checkbox" value="-259"> RS512 (RSA PKCS#1)</label>
-                                <label><input type="checkbox" value="-37"> PS256 (RSA PSS)</label>
-                                <label><input type="checkbox" value="-38"> PS384 (RSA PSS)</label>
-                                <label><input type="checkbox" value="-39"> PS512 (RSA PSS)</label>
-                                <label><input type="checkbox" value="-8"> EdDSA</label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Transport Methods:</label>
-                            <div class="checkbox-group">
-                                <label><input type="checkbox" value="usb" checked> USB</label>
-                                <label><input type="checkbox" value="nfc" checked> NFC</label>
-                                <label><input type="checkbox" value="ble" checked> Bluetooth</label>
-                                <label><input type="checkbox" value="internal" checked> Internal/Platform</label>
-                                <label><input type="checkbox" value="hybrid" checked> Hybrid (QR Code)</label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Extensions:</label>
-                            <div class="checkbox-group">
-                                <label><input type="checkbox" id="ext-credProps"> credProps</label>
-                                <label><input type="checkbox" id="ext-largeBlobKey"> largeBlobKey</label>
-                                <label><input type="checkbox" id="ext-credProtect"> credProtect</label>
-                                <label><input type="checkbox" id="ext-hmacSecret"> hmac-secret</label>
-                                <label><input type="checkbox" id="ext-devicePubKey"> devicePubKey</label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>🍎 Apple/Safari Override Options:</label>
-                            <div class="checkbox-group">
-                                <label><input type="checkbox" id="safari-force-external"> Force External Authenticators</label>
-                                <label><input type="checkbox" id="safari-exclude-platform"> Exclude Platform Credentials</label>
-                                <label><input type="checkbox" id="safari-prefer-usb"> Prefer USB/NFC Keys</label>
-                                <label><input type="checkbox" id="safari-disable-touchid"> Disable Touch ID Preference</label>
-                            </div>
-                        </div>
-                        <button onclick="applyAdvancedSettings()">✅ Apply Settings</button>
-                        <button onclick="resetAdvancedSettings()">🔄 Reset to Defaults</button>
-                        <div id="advanced-status" class="status" style="display: none;"></div>
-                    </div>
-                </div>
-
-                <!-- Transport Tests Tab -->
-                <div id="transport-test" class="tab-content">
-                    <div class="section">
-                        <h3>🚀 Transport Method Tests</h3>
-                        <div class="capabilities-grid">
-                            <div class="capability-card">
-                                <h4>🔌 USB Transport</h4>
-                                <button onclick="testUSBTransport()">Test USB Keys</button>
-                                <div id="usb-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>📡 NFC Transport</h4>
-                                <button onclick="testNFCTransport()">Test NFC Keys</button>
-                                <div id="nfc-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>📱 Bluetooth Transport</h4>
-                                <button onclick="testBLETransport()">Test BLE Keys</button>
-                                <div id="ble-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>🔗 Hybrid Transport</h4>
-                                <button onclick="testHybridTransport()">Test QR Code</button>
-                                <div id="hybrid-status" class="status" style="display: none;"></div>
-                            </div>
-                        </div>
+                        <h3>🌐 Browser & Platform Detection</h3>
+                        <div id="browser-detection" class="debug-info">Loading browser information...</div>
+                        <button onclick="refreshBrowserInfo()">🔄 Refresh Info</button>
+                        <button onclick="runCapabilityTests()">🧪 Run Advanced Capability Tests</button>
+                        <div id="webauthn-capabilities" class="capabilities-grid" style="margin-top: 10px;">Loading capabilities...</div>
+                        <div id="platform-status" class="debug-info" style="margin-top: 10px;">Checking platform authenticator...</div>
                     </div>
                     
                     <div class="section">
-                        <h3>🔄 Hybrid WebAuthn Testing</h3>
-                        <p>Test hybrid authentication scenarios that present multiple options to users.</p>
-                        <div class="capabilities-grid">
-                            <div class="capability-card">
-                                <h4>📱 QR Code + Security Key</h4>
-                                <button onclick="testFullHybrid()">Test Full Hybrid</button>
-                                <div id="full-hybrid-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>🍎 Apple Device Hybrid</h4>
-                                <button onclick="testAppleHybrid()">Test Apple Hybrid</button>
-                                <div id="apple-hybrid-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>🔄 Force Non-Platform</h4>
-                                <button onclick="testForceExternal()">Force External Auth</button>
-                                <div id="force-external-status" class="status" style="display: none;"></div>
-                            </div>
-                        </div>
+                        <h3>🔧 WebAuthn Feature Detection</h3>
+                        <button onclick="runFeatureDetection()">🔍 Run Feature Detection</button>
+                        <div id="feature-detection" class="debug-info" style="margin-top: 10px;">Feature detection results will appear here...</div>
                     </div>
-                </div>
-
-                <!-- Hardware Tests Tab -->
-                <div id="hardware-test" class="tab-content">
+                    
                     <div class="section">
-                        <h3>🔧 Hardware Key Tests</h3>
-                        <div class="capabilities-grid">
-                            <div class="capability-card">
-                                <h4>🔑 YubiKey Tests</h4>
-                                <button onclick="testYubiKey()">Test YubiKey</button>
-                                <div id="yubikey-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>🛡️ FIDO2 Security Keys</h4>
-                                <button onclick="testFIDO2Keys()">Test FIDO2</button>
-                                <div id="fido2-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>📟 FIDO1/U2F Keys</h4>
-                                <button onclick="testU2FKeys()">Test U2F</button>
-                                <div id="u2f-status" class="status" style="display: none;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Passkey Tests Tab -->
-                <div id="passkey-test" class="tab-content">
-                    <div class="section">
-                        <h3>🔑 Passkey Platform Tests</h3>
-                        <div class="capabilities-grid">
-                            <div class="capability-card">
-                                <h4>🍎 Apple Passkeys</h4>
-                                <button onclick="testApplePasskeys()">Test Touch ID/Face ID</button>
-                                <div id="apple-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>🤖 Google Passkeys</h4>
-                                <button onclick="testGooglePasskeys()">Test Android</button>
-                                <div id="google-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>💻 Windows Hello</h4>
-                                <button onclick="testWindowsHello()">Test Windows Hello</button>
-                                <div id="windows-status" class="status" style="display: none;"></div>
-                            </div>
-                        </div>
+                        <h3>📱 Device & Environment Info</h3>
+                        <button onclick="detectDeviceCapabilities()">📱 Detect Device Capabilities</button>
+                        <div id="device-capabilities" class="debug-info" style="margin-top: 10px;">Device capability results will appear here...</div>
                     </div>
                 </div>
 
@@ -533,79 +589,28 @@
                         <button onclick="testCustomOptions()">🧪 Test Custom Options</button>
                         <div id="custom-status" class="status" style="display: none;"></div>
                     </div>
-                </div>
-
-                <!-- Algorithm Tests Tab -->
-                <div id="algorithm-test" class="tab-content">
+                    
                     <div class="section">
-                        <h3>🔢 Cryptographic Algorithm Tests</h3>
-                        <div class="capabilities-grid">
-                            <div class="capability-card">
-                                <h4>🔐 ECDSA Algorithms</h4>
-                                <button onclick="testECDSAAlgorithms()">Test ES256/384/512</button>
-                                <div id="ecdsa-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>🔑 RSA Algorithms</h4>
-                                <button onclick="testRSAAlgorithms()">Test RS/PS 256/384/512</button>
-                                <div id="rsa-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>📝 EdDSA Algorithm</h4>
-                                <button onclick="testEdDSAAlgorithm()">Test EdDSA</button>
-                                <div id="eddsa-status" class="status" style="display: none;"></div>
-                            </div>
-                        </div>
+                        <h3>🐕 DogTagKit Code Generation</h3>
+                        <p>Generate Swift code for iOS DogTagKit implementation based on current settings:</p>
+                        <button onclick="generateDogTagKitCode()" class="btn-success">🐕 Generate DogTagKit Code</button>
+                        <div id="dogtagkit-code" class="code-block" style="height: 200px; margin-top: 10px;">Generated Swift/DogTagKit code will appear here...</div>
                     </div>
-                </div>
-
-                <!-- FIDO Tests Tab -->
-                <div id="fido-test" class="tab-content">
-                    <div class="section">
-                        <h3>🏆 FIDO1/FIDO2 Compliance Tests</h3>
-                        <div class="capabilities-grid">
-                            <div class="capability-card">
-                                <h4>🔧 CTAP1 (U2F) Tests</h4>
-                                <button onclick="testCTAP1()">Test CTAP1</button>
-                                <div id="ctap1-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>🚀 CTAP2 Tests</h4>
-                                <button onclick="testCTAP2()">Test CTAP2</button>
-                                <div id="ctap2-status" class="status" style="display: none;"></div>
-                            </div>
-                            <div class="capability-card">
-                                <h4>📋 CBOR Encoding Tests</h4>
-                                <button onclick="testCBOREncoding()">Test CBOR</button>
-                                <div id="cbor-status" class="status" style="display: none;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Settings Export Tab -->
-                <div id="settings-export" class="tab-content">
+                    
                     <div class="section">
                         <h3>💾 Export/Import Settings</h3>
-                        <div class="settings-export">
-                            <h4>📤 Export Working Configuration</h4>
-                            <p>Save your current working WebAuthn configuration to share with others or use in production:</p>
-                            <button onclick="exportSettings()" class="btn-success">📋 Export Current Settings</button>
-                            <button onclick="exportTestResults()" class="btn-warning">📊 Export All Test Results</button>
-                        </div>
-                        
-                        <div class="settings-export">
-                            <h4>📥 Import Configuration</h4>
-                            <textarea id="import-settings" class="code-block" style="height: 150px;" placeholder="Paste exported settings JSON here..."></textarea>
-                            <button onclick="importSettings()">📥 Import Settings</button>
-                            <div id="import-status" class="status" style="display: none;"></div>
-                        </div>
-                        
-                        <div class="settings-export">
-                            <h4>🔧 DogTagKit Integration</h4>
-                            <p>Generate Swift code for DogTagKit based on your working configuration:</p>
-                            <button onclick="generateDogTagKitCode()" class="btn-warning">🐕 Generate DogTagKit Code</button>
-                            <div id="dogtagkit-code" class="code-block" style="display: none;"></div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <h4>📤 Export Configuration</h4>
+                                <button onclick="exportSettings()" class="btn-success">📋 Export Current Settings</button>
+                                <button onclick="exportTestResults()" class="btn-warning">📊 Export All Test Results</button>
+                            </div>
+                            <div>
+                                <h4>📥 Import Configuration</h4>
+                                <textarea id="import-settings" style="width: 100%; height: 100px;" placeholder="Paste exported settings JSON here..."></textarea>
+                                <button onclick="importSettings()">📥 Import Settings</button>
+                                <div id="import-status" class="status" style="display: none;"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -615,4 +620,5 @@
 
     <script src="/static/webauthn-super-test.js"></script>
 </body>
+</html> 
 </html> 
