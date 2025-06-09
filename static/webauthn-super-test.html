@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -240,6 +241,28 @@
             <p>🔬 Test Everything • 🐛 Debug Issues • 💾 Save Working Configs • 🚀 Production Ready</p>
         </div>
         
+        <!-- Shared Global Settings -->
+        <div style="background: #e7f3ff; border-bottom: 1px solid #b3d4fc; padding: 20px;">
+            <div style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: center;">
+                <div>
+                    <h4 style="margin: 0 0 10px 0;">👤 Test User</h4>
+                    <input type="text" id="global-username" value="testuser" placeholder="Enter username for testing" style="width: 100%; padding: 8px 12px; border: 1px solid #007bff; border-radius: 4px; font-size: 16px;">
+                </div>
+                <div>
+                    <h4 style="margin: 0 0 10px 0;">🔑 Registered Credentials</h4>
+                    <div id="credential-count" style="font-size: 14px; color: #666;">No credentials registered yet</div>
+                    <button onclick="refreshCredentials()" style="margin-top: 5px; font-size: 12px; padding: 4px 8px;">🔄 Refresh</button>
+                </div>
+                <div>
+                    <h4 style="margin: 0 0 10px 0;">🎯 Quick Actions</h4>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="clearAllCredentials()" class="btn-danger" style="font-size: 12px; padding: 6px 12px;">🗑️ Clear All</button>
+                        <button onclick="syncTabs()" style="font-size: 12px; padding: 6px 12px; background: #17a2b8;">🔄 Sync Tabs</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div class="main-content">
             <div class="sidebar">
                 <ul class="nav-menu">
@@ -262,10 +285,6 @@
                             <!-- Basic Settings -->
                             <div>
                                 <h4>👤 Basic Settings</h4>
-                                <div class="form-group">
-                                    <label>Username:</label>
-                                    <input type="text" id="reg-username" value="testuser">
-                                </div>
                                 <div class="form-group">
                                     <label>Authenticator Attachment:</label>
                                     <select id="reg-attachment">
@@ -342,15 +361,6 @@
                                     <label><input type="checkbox" value="hybrid" checked> Hybrid (QR Code)</label>
                                 </div>
 
-                                <h4 style="margin-top: 20px;">🍎 Apple/macOS Options</h4>
-                                <div class="checkbox-group">
-                                    <label><input type="checkbox" id="reg-apple-cancellation"> 🍎 Use Apple Cancellation (macOS Chrome)</label>
-                                    <label><input type="checkbox" id="safari-force-external"> Force External Authenticators</label>
-                                    <label><input type="checkbox" id="safari-exclude-platform"> Exclude Platform Credentials</label>
-                                    <label><input type="checkbox" id="safari-prefer-usb"> Prefer USB/NFC Keys</label>
-                                    <label><input type="checkbox" id="safari-disable-touchid"> Disable Touch ID Preference</label>
-                                </div>
-
                                 <h4 style="margin-top: 20px;">⚙️ Advanced Options</h4>
                                 <div class="form-group">
                                     <label>Challenge Size (bytes):</label>
@@ -371,41 +381,16 @@
                     <!-- Registration Testing Buttons -->
                     <div class="section">
                         <h3>🧪 Registration Testing</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                            <div>
-                                <h4>📝 Basic Registration Tests</h4>
-                                <button onclick="testRegistration()" class="btn-large btn-success" style="width: 100%; margin-bottom: 10px;">🔐 Test Registration (All Settings)</button>
-                                <button onclick="testChromeBypassRegistration()" class="btn-large btn-warning" style="width: 100%; margin-bottom: 10px;">🔑 Security Key Only (Force Cross-Platform)</button>
-                                <div id="reg-status" class="status" style="display: none; margin-top: 10px;"></div>
-                            </div>
-
-                            <div>
-                                <h4>🌍 Real-World Registration Scenarios</h4>
-                                <button onclick="testHybridQR()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #17a2b8; color: white;">📱 Mobile Cross-Device (QR)</button>
-                                <button onclick="testHardwareKeys()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #28a745; color: white;">🔑 Hardware Security Keys</button>
-                                <button onclick="testPlatformAuth()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #6f42c1; color: white;">🆔 Platform Authenticators</button>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-                                    <button onclick="testAlgorithms()" class="btn-large" style="background: #fd7e14; color: white;">📊 Test Algorithms</button>
-                                    <button onclick="testTransports()" class="btn-large" style="background: #20c997; color: white;">🔧 Test Transports</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Status displays for real-world tests -->
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 20px;">
-                            <div id="hybrid-qr-status" class="status" style="display: none;"></div>
-                            <div id="hardware-keys-status" class="status" style="display: none;"></div>
-                            <div id="platform-auth-status" class="status" style="display: none;"></div>
-                            <div id="algorithms-status" class="status" style="display: none;"></div>
-                            <div id="transports-status" class="status" style="display: none;"></div>
-                        </div>
-
-                        <!-- macOS Chrome Notice -->
-                        <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px;">
-                            <h4>🍎 macOS Chrome Issues</h4>
-                            <p><strong>Known Issue:</strong> Apple intercepts WebAuthn on macOS, preventing Chrome from showing its provider selection.</p>
-                            <p><strong>Reliable Solution:</strong> Use "🔑 Security Key Only" button - forces cross-platform authentication which bypasses Apple's interception.</p>
-                            <p><strong>What works:</strong> All buttons here include Apple cancellation + use your selected settings above.</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <button onclick="testRegistration()" class="btn-large btn-success" style="font-size: 18px; padding: 20px 40px; width: 400px; max-width: 100%;">
+                                🔐 Register New Credential
+                            </button>
+                            <div id="reg-status" class="status" style="display: none; margin-top: 15px;"></div>
+                            <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                                ✅ Uses all your configuration settings above<br>
+                                ✅ Automatically optimized based on your browser and device<br>
+                                ✅ No complex Apple/Chrome workarounds needed
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -420,10 +405,6 @@
                             <!-- Basic Settings -->
                             <div>
                                 <h4>👤 Basic Settings</h4>
-                                <div class="form-group">
-                                    <label>Username (leave empty for usernameless):</label>
-                                    <input type="text" id="auth-username" value="testuser">
-                                </div>
                                 <div class="form-group">
                                     <label>Authentication Type:</label>
                                     <select id="auth-type">
@@ -472,18 +453,9 @@
                                 </div>
                             </div>
 
-                            <!-- Apple/macOS & Advanced -->
+                            <!-- Advanced Authentication -->
                             <div>
-                                <h4>🍎 Apple/macOS Options</h4>
-                                <div class="checkbox-group">
-                                    <label><input type="checkbox" id="auth-apple-cancellation"> 🍎 Use Apple Cancellation (macOS Chrome)</label>
-                                    <label><input type="checkbox" id="auth-force-cross-platform"> Force Cross-Platform (No Touch ID/Face ID)</label>
-                                    <label><input type="checkbox" id="auth-disable-platform-auth"> Disable Platform Authenticator</label>
-                                    <label><input type="checkbox" id="auth-prioritize-external"> Prioritize External Keys</label>
-                                    <label><input type="checkbox" id="auth-exclude-platform"> Exclude Platform Credentials</label>
-                                </div>
-
-                                <h4 style="margin-top: 20px;">⚙️ Advanced Authentication</h4>
+                                <h4>⚙️ Advanced Authentication</h4>
                                 <div class="form-group">
                                     <label>Challenge Size (bytes):</label>
                                     <input type="number" id="auth-challenge-size" value="32" min="16" max="64">
@@ -510,34 +482,16 @@
                     <!-- Authentication Testing Buttons -->
                     <div class="section">
                         <h3>🧪 Authentication Testing</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                            <div>
-                                <h4>🔓 Basic Authentication Tests</h4>
-                                <button onclick="testAuthentication()" class="btn-large btn-success" style="width: 100%; margin-bottom: 10px;">🔓 Test Authentication (All Settings)</button>
-                                <button onclick="testChromeBypassAuthentication()" class="btn-large btn-warning" style="width: 100%; margin-bottom: 10px;">🔑 Security Key Only (Force Cross-Platform)</button>
-                                <button onclick="testUsernameless()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #6f42c1; color: white;">🔄 Usernameless Authentication</button>
-                                <div id="auth-status" class="status" style="display: none; margin-top: 10px;"></div>
-                            </div>
-
-                            <div>
-                                <h4>🌍 Real-World Authentication Scenarios</h4>
-                                <button onclick="testConditionalUI()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #17a2b8; color: white;">🔀 Conditional UI (Autofill)</button>
-                                <button onclick="testPlatformAuth()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #28a745; color: white;">🆔 Platform Auth Only</button>
-                                <button onclick="testHybridAuth()" class="btn-large" style="width: 100%; margin-bottom: 10px; background: #fd7e14; color: white;">📱 Hybrid/QR Auth</button>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-                                    <button onclick="testU2FAuth()" class="btn-large" style="background: #dc3545; color: white;">📟 U2F Legacy</button>
-                                    <button onclick="testMultiDevice()" class="btn-large" style="background: #20c997; color: white;">📱 Multi-Device</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Status displays for authentication tests -->
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 20px;">
-                            <div id="usernameless-status" class="status" style="display: none;"></div>
-                            <div id="conditional-ui-status" class="status" style="display: none;"></div>
-                            <div id="hybrid-auth-status" class="status" style="display: none;"></div>
-                            <div id="u2f-auth-status" class="status" style="display: none;"></div>
-                            <div id="multi-device-status" class="status" style="display: none;"></div>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <button onclick="testAuthentication()" class="btn-large btn-primary" style="font-size: 18px; padding: 20px 40px; width: 400px; max-width: 100%; background: #007bff;">
+                                🔓 Authenticate with Credential
+                            </button>
+                            <div id="auth-status" class="status" style="display: none; margin-top: 15px;"></div>
+                            <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                                ✅ Uses all your configuration settings above<br>
+                                ✅ Automatically finds stored credentials for this user<br>
+                                ✅ Optimized based on your browser and device capabilities
+                            </p>
                         </div>
 
                         <!-- Authentication Results -->

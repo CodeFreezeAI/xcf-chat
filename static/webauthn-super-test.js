@@ -7,6 +7,7 @@ class WebAuthnSuperTest {
         this.testResults = [];
         this.debugLog = [];
         this.capabilities = {};
+        this.userCredentials = new Map(); // Track credentials by username
         
         this.init();
     }
@@ -16,6 +17,20 @@ class WebAuthnSuperTest {
         this.detectBrowser();
         this.checkCapabilities();
         this.loadSavedSettings();
+        
+        // Add event listener for global username changes
+        setTimeout(() => {
+            const globalUsernameField = document.getElementById('global-username');
+            if (globalUsernameField) {
+                globalUsernameField.addEventListener('input', () => {
+                    this.updateCredentialDisplay();
+                    const username = globalUsernameField.value.trim();
+                    if (username) {
+                        this.updateAllowCredentialsField(username);
+                    }
+                });
+            }
+        }, 100);
     }
     
     getDefaultSettings() {
@@ -98,29 +113,64 @@ class WebAuthnSuperTest {
                  window.PublicKeyCredential);
     }
     
-    // Registration Testing with ALL UI settings
+    // Simplified Registration using UI settings + device capabilities
     async testRegistration() {
-        const username = document.getElementById('reg-username').value.trim();
+        const username = document.getElementById('global-username').value.trim();
         if (!username) {
-            this.showStatus('reg-status', 'Please enter a username', 'error');
+            this.showStatus('reg-status', 'Please enter a username in the Test User field above', 'error');
             return;
         }
         
-        const useAppleCancellation = document.getElementById('reg-apple-cancellation')?.checked;
-        this.log(`🔐 TEST REGISTRATION: Using ALL UI settings${useAppleCancellation ? ' + Apple cancellation' : ''} for: ${username}`);
-        this.showStatus('reg-status', `${useAppleCancellation ? 'Canceling Apple + ' : ''}Using ALL your UI settings...`, 'info');
+        this.log(`🔐 REGISTRATION: Using UI settings + device capabilities for: ${username}`);
+        this.showStatus('reg-status', 'Building registration options from your settings...', 'info');
         
         try {
-            // Handle Apple cancellation if requested
-            if (useAppleCancellation) {
-                await this.performAppleCancellation(true);
+            // Build registration options from UI form elements
+            const options = this.buildRegistrationOptionsFromUI();
+            const wrappedOptions = { publicKey: options };
+            
+            // Apply device capabilities for optimal configuration
+            this.applyDeviceCapabilities(wrappedOptions, true);
+            
+            // Apply manual overrides from Basic Settings dropdowns while preserving all capabilities
+            const attachment = document.getElementById('reg-attachment')?.value;
+            if (attachment === 'cross-platform') {
+                this.forceHardwareKeysOnly(wrappedOptions);
+            } else if (attachment === 'platform') {
+                this.forcePlatformAuthOnly(wrappedOptions);
+            } else {
+                this.enableAllCapabilitiesHybridMode(wrappedOptions);
             }
             
-            // Build registration options from ALL UI form elements
-            const options = this.buildRegistrationOptionsFromUI();
+            // Show transport-specific status message
+            const selectedTransports = this.getSelectedTransports();
+            if (selectedTransports.length > 0 && selectedTransports.length < 5) {
+                this.showStatus('reg-status', `📡 Using selected transports: ${selectedTransports.join(', ')}`, 'info');
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause to show message
+            }
+            
+            this.log(`🔐 Final registration options: ${JSON.stringify({
+                ...wrappedOptions.publicKey,
+                challenge: wrappedOptions.publicKey.challenge ? `[Uint8Array ${wrappedOptions.publicKey.challenge.length} bytes]` : 'MISSING',
+                user: {
+                    ...wrappedOptions.publicKey.user,
+                    id: wrappedOptions.publicKey.user?.id ? `[Uint8Array ${wrappedOptions.publicKey.user.id.length} bytes]` : 'MISSING'
+                },
+                authenticatorSelection: wrappedOptions.publicKey.authenticatorSelection,
+                timeout: wrappedOptions.publicKey.timeout
+            }, null, 2)}`);
+            
+            const statusDiv = document.getElementById('reg-status');
+            statusDiv.innerHTML = '<div class="loading">⏳ Complete registration with all browser capabilities...</div>';
+            
+            // Log comprehensive capability usage
+            this.log(`🚀 USING ALL BROWSER CAPABILITIES: ${Object.keys(this.capabilities || {}).length} capabilities detected`);
+            this.log(`🔧 Algorithms: ${wrappedOptions.publicKey.pubKeyCredParams?.length || 0} types`);
+            this.log(`🔧 Extensions: ${Object.keys(wrappedOptions.publicKey.extensions || {}).length} enabled`);
+            this.log(`🔧 Transports: ${selectedTransports.join(', ')}`);
             
             const startTime = performance.now();
-            const credential = await navigator.credentials.create({ publicKey: options });
+            const credential = await navigator.credentials.create(wrappedOptions);
             const endTime = performance.now();
             
             if (credential) {
@@ -129,7 +179,7 @@ class WebAuthnSuperTest {
                 this.log(`✅ Credential Type: ${credential.type}`);
                 this.log(`✅ Authenticator: ${credential.authenticatorAttachment || 'unknown'}`);
                 
-                this.showStatus('reg-status', '✅ Registration successful with ALL UI settings!', 'success');
+                this.showStatus('reg-status', '✅ Registration successful!', 'success');
                 
                 const credInfo = {
                     id: credential.id,
@@ -143,6 +193,9 @@ class WebAuthnSuperTest {
                 
                 this.log(`🔑 CREDENTIAL DETAILS: ${JSON.stringify(credInfo, null, 2)}`);
                 
+                // Track credential for this user
+                this.addUserCredential(username, credInfo);
+                
             } else {
                 throw new Error('No credential returned');
             }
@@ -153,124 +206,7 @@ class WebAuthnSuperTest {
         }
     }
     
-    async testChromeBypassRegistration() {
-        const username = document.getElementById('reg-username').value.trim();
-        if (!username) {
-            this.showStatus('reg-status', 'Please enter a username', 'error');
-            return;
-        }
-        
-        const useAppleCancellation = document.getElementById('reg-apple-cancellation')?.checked;
-        this.log(`🔑 SECURITY KEY ONLY: Using UI settings${useAppleCancellation ? ' + Apple cancellation' : ''} + forcing cross-platform for: ${username}`);
-        this.showStatus('reg-status', `${useAppleCancellation ? 'Canceling Apple + ' : ''}UI settings + forcing security key...`, 'info');
-        
-        try {
-            // Handle Apple cancellation if requested
-            if (useAppleCancellation) {
-                await this.performAppleCancellation(true);
-            }
-            
-            // Build options from UI then override for security key only
-            const options = this.buildRegistrationOptionsFromUI();
-            
-            // Override specific settings for security key only mode
-            options.authenticatorSelection.authenticatorAttachment = 'cross-platform';
-            options.authenticatorSelection.userVerification = 'discouraged';
-            options.authenticatorSelection.residentKey = 'discouraged';
-            options.timeout = 25000; // Short timeout
-            
-            this.log(`🔑 SECURITY KEY OVERRIDE: ${JSON.stringify(options, null, 2)}`);
-            
-            const startTime = performance.now();
-            const credential = await navigator.credentials.create({ publicKey: options });
-            const endTime = performance.now();
-            
-            if (credential) {
-                this.log(`✅ SUCCESS: Security key registration completed in ${endTime - startTime}ms`);
-                this.log(`✅ Credential ID: ${credential.id}`);
-                this.log(`✅ Credential Type: ${credential.type}`);
-                this.log(`✅ Authenticator: ${credential.authenticatorAttachment || 'unknown'}`);
-                
-                this.showStatus('reg-status', '✅ Security key registration successful with UI settings!', 'success');
-                
-                const credInfo = {
-                    id: credential.id,
-                    type: credential.type,
-                    authenticatorAttachment: credential.authenticatorAttachment,
-                    timeTaken: endTime - startTime
-                };
-                
-                this.log(`🔑 CREDENTIAL DETAILS: ${JSON.stringify(credInfo, null, 2)}`);
-                
-            } else {
-                throw new Error('No credential returned');
-            }
-            
-        } catch (error) {
-            this.showStatus('reg-status', `❌ Security key error: ${error.message}`, 'error');
-            this.log(`❌ Security key error: ${error.message}`);
-        }
-    }
-    
-    async testChromeProviderRegistration() {
-        const username = document.getElementById('reg-username').value.trim();
-        if (!username) {
-            this.showStatus('reg-status', 'Please enter a username', 'error');
-            return;
-        }
-        
-        this.log(`🌐 CHROME PROVIDERS: Actively canceling Apple to get Chrome provider screen for: ${username}`);
-        this.showStatus('reg-status', 'Canceling Apple to show Chrome providers...', 'info');
-        
-        try {
-            // Use universal method and override for Chrome provider selection
-            const webauthnOptions = await this.universalAppleCancellationAndSettings(username, 'Chrome Providers');
-            
-            // Override for Chrome provider selection - don't force cross-platform
-            delete webauthnOptions.publicKey.authenticatorSelection.authenticatorAttachment;
-            webauthnOptions.publicKey.authenticatorSelection.userVerification = 'preferred';
-            webauthnOptions.publicKey.authenticatorSelection.residentKey = 'preferred';
-            webauthnOptions.publicKey.timeout = 120000; // 2 minutes for selection
-            
-            this.log(`🌐 CHROME PROVIDER OVERRIDE: ${JSON.stringify(webauthnOptions, null, 2)}`);
-            
-            const startTime = performance.now();
-            const credential = await navigator.credentials.create(webauthnOptions);
-            const endTime = performance.now();
-            
-            if (credential) {
-                this.log(`✅ SUCCESS: Chrome provider selection worked! (${endTime - startTime}ms)`);
-                this.log(`✅ Credential ID: ${credential.id}`);
-                this.log(`✅ Credential Type: ${credential.type}`);
-                this.log(`✅ Authenticator: ${credential.authenticatorAttachment || 'unknown'}`);
-                
-                this.showStatus('reg-status', '✅ Apple canceled! Chrome provider selection successful!', 'success');
-                
-                const credInfo = {
-                    id: credential.id,
-                    type: credential.type,
-                    authenticatorAttachment: credential.authenticatorAttachment,
-                    timeTaken: endTime - startTime
-                };
-                
-                this.log(`🔑 CREDENTIAL DETAILS: ${JSON.stringify(credInfo, null, 2)}`);
-                
-            } else {
-                throw new Error('No credential returned from Chrome');
-            }
-            
-        } catch (error) {
-            this.log(`❌ CHROME PROVIDER CANCELLATION FAILED: ${error.message}`);
-            
-            if (error.name === 'AbortError') {
-                this.showStatus('reg-status', '🍎 Apple cancellation worked but Chrome request was also canceled', 'warning');
-            } else if (error.message.includes('NotAllowedError')) {
-                this.showStatus('reg-status', '🍎 Apple may have re-intercepted the Chrome request', 'warning');
-            } else {
-                this.showStatus('reg-status', `❌ Chrome provider cancellation error: ${error.message}`, 'error');
-            }
-        }
-    }
+    // Removed complex Apple bypass methods - using simplified device capability approach
     
     getCurrentRegistrationSettings() {
         return {
@@ -310,22 +246,84 @@ class WebAuthnSuperTest {
     getSelectedExtensions() {
         const extensions = {};
         
-        if (document.getElementById('ext-credProps').checked) {
-            extensions.credProps = true;
-        }
-        if (document.getElementById('ext-largeBlobKey').checked) {
-            extensions.largeBlobKey = true;
-        }
-        if (document.getElementById('ext-credProtect').checked) {
-            extensions.credProtect = { credProtect: 1 };
-        }
-        if (document.getElementById('ext-hmacSecret').checked) {
-            extensions.hmacSecret = true;
-        }
-        if (document.getElementById('ext-devicePubKey').checked) {
-            extensions.devicePubKey = true;
-        }
+        // Get ALL available extensions that were dynamically populated
+        const allSupportedExtensions = this.getSupportedExtensions();
         
+        // Check each extension checkbox that was dynamically created
+        allSupportedExtensions.forEach(extName => {
+            const checkbox = document.getElementById(`ext-${extName}`);
+            if (checkbox && checkbox.checked) {
+                switch (extName) {
+                    case 'credProps':
+                        extensions.credProps = true;
+                        break;
+                    case 'largeBlobKey':
+                        extensions.largeBlobKey = true;
+                        break;
+                    case 'credProtect':
+                        extensions.credProtect = {
+                            credentialProtectionPolicy: 'userVerificationOptional',
+                            enforceCredentialProtectionPolicy: false
+                        };
+                        break;
+                    case 'hmac-secret':
+                    case 'hmacCreateSecret':
+                        extensions.hmacSecret = true;
+                        break;
+                    case 'devicePubKey':
+                        extensions.devicePubKey = true;
+                        break;
+                    case 'minPinLength':
+                        extensions.minPinLength = true;
+                        break;
+                    case 'credentialBlob':
+                        extensions.credentialBlob = new Uint8Array([1, 2, 3, 4]); // Example blob
+                        break;
+                    default:
+                        // For other extensions, just set to true
+                        extensions[extName] = true;
+                }
+                
+                this.log(`🔧 Using selected extension: ${extName}`);
+            }
+        });
+        
+        this.log(`🔧 Total extensions selected: ${Object.keys(extensions).length}`);
+        return extensions;
+    }
+    
+    getSelectedAuthExtensions() {
+        const extensions = {};
+        
+        // Get authentication-specific extensions
+        const authExtensions = ['largeBlob', 'appid', 'uvm'];
+        
+        authExtensions.forEach(extName => {
+            const checkbox = document.getElementById(`auth-ext-${extName}`);
+            if (checkbox && checkbox.checked) {
+                switch (extName) {
+                    case 'largeBlob':
+                        extensions.largeBlob = {
+                            support: 'preferred',
+                            read: true,
+                            write: new Uint8Array([1, 2, 3, 4]) // Example blob to write
+                        };
+                        break;
+                    case 'appid':
+                        extensions.appId = 'https://example.com/app-id.json';
+                        break;
+                    case 'uvm':
+                        extensions.uvm = true;
+                        break;
+                    default:
+                        extensions[extName] = true;
+                }
+                
+                this.log(`🔧 Using selected auth extension: ${extName}`);
+            }
+        });
+        
+        this.log(`🔧 Total auth extensions selected: ${Object.keys(extensions).length}`);
         return extensions;
     }
     
@@ -442,12 +440,37 @@ class WebAuthnSuperTest {
     
     // Utility functions
     base64ToArrayBuffer(base64) {
-        const binaryString = atob(base64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
+        try {
+            // Handle base64url format (WebAuthn standard)
+            let base64String = base64;
+            if (typeof base64String !== 'string') {
+                this.log(`❌ CONVERSION ERROR: Expected string, got ${typeof base64String}: ${base64String}`);
+                throw new Error(`Expected string for base64 conversion, got ${typeof base64String}`);
+            }
+            
+            this.log(`🔄 CONVERTING: "${base64String}" (length: ${base64String.length})`);
+            
+            // Convert base64url to regular base64
+            base64String = base64String.replace(/-/g, '+').replace(/_/g, '/');
+            // Add padding if needed
+            while (base64String.length % 4) {
+                base64String += '=';
+            }
+            
+            this.log(`🔄 PADDED: "${base64String}" (length: ${base64String.length})`);
+            
+            const binaryString = atob(base64String);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            this.log(`✅ CONVERTED: ArrayBuffer with ${bytes.buffer.byteLength} bytes`);
+            return bytes.buffer;
+        } catch (error) {
+            this.log(`❌ CONVERSION FAILED: ${error.message} for input: "${base64}"`);
+            throw error;
         }
-        return bytes.buffer;
     }
     
     arrayBufferToBase64(buffer) {
@@ -456,7 +479,8 @@ class WebAuthnSuperTest {
         for (let i = 0; i < bytes.byteLength; i++) {
             binary += String.fromCharCode(bytes[i]);
         }
-        return btoa(binary);
+        // Convert to base64url (WebAuthn standard)
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     }
     
     // Display Updates
@@ -614,72 +638,131 @@ class WebAuthnSuperTest {
     }
     
     // Authentication Testing
-    async testAuthentication(username, authType) {
-        this.log(`🔓 Testing authentication: username=${username || 'usernameless'}, type=${authType}`);
+    async testServerAuthentication(username, authType) {
+        this.log(`🔓 SERVER AUTH: ${authType} authentication${username ? ` for: ${username}` : ' (usernameless)'}`);
         
         try {
+            const useAppleCancellation = document.getElementById('auth-apple-cancellation')?.checked;
+            
+            if (useAppleCancellation) {
+                this.showStatus('auth-status', 'Canceling Apple + server authentication...', 'info');
+                await this.performAppleCancellation(false);
+            } else {
+                this.showStatus('auth-status', `Starting ${authType} server authentication...`, 'info');
+            }
+            
+            // Build request based on auth type
             let endpoint = '/webauthn/authenticate/begin';
             let requestBody = {};
-            let customOptions = {};
             
-            // Check Apple override options
-            const forceExternal = document.getElementById('force-cross-platform')?.checked;
-            const disablePlatform = document.getElementById('disable-platform-auth')?.checked;
-            const prioritizeExternal = document.getElementById('prioritize-external')?.checked;
-            
-            // Determine endpoint and options based on auth type
             switch (authType) {
-                case 'hybrid':
-                    endpoint = '/webauthn/authenticate/begin/hybrid';
+                case 'all-settings':
+                    if (username) requestBody.username = username;
                     break;
-                case 'hybrid-force':
-                    endpoint = '/webauthn/authenticate/begin/hybrid';
-                    customOptions.forceNonPlatform = true;
-                    break;
-                case 'security-key':
+                case 'security-key-only':
+                    if (username) requestBody.username = username;
                     requestBody.securityKeyOnly = true;
                     break;
-                case 'platform':
-                    requestBody.platformOnly = true;
-                    break;
                 case 'usernameless':
-                    username = null;
-                    break;
-                case 'apple-override':
-                    endpoint = '/webauthn/authenticate/begin';
-                    customOptions.appleOverride = true;
-                    customOptions.forceExternal = true;
+                    // No username, no credentials specified
                     break;
             }
             
-            // Apply Apple overrides if selected
-            if (forceExternal || authType === 'apple-override') {
-                customOptions.excludePlatform = true;
-                customOptions.forceCrossPlatform = true;
-            }
-            if (disablePlatform) {
-                customOptions.disablePlatformAuth = true;
-            }
-            if (prioritizeExternal) {
-                customOptions.prioritizeExternal = true;
+            this.log(`🌐 SERVER REQUEST: ${endpoint} with ${JSON.stringify(requestBody)}`);
+            
+            // Get authentication options from server
+            const beginResponse = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!beginResponse.ok) {
+                throw new Error(`Server error: ${beginResponse.status} ${beginResponse.statusText}`);
             }
             
-            if (username) {
-                requestBody.username = username;
+            const options = await beginResponse.json();
+            this.log(`📧 SERVER OPTIONS: ${JSON.stringify(options, null, 2)}`);
+            
+            // Convert base64url to ArrayBuffer for challenge
+            if (options.challenge) {
+                options.challenge = this.base64ToArrayBuffer(options.challenge);
             }
             
-            const result = await this.performAuthentication(username, authType, endpoint, requestBody, customOptions);
+            // Convert allowCredentials if present
+            if (options.allowCredentials) {
+                options.allowCredentials = options.allowCredentials.map(cred => ({
+                    ...cred,
+                    id: this.base64ToArrayBuffer(cred.id)
+                }));
+            }
             
-            if (result.success) {
+            // Apply UI settings if this is all-settings mode
+            if (authType === 'all-settings') {
+                const uiSettings = this.buildAuthenticationOptionsFromUI();
+                // Merge UI settings with server options
+                options.userVerification = uiSettings.userVerification || options.userVerification;
+                options.timeout = uiSettings.timeout || options.timeout;
+            }
+            
+            // Override for security key only
+            if (authType === 'security-key-only') {
+                options.userVerification = 'discouraged';
+                options.timeout = 25000;
+            }
+            
+            this.log(`🔐 FINAL OPTIONS: ${JSON.stringify({...options, challenge: '[ArrayBuffer]', allowCredentials: options.allowCredentials?.map(c => ({...c, id: '[ArrayBuffer]'}))}, null, 2)}`);
+            
+            // Perform WebAuthn authentication
+            const startTime = performance.now();
+            const credential = await navigator.credentials.get({ publicKey: options });
+            const endTime = performance.now();
+            
+            if (!credential) {
+                throw new Error('No credential returned');
+            }
+            
+            this.log(`✅ WEBAUTHN SUCCESS: Authentication completed in ${endTime - startTime}ms`);
+            this.log(`✅ Credential ID: ${credential.id}`);
+            this.log(`✅ Type: ${credential.type}`);
+            this.log(`✅ Authenticator: ${credential.authenticatorAttachment || 'unknown'}`);
+            
+            // Send result to server
+            const authResponse = {
+                id: credential.id,
+                rawId: this.arrayBufferToBase64(credential.rawId),
+                type: credential.type,
+                response: {
+                    authenticatorData: this.arrayBufferToBase64(credential.response.authenticatorData),
+                    clientDataJSON: this.arrayBufferToBase64(credential.response.clientDataJSON),
+                    signature: this.arrayBufferToBase64(credential.response.signature),
+                    userHandle: credential.response.userHandle ? this.arrayBufferToBase64(credential.response.userHandle) : null
+                }
+            };
+            
+            const finishResponse = await fetch('/webauthn/authenticate/finish', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(authResponse)
+            });
+            
+            const result = await finishResponse.json();
+            
+            if (finishResponse.ok && result.verified) {
                 this.showStatus('auth-status', `✅ ${authType} authentication successful!`, 'success');
-                this.saveTestResult('authentication', { authType, username, customOptions }, result);
+                this.log(`✅ SERVER VERIFICATION: Authentication verified successfully`);
+                this.saveTestResult('server-authentication', { authType, username }, { success: true, ...result });
             } else {
-                this.showStatus('auth-status', `❌ ${authType} authentication failed: ${result.error}`, 'error');
+                throw new Error(result.error || 'Server verification failed');
             }
             
         } catch (error) {
-            this.showStatus('auth-status', `❌ Authentication error: ${error.message}`, 'error');
-            this.log(`❌ Authentication error: ${error.message}`);
+            this.showStatus('auth-status', `❌ ${authType} error: ${error.message}`, 'error');
+            this.log(`❌ ${authType} error: ${error.message}`);
         }
     }
     
@@ -697,21 +780,31 @@ class WebAuthnSuperTest {
             // Build options from UI then override for security key only
             const options = this.buildAuthenticationOptionsFromUI();
             
-            // Override specific settings for security key only mode
-            delete options.allowCredentials; // Remove credential restrictions
-            options.userVerification = 'discouraged';
-            options.timeout = 25000; // Short timeout
-            
-            // THIS IS THE KEY - Force cross-platform to restrict to security keys only
-            options.authenticatorSelection = {
-                authenticatorAttachment: 'cross-platform',
-                userVerification: 'discouraged'
+            // Apply Apple/macOS overrides - let this do ALL the cross-platform forcing
+            const customOptions = {
+                forceCrossPlatform: true, // Always force for this button - THIS IS THE KEY
+                disablePlatformAuth: true, // Also disable platform auth
+                prioritizeExternal: document.getElementById('auth-prioritize-external')?.checked,
+                excludePlatform: document.getElementById('auth-exclude-platform')?.checked
             };
+            
+            this.applyAppleOverrides(options, customOptions);
+            
+            // Override specific settings for security key only mode AFTER Apple overrides
+            delete options.publicKey.allowCredentials; // Remove credential restrictions
+            options.publicKey.userVerification = 'discouraged';
+            options.publicKey.timeout = 25000; // Short timeout
+            
+            // Ensure cross-platform is definitely set (redundant but safe)
+            if (!options.publicKey.authenticatorSelection) {
+                options.publicKey.authenticatorSelection = {};
+            }
+            options.publicKey.authenticatorSelection.authenticatorAttachment = 'cross-platform';
             
             this.log(`🔑 SECURITY KEY AUTH OVERRIDE: ${JSON.stringify(options, null, 2)}`);
             
             const startTime = performance.now();
-            const assertion = await navigator.credentials.get({ publicKey: options });
+            const assertion = await navigator.credentials.get(options);
             const endTime = performance.now();
             
             if (assertion) {
@@ -731,7 +824,7 @@ class WebAuthnSuperTest {
     }
     
     async testChromeProviderAuthentication() {
-        const username = document.getElementById('auth-username').value.trim();
+        const username = document.getElementById('global-username').value.trim();
         
         this.log(`🌐 CHROME PROVIDERS: Starting authentication${username ? ` for: ${username}` : ' (usernameless)'}`);
         this.showStatus('auth-status', 'Bypassing Touch ID for Chrome provider selection...', 'info');
@@ -940,8 +1033,7 @@ class WebAuthnSuperTest {
     }
     
     async testForceChrome() {
-        const username = document.getElementById('reg-username')?.value?.trim() || 
-                         document.getElementById('auth-username')?.value?.trim();
+        const username = document.getElementById('global-username')?.value?.trim();
         
         this.log(`🔨 FORCE CHROME: Attempting to force Chrome UI${username ? ` for: ${username}` : ''}`);
         this.showStatus('reg-status', 'Attempting to force Chrome UI...', 'info');
@@ -1533,198 +1625,95 @@ extension WebAuthnManager {
         return webauthnOptions;
     }
 
-    applyAppleOverrides(options, customOptions) {
-        this.log(`🍎 Applying Apple overrides: ${JSON.stringify(customOptions, null, 2)}`);
+    // Enhanced device-capability-based configuration using ALL browser features
+    applyDeviceCapabilities(options, isRegistration = true) {
+        this.log('🔧 Applying ALL detected device capabilities to WebAuthn options...');
         
-        // Check Safari-specific overrides
-        const safariForceExternal = document.getElementById('safari-force-external')?.checked;
-        const safariExcludePlatform = document.getElementById('safari-exclude-platform')?.checked;
-        const safariPreferUSB = document.getElementById('safari-prefer-usb')?.checked;
-        const safariDisableTouchID = document.getElementById('safari-disable-touchid')?.checked;
+        // Use browser capabilities we already detected
+        const caps = this.capabilities;
+        const browser = this.browserInfo;
         
-        // Check if we're on macOS Chrome (this requires more aggressive bypassing)
-        const isMacChrome = navigator.platform.includes('Mac') && navigator.userAgent.includes('Chrome');
-        
-        // AGGRESSIVE CHROME BYPASS: Force cross-platform from the start
-        if (isMacChrome || customOptions.forceExternal || safariForceExternal || customOptions.excludePlatform) {
-            // Completely rebuild authenticatorSelection to force cross-platform
+        // Apply platform authenticator capabilities
+        if (caps.platformAuthenticator) {
+            this.log('✅ Platform authenticator available - enabling hybrid mode');
+            // Don't restrict authenticator attachment - allow both platform and cross-platform
+        } else {
+            this.log('❌ No platform authenticator - forcing cross-platform only');
             options.publicKey.authenticatorSelection = {
-                authenticatorAttachment: 'cross-platform',
-                userVerification: 'discouraged',
-                residentKey: 'discouraged',
-                requireResidentKey: false
+                ...options.publicKey.authenticatorSelection,
+                authenticatorAttachment: 'cross-platform'
             };
-            
-            // Force short timeout to prevent Touch ID from activating
-            options.publicKey.timeout = 30000; // 30 seconds
-            
-            this.log('🚀 AGGRESSIVE: Forced cross-platform with short timeout for Chrome');
         }
         
-        // CHROME-SPECIFIC: Exclude platform credentials completely and immediately
-        if (isMacChrome && (safariExcludePlatform || customOptions.disablePlatformAuth)) {
-            options.publicKey.authenticatorSelection = {
-                authenticatorAttachment: 'cross-platform',
-                userVerification: 'discouraged',
-                residentKey: 'discouraged'
-            };
-            
-            // Remove any existing excludeCredentials that might reference platform authenticators
-            if (options.publicKey.excludeCredentials) {
-                options.publicKey.excludeCredentials = options.publicKey.excludeCredentials.filter(cred => 
-                    !cred.transports || !cred.transports.includes('internal')
-                );
-            }
-            
-            this.log('🚀 CHROME: Completely excluded platform authenticators');
+        // Apply conditional mediation capabilities
+        if (caps.conditionalMediation && !isRegistration) {
+            this.log('✅ Conditional mediation available - can use autofill UI');
+            // Note: Conditional mediation is applied in buildAuthenticationOptionsFromUI
         }
         
-        // CHROME BYPASS: Use very specific pubKeyCredParams to avoid platform preferences
-        if (isMacChrome && (safariPreferUSB || customOptions.prioritizeExternal)) {
-            // Force specific algorithms that favor security keys
-            options.publicKey.pubKeyCredParams = [
-                { alg: -7, type: "public-key" },   // ES256 (most security keys)
-                { alg: -257, type: "public-key" }, // RS256 (older security keys)
-                { alg: -37, type: "public-key" }   // PS256 (advanced security keys)
-            ];
-            
-            // Clear any allowCredentials that might reference platform
-            if (options.publicKey.allowCredentials) {
-                options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(cred => ({
-                    ...cred,
-                    transports: ['usb', 'nfc', 'hybrid'] // Remove 'internal' completely
-                }));
-            }
-            
-            this.log('🚀 CHROME: Forced security key-specific algorithms and transports');
+        // Apply browser-specific optimizations
+        if (browser.isSafari || browser.isiOS) {
+            options.publicKey.timeout = Math.max(options.publicKey.timeout || 60000, 120000); // Safari needs longer
+            this.log('🍎 Safari detected - extended timeout to 120s');
         }
         
-        // ULTIMATE CHROME BYPASS: Disable Touch ID preference completely
-        if (isMacChrome && (safariDisableTouchID || customOptions.appleOverride)) {
-            
-            if (customOptions.gentleBypass) {
-                // NEW APPROACH: Don't force cross-platform, try to bypass Apple differently
-                this.log('🌟 NEW GENTLE BYPASS: Trying to get Chrome provider selection screen');
-                
-                // DON'T force cross-platform - that causes the basic screen
-                // Instead leave attachment undefined to get full provider selection
-                options.publicKey.authenticatorSelection = {
-                    // No authenticatorAttachment specified - this should give full Chrome UI
-                    userVerification: 'preferred', // Allow UV 
-                    residentKey: 'preferred', // Allow passkeys
-                    requireResidentKey: false
-                };
-                
-                // Use a very short timeout to try to bypass Apple's interception
-                options.publicKey.timeout = 10000; // 10 seconds - very short
-                
-                // Minimal attestation
-                options.publicKey.attestation = 'none';
-                
-                // Add user handle to encourage passkey behavior
-                if (options.publicKey.user && !options.publicKey.user.id) {
-                    options.publicKey.user.id = new Uint8Array(16); // Random user ID
-                }
-                
-                // Try to set Chrome-specific transport hints
-                options.publicKey.extensions = {
-                    credProps: true // This might help Chrome show its UI
-                };
-                
-                this.log('🌟 NEW GENTLE: No attachment restriction, short timeout, Chrome-friendly settings');
-                
-            } else if (customOptions.ultraShortTimeout) {
-                // ULTRA SHORT TIMEOUT: Try to beat Apple to the punch
-                this.log('⚡ ULTRA SHORT TIMEOUT: Racing Apple interception with no restrictions');
-                
-                // Leave everything as flexible as possible - NO attachment restriction
-                const newOptions = {
-                    ...options.publicKey,
-                    authenticatorSelection: {
-                        // No authenticatorAttachment - this should allow full Chrome UI
-                        userVerification: 'preferred',
-                        residentKey: 'preferred',
-                        requireResidentKey: false
-                    },
-                    timeout: 5000, // Ultra short timeout
-                    attestation: 'none'
-                };
-                
-                // Keep extensions minimal but Chrome-friendly
-                newOptions.extensions = {
-                    credProps: true
-                };
-                
-                options.publicKey = newOptions;
-                this.log('⚡ ULTRA: No attachment restriction, 5s timeout, all Chrome providers enabled');
-                
-            } else {
-                // NUCLEAR BYPASS: Security key only mode
-                const newOptions = {
-                    ...options.publicKey,
-                    authenticatorSelection: {
-                        authenticatorAttachment: 'cross-platform',
-                        userVerification: 'discouraged',
-                        residentKey: 'discouraged',
-                        requireResidentKey: false
-                    },
-                    timeout: 25000, // Very short timeout
-                    attestation: 'none' // Avoid platform attestation
-                };
-                
-                // Remove any extensions that might trigger platform auth
-                if (newOptions.extensions) {
-                    delete newOptions.extensions.largeBlob;
-                    delete newOptions.extensions.credProps;
-                }
-                
-                options.publicKey = newOptions;
-                this.log('🚀 NUCLEAR: Completely rebuilt options for Security Key Only');
-            }
+        // Apply device-specific transport optimizations
+        if (browser.isMobile) {
+            this.log('📱 Mobile device detected - optimizing for mobile transports');
+            // Mobile devices typically support internal, hybrid, and sometimes NFC
         }
         
-        // FORCE NON-PLATFORM: Most aggressive mode
-        if (customOptions.forceNonPlatform || customOptions.forceCrossPlatform) {
-            options.publicKey.authenticatorSelection = {
-                authenticatorAttachment: 'cross-platform',
-                userVerification: 'discouraged',
-                residentKey: 'discouraged'
-            };
-            
-            // Override timeout to be very short
-            options.publicKey.timeout = 20000;
-            
-            // Force specific challenge size that platform authenticators might not like
-            if (options.publicKey.challenge.byteLength < 64) {
-                const newChallenge = new Uint8Array(64);
-                crypto.getRandomValues(newChallenge);
-                options.publicKey.challenge = newChallenge;
-            }
-            
-            this.log('🚀 FORCE NON-PLATFORM: Maximum bypass settings applied');
+        // Apply hardware-specific optimizations
+        if (browser.platform.includes('Mac')) {
+            this.log('🍎 macOS detected - Touch ID and security key support available');
+        } else if (browser.platform.includes('Win')) {
+            this.log('🪟 Windows detected - Windows Hello and security key support available');
         }
         
-        // Additional Safari/WebKit specific workarounds
-        if (this.browserInfo.isSafari || this.browserInfo.isiOS) {
-            // Extend timeout for Safari security key operations
-            if (options.publicKey.timeout < 120000) {
-                options.publicKey.timeout = 120000;
-            }
-            
-            // Remove resident key requirements that might trigger platform auth
-            if (options.publicKey.authenticatorSelection?.residentKey === 'required') {
-                options.publicKey.authenticatorSelection.residentKey = 'discouraged';
-                this.log('🍎 Safari: Changed resident key to discouraged');
-            }
+        // Apply WebRTC capabilities for hybrid transport
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            this.log('📷 WebRTC available - hybrid QR transport fully supported');
         }
         
-        // LOG FINAL OPTIONS FOR DEBUGGING
-        this.log(`🔧 Final WebAuthn options: ${JSON.stringify({
-            authenticatorSelection: options.publicKey.authenticatorSelection,
-            timeout: options.publicKey.timeout,
-            attestation: options.publicKey.attestation,
-            userVerification: options.publicKey.authenticatorSelection?.userVerification
-        }, null, 2)}`);
+        // Apply USB/Bluetooth capabilities
+        if (navigator.usb) {
+            this.log('🔌 WebUSB API available - USB security keys fully supported');
+        }
+        if (navigator.bluetooth) {
+            this.log('📶 Web Bluetooth API available - BLE transport supported');
+        }
+        
+        this.log('✅ ALL device capabilities applied successfully');
+    }
+    
+    // Convenience methods to force specific authenticator types while using all capabilities
+    forceHardwareKeysOnly(options) {
+        this.log('🔑 FORCING HARDWARE KEYS ONLY - using all capabilities with cross-platform restriction');
+        options.publicKey.authenticatorSelection = {
+            ...options.publicKey.authenticatorSelection,
+            authenticatorAttachment: 'cross-platform',
+            userVerification: 'discouraged' // Hardware keys often don't have UV
+        };
+        return options;
+    }
+    
+    forcePlatformAuthOnly(options) {
+        this.log('🆔 FORCING PLATFORM AUTH ONLY - using all capabilities with platform restriction');
+        options.publicKey.authenticatorSelection = {
+            ...options.publicKey.authenticatorSelection,
+            authenticatorAttachment: 'platform',
+            userVerification: 'preferred' // Platform auth typically has UV
+        };
+        return options;
+    }
+    
+    enableAllCapabilitiesHybridMode(options) {
+        this.log('🌐 ENABLING FULL HYBRID MODE - using ALL browser capabilities without restrictions');
+        // Remove any attachment restrictions to allow both platform and cross-platform
+        if (options.publicKey.authenticatorSelection?.authenticatorAttachment) {
+            delete options.publicKey.authenticatorSelection.authenticatorAttachment;
+        }
+        return options;
     }
     
     // Hybrid Testing Functions
@@ -1917,13 +1906,23 @@ extension WebAuthnManager {
             const options = this.buildAuthenticationOptionsFromUI();
             
             // Override for usernameless - KEY DIFFERENCE
-            options.allowCredentials = []; // Empty for usernameless/resident key discovery
+            options.publicKey.allowCredentials = []; // Empty for usernameless/resident key discovery
+            
+            // Apply Apple/macOS overrides if any are checked
+            const customOptions = {
+                forceCrossPlatform: document.getElementById('auth-force-cross-platform')?.checked,
+                disablePlatformAuth: document.getElementById('auth-disable-platform-auth')?.checked,
+                prioritizeExternal: document.getElementById('auth-prioritize-external')?.checked,
+                excludePlatform: document.getElementById('auth-exclude-platform')?.checked
+            };
+            
+            this.applyAppleOverrides(options, customOptions);
             
             this.log(`🔄 USERNAMELESS OPTIONS: ${JSON.stringify(options, null, 2)}`);
             this.showStatus('usernameless-status', '🔄 Select from your available passkeys...', 'info');
             
             const startTime = performance.now();
-            const credential = await navigator.credentials.get({ publicKey: options });
+            const credential = await navigator.credentials.get(options);
             const endTime = performance.now();
             
             if (credential) {
@@ -2030,25 +2029,62 @@ extension WebAuthnManager {
     
     // New authentication testing methods
     async testAuthentication() {
-        const useAppleCancellation = document.getElementById('auth-apple-cancellation')?.checked;
-        this.log(`🔓 TEST AUTHENTICATION: Using ALL UI settings${useAppleCancellation ? ' + Apple cancellation' : ''}`);
+        this.log(`🔓 AUTHENTICATION: Using UI settings + device capabilities`);
         
         const statusDiv = document.getElementById('auth-status');
         statusDiv.style.display = 'block';
-        statusDiv.innerHTML = `<div class="loading">🔄 ${useAppleCancellation ? 'Canceling Apple + ' : ''}Starting authentication with ALL your settings...</div>`;
+        statusDiv.innerHTML = '<div class="loading">🔄 Starting authentication with your settings...</div>';
         
         try {
-            // Handle Apple cancellation if requested
-            if (useAppleCancellation) {
-                await this.performAppleCancellation(false);
+            const options = this.buildAuthenticationOptionsFromUI();
+            
+            // Apply device capabilities instead of complex overrides
+            this.applyDeviceCapabilities(options, false);
+            
+            // Apply manual overrides from Basic Settings dropdowns while preserving all capabilities
+            const authAttachment = document.getElementById('auth-attachment')?.value;
+            if (authAttachment === 'cross-platform') {
+                this.forceHardwareKeysOnly(options);
+            } else if (authAttachment === 'platform') {
+                this.forcePlatformAuthOnly(options);
+            } else {
+                this.enableAllCapabilitiesHybridMode(options);
             }
             
-            const options = this.buildAuthenticationOptionsFromUI();
-            this.log(`🔓 Authentication options: ${JSON.stringify(options, null, 2)}`);
+            // Show transport-specific status message
+            const selectedAuthTransports = [];
+            if (document.getElementById('auth-include-usb')?.checked) selectedAuthTransports.push('usb');
+            if (document.getElementById('auth-include-nfc')?.checked) selectedAuthTransports.push('nfc');
+            if (document.getElementById('auth-include-ble')?.checked) selectedAuthTransports.push('ble');
+            if (document.getElementById('auth-include-internal')?.checked) selectedAuthTransports.push('internal');
+            if (document.getElementById('auth-include-hybrid')?.checked) selectedAuthTransports.push('hybrid');
             
-            statusDiv.innerHTML = '<div class="loading">⏳ Authenticate with your credential...</div>';
+            if (selectedAuthTransports.length > 0 && selectedAuthTransports.length < 5) {
+                statusDiv.innerHTML = `<div class="info">📡 Using selected transports: ${selectedAuthTransports.join(', ')}</div>`;
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause to show message
+            }
             
-            const assertion = await navigator.credentials.get({ publicKey: options });
+            this.log(`🔓 Authentication options: ${JSON.stringify({
+                ...options.publicKey,
+                challenge: options.publicKey.challenge ? `[Uint8Array ${options.publicKey.challenge.length} bytes]` : 'MISSING',
+                allowCredentials: options.publicKey.allowCredentials?.map(c => ({
+                    type: c.type,
+                    id: c.id ? `[ArrayBuffer ${c.id.byteLength} bytes]` : 'MISSING',
+                    transports: c.transports
+                })),
+                authenticatorSelection: options.publicKey.authenticatorSelection,
+                timeout: options.publicKey.timeout
+            }, null, 2)}`);
+            
+            statusDiv.innerHTML = '<div class="loading">⏳ Authenticate with all browser capabilities...</div>';
+            
+            // Log comprehensive capability usage for authentication
+            this.log(`🚀 AUTH USING ALL BROWSER CAPABILITIES: ${Object.keys(this.capabilities || {}).length} capabilities detected`);
+            this.log(`🔧 Allowed credentials: ${options.publicKey.allowCredentials?.length || 0} credentials`);
+            this.log(`🔧 Extensions: ${Object.keys(options.publicKey.extensions || {}).length} enabled`);
+            this.log(`🔧 Auth transports: ${selectedAuthTransports.join(', ')}`);
+            
+            const assertion = await navigator.credentials.get(options);
             
             if (assertion) {
                 this.log(`✅ Authentication successful with credential: ${assertion.id}`);
@@ -2076,10 +2112,12 @@ extension WebAuthnManager {
         }
     }
     
-    // Build registration options from ALL UI form elements
+    // Build registration options from UI form elements + device capabilities
     buildRegistrationOptionsFromUI() {
+        this.log('🔧 Building registration options from UI settings + device capabilities...');
+        
         // Basic settings
-        const username = document.getElementById('reg-username').value || 'testuser';
+        const username = document.getElementById('global-username').value || 'testuser';
         const attachment = document.getElementById('reg-attachment').value || undefined;
         const userVerification = document.getElementById('reg-user-verification').value;
         const residentKey = document.getElementById('reg-resident-key').value;
@@ -2094,7 +2132,7 @@ extension WebAuthnManager {
         const rpName = document.getElementById('rp-name').value || 'WebAuthn Test';
         const rpId = document.getElementById('rp-id').value || window.location.hostname;
         
-        // Algorithm selection
+        // Algorithm selection - enhanced with device capability awareness
         const pubKeyCredParams = [];
         const algorithmCheckboxes = document.querySelectorAll('input[type="checkbox"][value^="-"]');
         algorithmCheckboxes.forEach(checkbox => {
@@ -2106,6 +2144,53 @@ extension WebAuthnManager {
             }
         });
         
+        // If no algorithms selected, use ALL browser-supported algorithms
+        if (pubKeyCredParams.length === 0) {
+            this.log('📱 No algorithms selected, using ALL browser-supported algorithms...');
+            
+            // Use all algorithms from detected capabilities
+            const supportedAlgorithms = this.getSupportedAlgorithms();
+            supportedAlgorithms.forEach(algInfo => {
+                pubKeyCredParams.push({ alg: algInfo.alg, type: "public-key" });
+            });
+            
+            this.log(`🔧 Auto-selected ALL supported algorithms: ${pubKeyCredParams.map(p => p.alg).join(', ')}`);
+        }
+        
+        // Get selected transport methods
+        const selectedTransports = this.getSelectedTransports();
+        this.log(`🚀 Selected transports: ${selectedTransports.join(', ')}`);
+        
+        // Auto-configure attachment based on transport selections and device capabilities
+        let finalAttachment = attachment;
+        if (!attachment) {
+            // Determine attachment based on selected transports
+            const hasInternalTransport = selectedTransports.includes('internal');
+            const hasExternalTransports = selectedTransports.some(t => ['usb', 'nfc', 'ble', 'hybrid'].includes(t));
+            
+            if (!hasInternalTransport && hasExternalTransports) {
+                this.log('🔑 Only external transports selected, forcing cross-platform');
+                finalAttachment = 'cross-platform';
+            } else if (hasInternalTransport && !hasExternalTransports) {
+                this.log('🆔 Only internal transport selected, forcing platform');
+                finalAttachment = 'platform';
+            } else if (!this.capabilities?.platformAuthenticator) {
+                this.log('❌ No platform authenticator detected, forcing cross-platform');
+                finalAttachment = 'cross-platform';
+            } else {
+                this.log('✅ Hybrid mode - multiple transports or platform authenticator available');
+                // Leave undefined for hybrid mode
+            }
+        }
+        
+        // Build excludeCredentials based on transport restrictions
+        let excludeCredentials = [];
+        if (selectedTransports.length > 0 && selectedTransports.length < 5) {
+            // If specific transports are selected (not all), exclude incompatible credentials
+            // This is a placeholder - in real scenarios, you'd exclude based on known credential transports
+            this.log(`🚫 Transport filtering enabled for: ${selectedTransports.join(', ')}`);
+        }
+        
         // Extensions
         const extensions = {};
         if (document.getElementById('ext-credProps')?.checked) extensions.credProps = true;
@@ -2114,8 +2199,42 @@ extension WebAuthnManager {
         if (document.getElementById('ext-hmacSecret')?.checked) extensions.hmacCreateSecret = true;
         if (document.getElementById('ext-devicePubKey')?.checked) extensions.devicePubKey = { attestation: "none", attestationFormats: [] };
         
+        // Auto-enable ALL browser-supported extensions if nothing else is selected
+        if (Object.keys(extensions).length === 0) {
+            this.log('🔧 No extensions selected, enabling ALL browser-supported extensions...');
+            
+            const supportedExtensions = this.getSupportedExtensions();
+            supportedExtensions.forEach(extName => {
+                switch(extName) {
+                    case 'credProps':
+                        extensions.credProps = true;
+                        break;
+                    case 'largeBlobKey':
+                        extensions.largeBlobKey = true;
+                        break;
+                    case 'credProtect':
+                        extensions.credProtect = { credentialProtectionPolicy: "userVerificationOptional", enforceCredentialProtectionPolicy: false };
+                        break;
+                    case 'hmac-secret':
+                        extensions.hmacCreateSecret = true;
+                        break;
+                    case 'devicePubKey':
+                        extensions.devicePubKey = { attestation: "none", attestationFormats: [] };
+                        break;
+                    case 'uvm':
+                        // UVM is for authentication, not registration
+                        break;
+                    case 'appid':
+                        // AppID is for authentication, not registration
+                        break;
+                }
+            });
+            
+            this.log(`🔧 Auto-enabled extensions: ${Object.keys(extensions).join(', ')}`);
+        }
+        
         // Build the options
-        return {
+        const options = {
             challenge,
             rp: { name: rpName, id: rpId },
             user: {
@@ -2123,24 +2242,45 @@ extension WebAuthnManager {
                 name: username,
                 displayName: username
             },
-            pubKeyCredParams: pubKeyCredParams.length > 0 ? pubKeyCredParams : [{ alg: -7, type: "public-key" }],
+            pubKeyCredParams,
             authenticatorSelection: {
-                ...(attachment && { authenticatorAttachment: attachment }),
+                ...(finalAttachment && { authenticatorAttachment: finalAttachment }),
                 userVerification,
                 residentKey
             },
             attestation,
             timeout,
-            ...(Object.keys(extensions).length > 0 && { extensions })
+            extensions,
+            ...(excludeCredentials.length > 0 && { excludeCredentials })
         };
+        
+        this.log(`✅ Built registration options: ${JSON.stringify({
+            ...options,
+            challenge: `[Uint8Array ${options.challenge.length} bytes]`,
+            user: { ...options.user, id: `[Uint8Array ${options.user.id.length} bytes]` },
+            selectedTransports: selectedTransports,
+            finalAttachment: finalAttachment
+        }, null, 2)}`);
+        
+        return options;
     }
     
-    // Build authentication options from ALL UI form elements
+    // Build authentication options from UI form elements + device capabilities
     buildAuthenticationOptionsFromUI() {
+        this.log('🔧 Building authentication options from UI settings + device capabilities...');
+        
         // Basic settings
-        const username = document.getElementById('auth-username')?.value || '';
+        const username = document.getElementById('global-username')?.value || '';
         const userVerification = document.getElementById('auth-user-verification')?.value || 'preferred';
-        const timeout = parseInt(document.getElementById('auth-timeout')?.value) || 60000;
+        const authType = document.getElementById('auth-type')?.value || 'hybrid';
+        const attachment = document.getElementById('auth-attachment')?.value || undefined;
+        let timeout = parseInt(document.getElementById('auth-timeout')?.value) || 60000;
+        
+        // Auto-adjust timeout based on browser capabilities
+        if (this.browserInfo.isSafari || this.browserInfo.isiOS) {
+            timeout = Math.max(timeout, 120000); // Safari needs longer timeouts
+            this.log('🍎 Safari detected - extended timeout to 120s');
+        }
         
         // Challenge settings
         const challengeSize = parseInt(document.getElementById('auth-challenge-size')?.value) || 32;
@@ -2149,32 +2289,159 @@ extension WebAuthnManager {
         // RP settings
         const rpId = document.getElementById('auth-rp-id')?.value || window.location.hostname;
         
-        // Credential selection
+        // Credential selection - CRITICAL: Convert base64url credential IDs to ArrayBuffers
         let allowCredentials = [];
         try {
             const credentialsText = document.getElementById('allow-credentials')?.value || '[]';
+            this.log(`📋 Raw allowCredentials text: ${credentialsText}`);
             if (credentialsText.trim()) {
-                allowCredentials = JSON.parse(credentialsText);
+                const parsedCredentials = JSON.parse(credentialsText);
+                this.log(`📋 Parsed credentials (before conversion): ${JSON.stringify(parsedCredentials, null, 2)}`);
+                allowCredentials = parsedCredentials.map(cred => ({
+                    ...cred,
+                    id: typeof cred.id === 'string' ? this.base64ToArrayBuffer(cred.id) : cred.id
+                }));
+                this.log(`📋 Converted credentials (after ArrayBuffer conversion): ${allowCredentials.length} credentials processed`);
             }
         } catch (e) {
-            this.log('Invalid allow credentials JSON, using empty array');
+            this.log('❌ Invalid allow credentials JSON, using empty array: ' + e.message);
         }
         
-        // Extensions
-        const extensions = {};
-        if (document.getElementById('auth-ext-largeBlob')?.checked) extensions.largeBlob = { read: true };
-        if (document.getElementById('auth-ext-appid')?.checked) extensions.appid = window.location.origin;
-        if (document.getElementById('auth-ext-uvm')?.checked) extensions.uvm = true;
+        // Get selected transport methods for authentication
+        const selectedTransports = [];
+        if (document.getElementById('auth-include-usb')?.checked) selectedTransports.push('usb');
+        if (document.getElementById('auth-include-nfc')?.checked) selectedTransports.push('nfc');
+        if (document.getElementById('auth-include-ble')?.checked) selectedTransports.push('ble');
+        if (document.getElementById('auth-include-internal')?.checked) selectedTransports.push('internal');
+        if (document.getElementById('auth-include-hybrid')?.checked) selectedTransports.push('hybrid');
         
-        // Build the options
-        return {
-            challenge,
-            ...(rpId && { rpId }),
-            ...(allowCredentials.length > 0 && { allowCredentials }),
-            userVerification,
-            timeout,
-            ...(Object.keys(extensions).length > 0 && { extensions })
+        this.log(`🚀 Auth selected transports: ${selectedTransports.join(', ')}`);
+        
+        // Auto-filter credentials based on device capabilities, auth type, and transport selections
+        if (allowCredentials.length > 0) {
+            if (authType === 'security-key' || attachment === 'cross-platform') {
+                // Filter out platform credentials for security key only mode
+                allowCredentials = allowCredentials.filter(cred => 
+                    !cred.transports || !cred.transports.includes('internal')
+                );
+                this.log(`🔑 Security key mode: filtered to ${allowCredentials.length} cross-platform credentials`);
+            } else if (authType === 'platform' || attachment === 'platform') {
+                // Filter to only platform credentials
+                allowCredentials = allowCredentials.filter(cred => 
+                    cred.transports && cred.transports.includes('internal')
+                );
+                this.log(`🆔 Platform mode: filtered to ${allowCredentials.length} platform credentials`);
+            } else if (selectedTransports.length > 0 && selectedTransports.length < 5) {
+                // Filter based on selected transports
+                allowCredentials = allowCredentials.filter(cred => {
+                    if (!cred.transports || cred.transports.length === 0) {
+                        return true; // Keep credentials with unknown transports
+                    }
+                    // Check if credential has any of the selected transports
+                    return cred.transports.some(transport => selectedTransports.includes(transport));
+                });
+                this.log(`🚀 Transport filter: filtered to ${allowCredentials.length} credentials with transports: ${selectedTransports.join(', ')}`);
+            }
+        }
+        
+        // Extensions - use dynamic extension detection
+        const extensions = this.getSelectedAuthExtensions();
+        
+        // Auto-enable all browser-supported authentication extensions if none selected
+        if (Object.keys(extensions).length === 0) {
+            this.log('🔧 No auth extensions selected, enabling all browser-supported auth extensions...');
+            
+            const supportedExtensions = this.getSupportedExtensions();
+            supportedExtensions.forEach(extName => {
+                switch(extName) {
+                    case 'largeBlob':
+                        extensions.largeBlob = { read: true };
+                        break;
+                    case 'appid':
+                        extensions.appid = window.location.origin;
+                        break;
+                    case 'uvm':
+                        extensions.uvm = true;
+                        break;
+                    case 'credProps':
+                        // CredProps not needed for authentication
+                        break;
+                }
+            });
+            
+            this.log(`🔧 Auto-enabled auth extensions: ${Object.keys(extensions).join(', ')}`);
+        }
+        
+        // Auto-configure mediation based on auth type and capabilities
+        let mediation = 'optional';
+        if (authType === 'usernameless' || document.getElementById('auth-conditional-mediation')?.checked) {
+            if (this.capabilities?.conditionalMediation) {
+                mediation = 'conditional';
+                this.log('✅ Conditional mediation enabled for usernameless auth');
+            } else {
+                this.log('❌ Conditional mediation not supported, using optional');
+            }
+        }
+        
+        // Build the authenticator selection based on auth type, transport selections, and device capabilities
+        let authenticatorSelection = {};
+        if (authType === 'security-key' || attachment === 'cross-platform') {
+            authenticatorSelection.authenticatorAttachment = 'cross-platform';
+            authenticatorSelection.userVerification = 'discouraged';
+        } else if (authType === 'platform' || attachment === 'platform') {
+            authenticatorSelection.authenticatorAttachment = 'platform';
+            authenticatorSelection.userVerification = userVerification;
+        } else if (attachment) {
+            authenticatorSelection.authenticatorAttachment = attachment;
+            authenticatorSelection.userVerification = userVerification;
+        } else {
+            // Auto-configure based on transport selections
+            const hasInternalTransport = selectedTransports.includes('internal');
+            const hasExternalTransports = selectedTransports.some(t => ['usb', 'nfc', 'ble', 'hybrid'].includes(t));
+            
+            authenticatorSelection.userVerification = userVerification;
+            
+            if (!hasInternalTransport && hasExternalTransports) {
+                this.log('🔑 Only external transports selected for auth, preferring cross-platform');
+                authenticatorSelection.authenticatorAttachment = 'cross-platform';
+            } else if (hasInternalTransport && !hasExternalTransports) {
+                this.log('🆔 Only internal transport selected for auth, preferring platform');
+                authenticatorSelection.authenticatorAttachment = 'platform';
+            } else if (!this.capabilities?.platformAuthenticator) {
+                this.log('❌ No platform authenticator detected, preferring cross-platform');
+                authenticatorSelection.authenticatorAttachment = 'cross-platform';
+            } else {
+                this.log('✅ Hybrid mode for auth - multiple transports available');
+                // Leave attachment undefined for hybrid mode
+            }
+        }
+        
+        // Build the options in proper WebAuthn format
+        const options = {
+            publicKey: {
+                challenge,
+                ...(rpId && { rpId }),
+                ...(allowCredentials.length > 0 && { allowCredentials }),
+                userVerification,
+                timeout,
+                ...(Object.keys(authenticatorSelection).length > 0 && { authenticatorSelection }),
+                ...(Object.keys(extensions).length > 0 && { extensions })
+            }
         };
+        
+        this.log(`✅ Built authentication options: ${JSON.stringify({
+            ...options.publicKey,
+            challenge: `[Uint8Array ${options.publicKey.challenge.length} bytes]`,
+            allowCredentials: options.publicKey.allowCredentials?.map(c => ({
+                type: c.type,
+                id: `[ArrayBuffer ${c.id.byteLength} bytes]`,
+                transports: c.transports
+            })),
+            selectedTransports: selectedTransports,
+            authenticatorSelection: authenticatorSelection
+        }, null, 2)}`);
+        
+        return options;
     }
     
     async testHybridAuth() {
@@ -2294,8 +2561,10 @@ extension WebAuthnManager {
     
     exportSettings() {
         const settings = {
+            global: {
+                username: document.getElementById('global-username')?.value
+            },
             registration: {
-                username: document.getElementById('reg-username')?.value,
                 attachment: document.getElementById('reg-attachment')?.value,
                 userVerification: document.getElementById('reg-user-verification')?.value,
                 residentKey: document.getElementById('reg-resident-key')?.value,
@@ -2306,7 +2575,6 @@ extension WebAuthnManager {
                 rpId: document.getElementById('rp-id')?.value
             },
             authentication: {
-                username: document.getElementById('auth-username')?.value,
                 userVerification: document.getElementById('auth-user-verification')?.value,
                 timeout: document.getElementById('auth-timeout')?.value,
                 attachment: document.getElementById('auth-attachment')?.value,
@@ -2399,50 +2667,7 @@ extension WebAuthnManager {
         }
     }
     
-    // Apple cancellation method - only when checkbox is checked
-    async performAppleCancellation(isRegistration = true) {
-        const isMacChrome = navigator.userAgent.includes('Mac') && navigator.userAgent.includes('Chrome');
-        
-        if (!isMacChrome) {
-            this.log('ℹ️ Not macOS Chrome - skipping Apple cancellation');
-            return;
-        }
-        
-        this.log('🍎 Performing Apple cancellation for macOS Chrome...');
-        
-        try {
-            // Quick Apple detection - try to start and cancel immediately
-            const controller = new AbortController();
-            setTimeout(() => controller.abort(), 100);
-            
-            if (isRegistration) {
-                await navigator.credentials.create({
-                    publicKey: {
-                        challenge: new Uint8Array(32),
-                        rp: { name: "Quick Test", id: window.location.hostname },
-                        user: { id: new Uint8Array(16), name: "test", displayName: "test" },
-                        authenticatorSelection: { authenticatorAttachment: "platform" },
-                        pubKeyCredParams: [{ alg: -7, type: "public-key" }]
-                    },
-                    signal: controller.signal
-                });
-            } else {
-                await navigator.credentials.get({
-                    publicKey: {
-                        challenge: new Uint8Array(32),
-                        allowCredentials: [],
-                        authenticatorSelection: { authenticatorAttachment: "platform" }
-                    },
-                    signal: controller.signal
-                });
-            }
-        } catch (error) {
-            this.log(`🍎 Apple cancellation completed: ${error.name}`);
-        }
-        
-        // Small delay to ensure Apple's UI is dismissed
-        await new Promise(resolve => setTimeout(resolve, 200));
-    }
+    // Removed Apple cancellation method - using device capability approach instead
     
     runFeatureDetection() {
         this.log('🔍 Running comprehensive WebAuthn feature detection...');
@@ -2538,7 +2763,247 @@ ${JSON.stringify(capabilities, null, 2)}
     }
     
     getSupportedExtensions() {
-        return ['credProps', 'largeBlobKey', 'credProtect', 'hmac-secret', 'devicePubKey', 'uvm', 'appid'];
+        // Return comprehensive list of WebAuthn extensions that browsers may support
+        const allKnownExtensions = [
+            'credProps',        // Get credential properties
+            'largeBlobKey',     // Large blob storage key
+            'credProtect',      // Credential protection policy  
+            'hmac-secret',      // HMAC secret extension
+            'devicePubKey',     // Device public key extension
+            'uvm',              // User verification methods (auth only)
+            'appid',            // Application identifier (auth only)
+            'largeBlob',        // Large blob storage (auth only)
+            'hmacCreateSecret', // HMAC create secret (reg only)
+            'minPinLength',     // Minimum PIN length
+            'credentialBlob',   // Credential blob extension
+            'getCredBlob'       // Get credential blob
+        ];
+        
+        this.log(`🔧 Returning ${allKnownExtensions.length} known WebAuthn extensions for browser detection`);
+        return allKnownExtensions;
+    }
+    
+    // Dynamically populate UI with browser capabilities
+    populateUIWithBrowserCapabilities() {
+        this.log('🎨 POPULATING UI WITH ALL BROWSER CAPABILITIES...');
+        
+        // Get all detected capabilities
+        const supportedExtensions = this.getSupportedExtensions();
+        const supportedAlgorithms = this.getSupportedAlgorithms();
+        
+        this.log(`🔧 Found ${supportedExtensions.length} extensions: ${supportedExtensions.join(', ')}`);
+        this.log(`🔢 Found ${supportedAlgorithms.length} algorithms`);
+        
+        // Populate extensions dynamically
+        this.populateExtensionsInHTML(supportedExtensions);
+        
+        // Populate algorithms dynamically  
+        this.populateAlgorithmsInHTML(supportedAlgorithms);
+        
+        this.log('✅ UI populated with all browser capabilities!');
+    }
+    
+    populateExtensionsInHTML(supportedExtensions) {
+        // Find and populate registration extensions
+        this.populateRegistrationExtensions(supportedExtensions);
+        
+        // Find and populate authentication extensions
+        this.populateAuthenticationExtensions();
+    }
+    
+    populateRegistrationExtensions(supportedExtensions) {
+        // Find registration extensions container by looking for h4 with "Extensions" text
+        const headers = document.querySelectorAll('h4');
+        for (let header of headers) {
+            if (header.textContent.includes('Extensions')) {
+                const tabContent = header.closest('.tab-content');
+                if (tabContent && tabContent.id === 'registration-test') {
+                    const container = header.nextElementSibling;
+                    if (container && container.classList.contains('checkbox-group')) {
+                        // Clear existing extensions
+                        container.innerHTML = '';
+                        
+                        // Add all supported registration extensions
+                        const regExtensions = supportedExtensions.filter(ext => 
+                            !['uvm', 'appid', 'largeBlob'].includes(ext)
+                        );
+                        
+                        regExtensions.forEach(ext => {
+                            const label = document.createElement('label');
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.id = `ext-${ext}`;
+                            
+                            // Default key extensions to checked
+                            if (['credProps', 'hmac-secret'].includes(ext)) {
+                                checkbox.checked = true;
+                            }
+                            
+                            label.appendChild(checkbox);
+                            label.appendChild(document.createTextNode(` ${ext}`));
+                            container.appendChild(label);
+                            
+                            this.log(`➕ Added registration extension: ${ext}`);
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    populateAuthenticationExtensions() {
+        // Find authentication extensions container
+        const headers = document.querySelectorAll('h4');
+        for (let header of headers) {
+            if (header.textContent.includes('Extensions')) {
+                const tabContent = header.closest('.tab-content');
+                if (tabContent && tabContent.id === 'authentication-test') {
+                    const container = header.nextElementSibling;
+                    if (container && container.classList.contains('checkbox-group')) {
+                        // Clear existing extensions
+                        container.innerHTML = '';
+                        
+                        // Add authentication-specific extensions
+                        const authExtensions = ['largeBlob', 'appid', 'uvm'];
+                        
+                        authExtensions.forEach(ext => {
+                            const label = document.createElement('label');
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.id = `auth-ext-${ext}`;
+                            
+                            label.appendChild(checkbox);
+                            label.appendChild(document.createTextNode(` ${ext}`));
+                            container.appendChild(label);
+                            
+                            this.log(`➕ Added authentication extension: ${ext}`);
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    populateAlgorithmsInHTML(supportedAlgorithms) {
+        // Find algorithms section
+        const headers = document.querySelectorAll('h4');
+        for (let header of headers) {
+            if (header.textContent.includes('Cryptographic Algorithms')) {
+                const container = header.nextElementSibling;
+                if (container && container.classList.contains('checkbox-group')) {
+                    // Clear existing algorithms
+                    container.innerHTML = '';
+                    
+                    // Add all supported algorithms
+                    supportedAlgorithms.forEach(algInfo => {
+                        const label = document.createElement('label');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = algInfo.alg;
+                        checkbox.checked = true; // Default all to checked for maximum compatibility
+                        
+                        label.appendChild(checkbox);
+                        label.appendChild(document.createTextNode(` ${algInfo.name} (${algInfo.alg}) - ${algInfo.description}`));
+                        container.appendChild(label);
+                        
+                        this.log(`➕ Added algorithm: ${algInfo.name} (${algInfo.alg})`);
+                    });
+                    break;
+                }
+            }
+        }
+    }
+
+    // Credential Management Methods
+    addUserCredential(username, credInfo) {
+        if (!this.userCredentials.has(username)) {
+            this.userCredentials.set(username, []);
+        }
+        this.userCredentials.get(username).push({
+            ...credInfo,
+            registeredAt: new Date().toISOString(),
+            rawId: credInfo.id // Store base64 ID as rawId for allowCredentials
+        });
+        
+        this.updateCredentialDisplay();
+        this.updateAllowCredentialsField(username);
+        this.log(`🔑 CREDENTIAL TRACKED: Added credential for ${username}`);
+    }
+
+    refreshUserCredentials() {
+        const username = document.getElementById('global-username').value.trim();
+        if (!username) {
+            this.showStatus('auth-status', 'Enter a username to refresh credentials', 'info');
+            return;
+        }
+        
+        this.updateCredentialDisplay();
+        this.updateAllowCredentialsField(username);
+        this.log(`🔄 REFRESHED: Credentials for ${username}`);
+    }
+
+    clearAllCredentials() {
+        this.userCredentials.clear();
+        this.updateCredentialDisplay();
+        
+        // Clear allowCredentials field
+        const allowCredsField = document.getElementById('allow-credentials');
+        if (allowCredsField) {
+            allowCredsField.value = '[]';
+        }
+        
+        this.log('🗑️ CLEARED: All tracked credentials');
+    }
+
+    syncTabSettings() {
+        const username = document.getElementById('global-username').value.trim();
+        if (username) {
+            this.updateAllowCredentialsField(username);
+            this.log(`🔄 SYNCED: Tabs synchronized for ${username}`);
+        }
+    }
+
+    updateCredentialDisplay() {
+        const credCountDiv = document.getElementById('credential-count');
+        if (!credCountDiv) return;
+        
+        const username = document.getElementById('global-username').value.trim();
+        if (!username) {
+            credCountDiv.innerHTML = 'Enter username to see credentials';
+            return;
+        }
+        
+        const userCreds = this.userCredentials.get(username) || [];
+        if (userCreds.length === 0) {
+            credCountDiv.innerHTML = `No credentials for "${username}"`;
+        } else {
+            credCountDiv.innerHTML = `${userCreds.length} credential(s) for "${username}"<br>` +
+                userCreds.map((cred, i) => 
+                    `<small>${i+1}. ${cred.type} (${cred.authenticatorAttachment || 'unknown'})</small>`
+                ).join('<br>');
+        }
+    }
+
+    updateAllowCredentialsField(username) {
+        const allowCredsField = document.getElementById('allow-credentials');
+        if (!allowCredsField) return;
+        
+        const userCreds = this.userCredentials.get(username) || [];
+        if (userCreds.length === 0) {
+            allowCredsField.value = '[]';
+            allowCredsField.placeholder = `No credentials registered for "${username}" yet`;
+        } else {
+            const allowCredentials = userCreds.map(cred => ({
+                id: cred.rawId,
+                type: "public-key",
+                transports: cred.transports || ["usb", "nfc"]
+            }));
+            
+            allowCredsField.value = JSON.stringify(allowCredentials, null, 2);
+            allowCredsField.placeholder = `Credentials for "${username}"`;
+        }
     }
 }
 
@@ -2547,6 +3012,11 @@ let superTest;
 
 function initSuperTest() {
     superTest = new WebAuthnSuperTest();
+    
+    // Populate UI with browser capabilities after a short delay to let DOM load
+    setTimeout(() => {
+        superTest.populateUIWithBrowserCapabilities();
+    }, 1000);
 }
 
 function showTab(tabId) {
@@ -2574,9 +3044,56 @@ function refreshBrowserInfo() {
     }
 }
 
-function runCapabilityTests() {
+async function runCapabilityTests() {
     if (superTest) {
-        superTest.checkCapabilities();
+        superTest.log('🔍 Starting comprehensive WebAuthn capability tests...');
+        
+        // Show loading status in all three sections
+        const capabilitiesDiv = document.getElementById('webauthn-capabilities');
+        const featureDiv = document.getElementById('feature-detection');
+        const deviceDiv = document.getElementById('device-capabilities');
+        
+        if (capabilitiesDiv) {
+            capabilitiesDiv.innerHTML = `<div class="capability-card">
+                <h4>🔍 Running WebAuthn Capability Tests...</h4>
+                <p>Checking browser WebAuthn support...</p>
+            </div>`;
+        }
+        
+        if (featureDiv) {
+            featureDiv.innerHTML = `<div class="debug-info">
+                <h4>🔍 Running Feature Detection Tests...</h4>
+                <p>Scanning available WebAuthn features...</p>
+            </div>`;
+        }
+        
+        if (deviceDiv) {
+            deviceDiv.innerHTML = `<div class="debug-info">
+                <h4>🔍 Running Device Capability Tests...</h4>
+                <p>Detecting hardware and platform capabilities...</p>
+            </div>`;
+        }
+        
+        try {
+            // Run all three tests
+            await superTest.checkCapabilities();
+            superTest.runFeatureDetection();
+            superTest.detectDeviceCapabilities();
+            
+            // Log completion
+            superTest.log('✅ All advanced capability tests completed successfully!');
+            
+        } catch (error) {
+            superTest.log(`❌ Capability test error: ${error.message}`);
+            
+            // Show error in capability div if still loading
+            if (capabilitiesDiv && capabilitiesDiv.innerHTML.includes('Running WebAuthn Capability Tests')) {
+                capabilitiesDiv.innerHTML = `<div class="capability-card">
+                    <h4>❌ Capability Test Error</h4>
+                    <p>Error: ${error.message}</p>
+                </div>`;
+            }
+        }
     }
 }
 
@@ -2617,21 +3134,41 @@ function resetAdvancedSettings() {
 
 function testAuthentication() {
     if (superTest) {
-        const username = document.getElementById('auth-username').value.trim();
-        const authType = document.getElementById('auth-type').value;
-        superTest.testAuthentication(username || null, authType);
+        // Call the CLIENT-SIDE authentication method that uses ALL UI settings
+        superTest.testAuthentication();
     }
 }
 
 function testChromeBypassAuthentication() {
     if (superTest) {
+        // Call the CLIENT-SIDE Chrome bypass authentication method
         superTest.testChromeBypassAuthentication();
     }
 }
 
-function testChromeProviderAuthentication() {
+function testUsernameless() {
     if (superTest) {
-        superTest.testChromeProviderAuthentication();
+        // Call the CLIENT-SIDE usernameless authentication method
+        superTest.testUsernameless();
+    }
+}
+
+// New functions for credential management
+function refreshCredentials() {
+    if (superTest) {
+        superTest.refreshUserCredentials();
+    }
+}
+
+function clearAllCredentials() {
+    if (superTest) {
+        superTest.clearAllCredentials();
+    }
+}
+
+function syncTabs() {
+    if (superTest) {
+        superTest.syncTabSettings();
     }
 }
 
