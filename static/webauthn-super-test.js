@@ -218,7 +218,7 @@ class WebAuthnSuperTest {
                 }
                 
                 // CRITICAL: SYNC AUTHENTICATOR ATTACHMENT FROM REGISTRATION TO AUTHENTICATION
-                const regAttachment = document.getElementById('attachment')?.value;
+                const regAttachment = document.getElementById('reg-attachment')?.value;
                 const authAttachment = document.getElementById('auth-attachment');
                 if (regAttachment && authAttachment) {
                     authAttachment.value = regAttachment;
@@ -228,7 +228,7 @@ class WebAuthnSuperTest {
                 }
                 
                 // CRITICAL: SYNC USER VERIFICATION FROM REGISTRATION TO AUTHENTICATION
-                const regUserVerification = document.getElementById('user-verification')?.value;
+                const regUserVerification = document.getElementById('reg-user-verification')?.value;
                 const authUserVerification = document.getElementById('auth-user-verification');
                 if (regUserVerification && authUserVerification) {
                     authUserVerification.value = regUserVerification;
