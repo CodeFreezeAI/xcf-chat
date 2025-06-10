@@ -266,10 +266,7 @@
         <div class="main-content">
             <div class="sidebar">
                 <ul class="nav-menu">
-                    <li><a href="#" onclick="showTab('registration-test')" class="active">📝 Registration Testing</a></li>
-                    <li><a href="#" onclick="showTab('authentication-test')">🔐 Authentication Testing</a></li>
-                    <li><a href="#" onclick="showTab('browser-info')">🌐 Browser & Platform Info</a></li>
-                    <li><a href="#" onclick="showTab('debug-tools')">🐛 Debug Tools</a></li>
+                    <li><a href="#" onclick="showTab('registration-test')" class="active">🔐 WebAuthn Super Test - All-in-One</a></li>
                 </ul>
             </div>
             
@@ -393,11 +390,8 @@
                             </p>
                         </div>
                     </div>
-                </div>
 
-                <!-- Authentication Testing Tab -->
-                <div id="authentication-test" class="tab-content">
-                    <!-- Authentication Configuration -->
+                    <!-- Authentication Configuration - MOVED TO SAME TAB -->
                     <div class="section">
                         <h3>🔐 Authentication Configuration</h3>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
@@ -479,7 +473,7 @@
                         </div>
                     </div>
 
-                    <!-- Authentication Testing Buttons -->
+                    <!-- Authentication Testing Buttons - MOVED TO SAME TAB -->
                     <div class="section">
                         <h3>🧪 Authentication Testing</h3>
                         <div style="text-align: center; margin: 30px 0;">
@@ -502,10 +496,8 @@
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Browser & Platform Info Tab -->
-                <div id="browser-info" class="tab-content">
+                    <!-- Browser & Platform Info - MOVED TO SAME TAB -->
                     <div class="section">
                         <h3>🌐 Browser & Platform Detection</h3>
                         <div id="browser-detection" class="debug-info">Loading browser information...</div>
@@ -526,10 +518,8 @@
                         <button onclick="detectDeviceCapabilities()">📱 Detect Device Capabilities</button>
                         <div id="device-capabilities" class="debug-info" style="margin-top: 10px;">Device capability results will appear here...</div>
                     </div>
-                </div>
 
-                <!-- Debug Tools Tab -->
-                <div id="debug-tools" class="tab-content">
+                    <!-- Debug Tools - MOVED TO SAME TAB -->
                     <div class="section">
                         <h3>🐛 Debug Console</h3>
                         <button onclick="clearDebugLog()">🗑️ Clear Log</button>
@@ -568,6 +558,9 @@
                         </div>
                     </div>
                 </div>
+
+
+
             </div>
         </div>
     </div>

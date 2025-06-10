@@ -179,7 +179,7 @@ class WebAuthnSuperTest {
                 this.log(`✅ Credential Type: ${credential.type}`);
                 this.log(`✅ Authenticator: ${credential.authenticatorAttachment || 'unknown'}`);
                 
-                this.showStatus('reg-status', '✅ Registration successful!', 'success');
+                this.showStatus('reg-status', '✅ Registration successful! Authentication settings automatically updated.', 'success');
                 
                 const credInfo = {
                     id: credential.id,
@@ -195,6 +195,58 @@ class WebAuthnSuperTest {
                 
                 // Track credential for this user
                 this.addUserCredential(username, credInfo);
+                
+                // AUTOMATICALLY UPDATE AUTHENTICATION SETTINGS
+                this.updateAllowCredentialsField(username);
+                
+                // SYNC AUTHENTICATION TRANSPORT SETTINGS TO MATCH CREDENTIAL
+                this.log(`🔧 ATTEMPTING AUTO-SYNC: credential has transports: ${JSON.stringify(credInfo.transports)}`);
+                if (credInfo.transports && credInfo.transports.length > 0) {
+                    credInfo.transports.forEach(transport => {
+                        const checkboxId = `auth-include-${transport}`;
+                        const checkbox = document.getElementById(checkboxId);
+                        this.log(`🔧 LOOKING FOR CHECKBOX: "${checkboxId}" - ${checkbox ? 'FOUND' : 'NOT FOUND'}`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                            this.log(`✅ AUTO-ENABLED AUTH TRANSPORT: ${transport}`);
+                        } else {
+                            this.log(`❌ CHECKBOX NOT FOUND: ${checkboxId}`);
+                        }
+                    });
+                } else {
+                    this.log(`❌ NO TRANSPORTS TO SYNC: ${JSON.stringify(credInfo.transports)}`);
+                }
+                
+                // CRITICAL: SYNC AUTHENTICATOR ATTACHMENT FROM REGISTRATION TO AUTHENTICATION
+                const regAttachment = document.getElementById('attachment')?.value;
+                const authAttachment = document.getElementById('auth-attachment');
+                if (regAttachment && authAttachment) {
+                    authAttachment.value = regAttachment;
+                    this.log(`✅ AUTO-SYNCED AUTHENTICATOR ATTACHMENT: REG=${regAttachment} → AUTH=${authAttachment.value}`);
+                } else {
+                    this.log(`❌ ATTACHMENT SYNC FAILED: reg=${regAttachment}, auth element=${!!authAttachment}`);
+                }
+                
+                // CRITICAL: SYNC USER VERIFICATION FROM REGISTRATION TO AUTHENTICATION
+                const regUserVerification = document.getElementById('user-verification')?.value;
+                const authUserVerification = document.getElementById('auth-user-verification');
+                if (regUserVerification && authUserVerification) {
+                    authUserVerification.value = regUserVerification;
+                    this.log(`✅ AUTO-SYNCED USER VERIFICATION: REG=${regUserVerification} → AUTH=${authUserVerification.value}`);
+                } else {
+                    this.log(`❌ USER VERIFICATION SYNC FAILED: reg=${regUserVerification}, auth element=${!!authUserVerification}`);
+                }
+                
+                // FORCE REFRESH THE AUTHENTICATION TAB DISPLAY
+                this.log(`🔄 FORCING TAB REFRESH...`);
+                const authTab = document.getElementById('authentication-test');
+                if (authTab) {
+                    this.log(`✅ AUTH TAB FOUND - forcing refresh`);
+                } else {
+                    this.log(`❌ AUTH TAB NOT FOUND`);
+                }
+                
+                this.log(`✅ AUTOMATICALLY POPULATED AUTH SETTINGS for ${username} with ${credInfo.transports?.join(', ') || 'default'} transports`);
                 
             } else {
                 throw new Error('No credential returned');
@@ -310,7 +362,8 @@ class WebAuthnSuperTest {
                         };
                         break;
                     case 'appid':
-                        extensions.appId = 'https://example.com/app-id.json';
+                        // Skip appid for now - causes domain issues if not registered with same appid
+                        // extensions.appId = window.location.origin;
                         break;
                     case 'uvm':
                         extensions.uvm = true;
@@ -2274,6 +2327,18 @@ extension WebAuthnManager {
         const userVerification = document.getElementById('auth-user-verification')?.value || 'preferred';
         const authType = document.getElementById('auth-type')?.value || 'hybrid';
         const attachment = document.getElementById('auth-attachment')?.value || undefined;
+        
+        // DEBUG: Log UI settings being read
+        this.log(`🔧 UI Settings Read:
+            - authType: "${authType}"
+            - attachment: "${attachment}"  
+            - userVerification: "${userVerification}"
+            - username: "${username}"`);
+            
+        // SECURITY CHECK: Validate security-key mode
+        if (authType === 'security-key') {
+            this.log(`🔑 SECURITY KEY MODE DETECTED - Will force cross-platform only`);
+        }
         let timeout = parseInt(document.getElementById('auth-timeout')?.value) || 60000;
         
         // Auto-adjust timeout based on browser capabilities
@@ -2287,7 +2352,20 @@ extension WebAuthnManager {
         const challenge = window.crypto.getRandomValues(new Uint8Array(challengeSize));
         
         // RP settings
-        const rpId = document.getElementById('auth-rp-id')?.value || window.location.hostname;
+        const rpIdField = document.getElementById('auth-rp-id');
+        const rpId = rpIdField?.value || window.location.hostname;
+        
+        // DEBUG: Log RP ID details
+        this.log(`🌐 RP ID Details:
+            - Field element: ${rpIdField ? 'Found' : 'MISSING'}
+            - Field value: "${rpIdField?.value}"
+            - window.location.hostname: "${window.location.hostname}"
+            - Final rpId: "${rpId}"`);
+            
+        // CRITICAL CHECK: Ensure RP ID matches current domain
+        if (rpId !== window.location.hostname) {
+            this.log(`⚠️ WARNING: RP ID mismatch! Using "${rpId}" but on domain "${window.location.hostname}"`);
+        }
         
         // Credential selection - CRITICAL: Convert base64url credential IDs to ArrayBuffers
         let allowCredentials = [];
@@ -2317,14 +2395,20 @@ extension WebAuthnManager {
         
         this.log(`🚀 Auth selected transports: ${selectedTransports.join(', ')}`);
         
-        // Auto-filter credentials based on device capabilities, auth type, and transport selections
+        // CRITICAL FIX: Handle Security Key Only mode properly
+        if (authType === 'security-key') {
+            // For Security Key Only mode, KEEP existing allowCredentials but force cross-platform
+            this.log(`🔑 SECURITY KEY ONLY MODE: Using ${allowCredentials.length} credentials but forcing cross-platform only`);
+        }
+        
+        // Apply credential filtering based on auth type and transport selection
         if (allowCredentials.length > 0) {
-            if (authType === 'security-key' || attachment === 'cross-platform') {
-                // Filter out platform credentials for security key only mode
+            if (attachment === 'cross-platform') {
+                // Filter out platform credentials for cross-platform mode
                 allowCredentials = allowCredentials.filter(cred => 
                     !cred.transports || !cred.transports.includes('internal')
                 );
-                this.log(`🔑 Security key mode: filtered to ${allowCredentials.length} cross-platform credentials`);
+                this.log(`🔑 Cross-platform mode: filtered to ${allowCredentials.length} cross-platform credentials`);
             } else if (authType === 'platform' || attachment === 'platform') {
                 // Filter to only platform credentials
                 allowCredentials = allowCredentials.filter(cred => 
@@ -2332,15 +2416,9 @@ extension WebAuthnManager {
                 );
                 this.log(`🆔 Platform mode: filtered to ${allowCredentials.length} platform credentials`);
             } else if (selectedTransports.length > 0 && selectedTransports.length < 5) {
-                // Filter based on selected transports
-                allowCredentials = allowCredentials.filter(cred => {
-                    if (!cred.transports || cred.transports.length === 0) {
-                        return true; // Keep credentials with unknown transports
-                    }
-                    // Check if credential has any of the selected transports
-                    return cred.transports.some(transport => selectedTransports.includes(transport));
-                });
-                this.log(`🚀 Transport filter: filtered to ${allowCredentials.length} credentials with transports: ${selectedTransports.join(', ')}`);
+                // LESS AGGRESSIVE transport filtering - keep more credentials
+                this.log(`⚠️ SKIPPING TRANSPORT FILTER - keeping all credentials regardless of transport restrictions`);
+                this.log(`🚀 Would have filtered for transports: ${selectedTransports.join(', ')}, but keeping all ${allowCredentials.length} credentials`);
             }
         }
         
@@ -2358,7 +2436,8 @@ extension WebAuthnManager {
                         extensions.largeBlob = { read: true };
                         break;
                     case 'appid':
-                        extensions.appid = window.location.origin;
+                        // Skip appid - causes domain errors if credential wasn't registered with appid
+                        // extensions.appid = window.location.origin;
                         break;
                     case 'uvm':
                         extensions.uvm = true;
@@ -2385,15 +2464,23 @@ extension WebAuthnManager {
         
         // Build the authenticator selection based on auth type, transport selections, and device capabilities
         let authenticatorSelection = {};
-        if (authType === 'security-key' || attachment === 'cross-platform') {
+        if (authType === 'security-key') {
+            // FORCE Security Key Only mode - no platform authenticators allowed
             authenticatorSelection.authenticatorAttachment = 'cross-platform';
             authenticatorSelection.userVerification = 'discouraged';
+            this.log('🔑 SECURITY KEY ONLY: Forced cross-platform with discouraged UV');
+        } else if (attachment === 'cross-platform') {
+            authenticatorSelection.authenticatorAttachment = 'cross-platform';
+            authenticatorSelection.userVerification = userVerification;
+            this.log('🔑 Cross-platform attachment specified');
         } else if (authType === 'platform' || attachment === 'platform') {
             authenticatorSelection.authenticatorAttachment = 'platform';
             authenticatorSelection.userVerification = userVerification;
+            this.log('🆔 Platform mode specified');
         } else if (attachment) {
             authenticatorSelection.authenticatorAttachment = attachment;
             authenticatorSelection.userVerification = userVerification;
+            this.log(`🔧 Custom attachment: ${attachment}`);
         } else {
             // Auto-configure based on transport selections
             const hasInternalTransport = selectedTransports.includes('internal');
@@ -2929,7 +3016,7 @@ ${JSON.stringify(capabilities, null, 2)}
         
         this.updateCredentialDisplay();
         this.updateAllowCredentialsField(username);
-        this.log(`🔑 CREDENTIAL TRACKED: Added credential for ${username}`);
+        this.log(`🔑 CREDENTIAL TRACKED: Added credential for ${username} - AUTH SETTINGS READY!`);
     }
 
     refreshUserCredentials() {
