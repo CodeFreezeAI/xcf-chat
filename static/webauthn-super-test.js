@@ -821,8 +821,8 @@ class WebAuthnSuperTest {
     
     async testChromeBypassAuthentication() {
         const useAppleCancellation = document.getElementById('auth-apple-cancellation')?.checked;
-        this.log(`🔑 SECURITY KEY ONLY: Using UI settings${useAppleCancellation ? ' + Apple cancellation' : ''} + forcing cross-platform`);
-        this.showStatus('auth-status', `${useAppleCancellation ? 'Canceling Apple + ' : ''}UI settings + forcing security key...`, 'info');
+        this.log(`🌐 HYBRID MODE: Using hybrid auth endpoint${useAppleCancellation ? ' + Apple cancellation' : ''} - supports both passkeys and security keys`);
+        this.showStatus('auth-status', `${useAppleCancellation ? 'Canceling Apple + ' : ''}Testing hybrid authentication...`, 'info');
         
         try {
             // Handle Apple cancellation if requested
@@ -830,49 +830,85 @@ class WebAuthnSuperTest {
                 await this.performAppleCancellation(false);
             }
             
-            // Build options from UI then override for security key only
-            const options = this.buildAuthenticationOptionsFromUI();
+            // Get username from UI
+            const username = document.getElementById('global-username')?.value?.trim() || null;
             
-            // Apply Apple/macOS overrides - let this do ALL the cross-platform forcing
-            const customOptions = {
-                forceCrossPlatform: true, // Always force for this button - THIS IS THE KEY
-                disablePlatformAuth: true, // Also disable platform auth
-                prioritizeExternal: document.getElementById('auth-prioritize-external')?.checked,
-                excludePlatform: document.getElementById('auth-exclude-platform')?.checked
-            };
+            // Use hybrid authentication endpoint that supports both platform and cross-platform
+            const response = await fetch('/webauthn/authenticate/begin/hybrid', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username })
+            });
             
-            this.applyAppleOverrides(options, customOptions);
-            
-            // Override specific settings for security key only mode AFTER Apple overrides
-            delete options.publicKey.allowCredentials; // Remove credential restrictions
-            options.publicKey.userVerification = 'discouraged';
-            options.publicKey.timeout = 25000; // Short timeout
-            
-            // Ensure cross-platform is definitely set (redundant but safe)
-            if (!options.publicKey.authenticatorSelection) {
-                options.publicKey.authenticatorSelection = {};
+            if (!response.ok) {
+                throw new Error('Failed to get hybrid authentication options');
             }
-            options.publicKey.authenticatorSelection.authenticatorAttachment = 'cross-platform';
             
-            this.log(`🔑 SECURITY KEY AUTH OVERRIDE: ${JSON.stringify(options, null, 2)}`);
+            const options = await response.json();
+            this.log(`🌐 HYBRID AUTH OPTIONS: ${JSON.stringify(options, null, 2)}`);
+            
+            if (!options.publicKey || !options.publicKey.challenge) {
+                throw new Error('Server error - invalid hybrid options');
+            }
+            
+            // Convert challenge to ArrayBuffer
+            options.publicKey.challenge = this.base64ToArrayBuffer(options.publicKey.challenge);
+            
+            // Convert allowCredentials to ArrayBuffer
+            if (options.publicKey.allowCredentials) {
+                this.log(`🔧 Converting ${options.publicKey.allowCredentials.length} credentials`);
+                options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(cred => ({
+                    ...cred,
+                    id: this.base64ToArrayBuffer(cred.id)
+                }));
+            } else {
+                this.log(`🔧 No allowCredentials - using usernameless/discoverable credentials`);
+            }
+            
+            this.showStatus('auth-status', '🌐 Choose: Touch ID, phone passkey (QR), or security key...', 'info');
             
             const startTime = performance.now();
             const assertion = await navigator.credentials.get(options);
             const endTime = performance.now();
             
             if (assertion) {
-                this.log(`✅ SUCCESS: Security key authentication completed in ${endTime - startTime}ms`);
+                this.log(`✅ SUCCESS: Hybrid authentication completed in ${endTime - startTime}ms`);
                 this.log(`✅ Credential ID: ${assertion.id}`);
                 this.log(`✅ Authenticator: ${assertion.authenticatorAttachment || 'unknown'}`);
                 
-                this.showStatus('auth-status', '✅ Security key authentication successful with UI settings!', 'success');
+                // Verify the authentication
+                const authData = {
+                    id: assertion.id,
+                    rawId: this.arrayBufferToBase64(assertion.rawId),
+                    response: {
+                        authenticatorData: this.arrayBufferToBase64(assertion.response.authenticatorData),
+                        clientDataJSON: this.arrayBufferToBase64(assertion.response.clientDataJSON),
+                        signature: this.arrayBufferToBase64(assertion.response.signature),
+                        userHandle: assertion.response.userHandle ? this.arrayBufferToBase64(assertion.response.userHandle) : null
+                    },
+                    type: assertion.type
+                };
+                
+                const verifyResponse = await fetch('/webauthn/authenticate/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(authData)
+                });
+                
+                const result = await verifyResponse.json();
+                
+                if (result.success) {
+                    this.showStatus('auth-status', '✅ Hybrid authentication successful! Supports all authenticator types.', 'success');
+                } else {
+                    throw new Error(result.error || 'Verification failed');
+                }
             } else {
                 throw new Error('No credential returned');
             }
             
         } catch (error) {
-            this.showStatus('auth-status', `❌ Security key error: ${error.message}`, 'error');
-            this.log(`❌ Security key error: ${error.message}`);
+            this.showStatus('auth-status', `❌ Hybrid auth error: ${error.message}`, 'error');
+            this.log(`❌ Hybrid auth error: ${error.message}`);
         }
     }
     
@@ -3228,7 +3264,7 @@ function testAuthentication() {
 
 function testChromeBypassAuthentication() {
     if (superTest) {
-        // Call the CLIENT-SIDE Chrome bypass authentication method
+        // Call the CLIENT-SIDE hybrid authentication method - supports all authenticator types
         superTest.testChromeBypassAuthentication();
     }
 }

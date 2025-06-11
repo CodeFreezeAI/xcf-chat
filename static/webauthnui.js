@@ -340,6 +340,47 @@ function testMultiLineStatus() {
     }, 12000);
 }
 
+// Test function for Mac browser detection and strategy
+function testMacBrowserStrategy() {
+    console.log('🍎 Testing Mac Browser Strategy...');
+    
+    if (!webAuthnClient.isMac()) {
+        console.log('❌ Not running on Mac - test not applicable');
+        return;
+    }
+    
+    const browserInfo = {
+        isMac: webAuthnClient.isMac(),
+        isChrome: webAuthnClient.isChrome(), 
+        isFirefox: webAuthnClient.isFirefox(),
+        isSafari: navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome'),
+        userAgent: navigator.userAgent
+    };
+    
+    console.log('🔍 Mac Browser Detection:', browserInfo);
+    
+    // Test strategy detection
+    webAuthnClient.getBestRegistrationStrategy().then(result => {
+        console.log('🎯 Registration Strategy Result:', result);
+        
+        if (result.strategy === 'hybrid') {
+            console.log('✅ Mac browser correctly assigned hybrid strategy for "Other Options"');
+            
+            if (browserInfo.isChrome) {
+                console.log('🍎 Chrome on Mac: Will show "Chrome Mac: Touch ID or click Cancel for other options"');
+            } else if (browserInfo.isFirefox) {
+                console.log('🍎 Firefox on Mac: Will show "Firefox Mac: Touch ID or tap Other Options"');
+            } else if (browserInfo.isSafari) {
+                console.log('🍎 Safari on Mac: Will show "Safari Mac: Touch ID or tap Other Options"');
+            }
+        } else {
+            console.log('❌ Mac browser did not get hybrid strategy:', result.strategy);
+        }
+    }).catch(error => {
+        console.log('❌ Error testing Mac browser strategy:', error);
+    });
+}
+
 // Comprehensive WebAuthn browser debugging function
 function debugWebAuthnSupport() {
     console.log('🔍 WebAuthn Browser Debug Report');
@@ -543,8 +584,8 @@ function clearLoginStatus() {
     statusEl.style.opacity = '1';
 }
 
-// Check Windows Hello availability and update UI
-async function checkWindowsHelloSupport() {
+// Check platform authenticator availability and update UI
+async function checkPlatformAuthenticatorSupport() {
     if (!webAuthnClient.isSupported()) {
         return false;
     }
@@ -552,24 +593,24 @@ async function checkWindowsHelloSupport() {
     try {
         const isAvailable = await webAuthnClient.isWindowsHelloAvailable();
         const isWindows = webAuthnClient.isWindows();
+        const isMac = webAuthnClient.isMac();
+        
+        const registerBtn = document.getElementById('webauthn-register-btn');
+        const loginBtn = document.getElementById('webauthn-login-btn');
         
         if (isWindows && isAvailable) {
             console.log('✅ Windows Hello is available and ready');
-            // You could update button text or show Windows Hello-specific messaging
-            const registerBtn = document.getElementById('webauthn-register-btn');
-            const loginBtn = document.getElementById('webauthn-login-btn');
-            
-            if (registerBtn && loginBtn) {
-                registerBtn.textContent = 'Register with Windows Hello';
-                loginBtn.textContent = 'Login with Windows Hello';
-                
-                // Add privacy-friendly tooltip
-                registerBtn.title = 'Privacy-focused: Your biometric data stays on your device';
-                loginBtn.title = 'Privacy-focused: Your biometric data stays on your device';
-            }
             
             // Show privacy information if this is the first time
             showWindowsHelloPrivacyInfo();
+        } else if (isMac && isAvailable) {
+            console.log('✅ Mac Touch ID is available');
+            
+            if (registerBtn && loginBtn) {
+                // Add helpful tooltip for Mac users without changing button text
+                registerBtn.title = 'Touch ID or tap "Other Options" for security keys';
+                loginBtn.title = 'Use Touch ID or other available authenticators';
+            }
         } else if (isWindows && !isAvailable) {
             console.log('⚠️ Windows detected but Windows Hello not available');
             showWindowsHelloSetupInfo();
@@ -579,7 +620,7 @@ async function checkWindowsHelloSupport() {
         
         return isAvailable;
     } catch (error) {
-        console.log('Windows Hello check failed:', error);
+        console.log('Platform authenticator check failed:', error);
         return false;
     }
 }
@@ -622,4 +663,12 @@ function showWindowsHelloSetupInfo() {
             }
         }, 8000);
     }
-} 
+}
+
+// Initialize platform-specific UI when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Small delay to ensure all elements are loaded
+    setTimeout(() => {
+        checkPlatformAuthenticatorSupport();
+    }, 100);
+}); 

@@ -1,5 +1,6 @@
 /* ===== WEBAUTHN BUTTON STYLES ===== */
 /* Passkey messages use green color to distinguish from Security Key blue messages */
+/* All Mac browsers (Chrome, Firefox, Safari) support "Other Options" for security keys via hybrid mode */
 
 #webauthn-register-btn {
     background-color: var(--orange-color);

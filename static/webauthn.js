@@ -103,8 +103,15 @@ class WebAuthnClient {
             strategy = 'windows';
             console.log('💻 Windows detected - using Windows authenticators');
         } else if (this.isMac()) {
-            strategy = 'mac';
-            console.log('🖥️ Mac detected - preparing Touch ID registration');
+            // Mac (all browsers): Use hybrid mode to enable "Other Options"
+            strategy = 'hybrid';
+            if (this.isChrome()) {
+                console.log('🍎 Chrome on Mac detected - using hybrid mode for Touch ID + security key options');
+            } else if (this.isFirefox()) {
+                console.log('🍎 Firefox on Mac detected - using hybrid mode for Touch ID + security key options');
+            } else {
+                console.log('🍎 Safari on Mac detected - using hybrid mode for Touch ID + security key options');
+            }
         } else if (!platformAuthAvailable) {
             strategy = 'cross-platform'; // Use security keys
         } else if (platformAuthAvailable) {
@@ -228,7 +235,7 @@ class WebAuthnClient {
             } else if (strategy === 'cross-platform') {
                 endpoint = '/webauthn/register/begin/universal';
             } else if (strategy === 'hybrid') {
-                endpoint = '/webauthn/register/begin/hybrid';  // Hybrid endpoint for both QR code and security key
+                endpoint = '/webauthn/register/begin/hybrid';  // Hybrid endpoint for Touch ID + security keys
             } else {
                 endpoint = '/webauthn/register/begin';  // Default endpoint
             }
@@ -277,12 +284,20 @@ class WebAuthnClient {
             } else if (strategy === 'platform') {
                 onStatus('Create passkey with biometrics', 'info');
             } else if (strategy === 'hybrid') {
-                onStatus('Choose: QR code (phone) or security key', 'info');
+                if (this.isMac()) {
+                    if (this.isChrome()) {
+                        onStatus('🍎 Chrome Mac: Touch ID or click "Cancel" for other options', 'info');
+                    } else if (this.isFirefox()) {
+                        onStatus('🍎 Firefox Mac: Touch ID or tap "Other Options"', 'info');
+                    } else {
+                        onStatus('🍎 Safari Mac: Touch ID or tap "Other Options"', 'info');
+                    }
+                } else {
+                    onStatus('Choose: QR code (phone) or security key', 'info');
+                }
             } else {
-                onStatus('Create passkey', 'info');
+                onStatus('🔐 Create passkey or tap "Other Options"', 'info');
             }
-            
-            onStatus('Create passkey', 'info');
             
             // Convert base64 strings to ArrayBuffer
             options.publicKey.challenge = this.base64ToArrayBuffer(options.publicKey.challenge, atobFn);
@@ -352,6 +367,14 @@ class WebAuthnClient {
                         throw new Error('Chrome WebAuthn Issue\nYour device may not be compatible\nTry Firefox or Edge browser');
                     } else if (this.isWindows()) {
                         throw new Error('Windows Hello Registration Failed\nPlease check Windows Hello setup\nSettings > Accounts > Sign-in options');
+                    } else if (this.isMac()) {
+                        if (this.isChrome()) {
+                            throw new Error('Chrome Mac Registration\nClick "Cancel" then try other options\nOr try different authentication method');
+                        } else if (this.isFirefox()) {
+                            throw new Error('Firefox Mac Registration\nTap "Other Options" for security keys\nOr try different authentication method');
+                        } else {
+                            throw new Error('Safari Mac Registration\nTap "Other Options" for security keys\nOr try Chrome/Firefox for more options');
+                        }
                     } else if (credentialError.message && credentialError.message.includes('device')) {
                         throw new Error('Device Not Compatible\nYour device may not support this\nTry a different browser or device');
                     } else {
@@ -479,14 +502,22 @@ class WebAuthnClient {
             
             // Check browser support first
             const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-            if (isSafari) {
-                console.log('🍎 Safari detected - checking WebAuthn support...');
-                if (!window.PublicKeyCredential) {
-                    const error = 'Safari WebAuthn not supported\nPlease update Safari or use Chrome';
-                    onError(error);
-                    return { success: false, error };
+            if (this.isMac()) {
+                if (this.isChrome()) {
+                    console.log('🍎 Chrome on Mac detected - optimizing for security keys');
+                    onStatus('Chrome Mac: Insert security key or click "Cancel" for Touch ID', 'info');
+                } else if (this.isFirefox()) {
+                    console.log('🍎 Firefox on Mac detected - optimizing for security keys');
+                    onStatus('Firefox Mac: Insert security key or use Touch ID', 'info');
+                } else if (isSafari) {
+                    console.log('🍎 Safari detected - checking WebAuthn support...');
+                    if (!window.PublicKeyCredential) {
+                        const error = 'Safari WebAuthn not supported\nPlease update Safari or use Chrome';
+                        onError(error);
+                        return { success: false, error };
+                    }
+                    onStatus('Safari Mac: Insert security key', 'info');
                 }
-                onStatus('Safari: Insert security key', 'info');
             } else if (this.isChrome() && this.isLinux()) {
                 onStatus('Choose: QR code (phone) or security key', 'info');
             } else {
@@ -575,11 +606,20 @@ class WebAuthnClient {
                 };
             }
             
-            // Safari-specific handling - Security key mode
-            if (isSafari) {
-                console.log('🍎 Safari detected: SECURITY KEY MODE');
+            // Mac-specific handling - Security key mode for all Mac browsers
+            if (this.isMac()) {
+                if (this.isChrome()) {
+                    console.log('🍎 Chrome Mac detected: SECURITY KEY MODE');
+                    onStatus('Chrome Mac: Insert YubiKey or click "Cancel" for Touch ID', 'info');
+                } else if (this.isFirefox()) {
+                    console.log('🍎 Firefox Mac detected: SECURITY KEY MODE');
+                    onStatus('Firefox Mac: Insert YubiKey or use Touch ID', 'info');
+                } else if (isSafari) {
+                    console.log('🍎 Safari detected: SECURITY KEY MODE');
+                    onStatus('Safari Mac: Insert YubiKey', 'info');
+                }
                 
-                // For Safari, use the original server credentials but with security key optimizations
+                // For all Mac browsers, use the original server credentials but with security key optimizations
                 // This preserves any actual credentials while optimizing for external authenticators
                 securityKeyOptions = {
                     challenge: options.publicKey.challenge,
@@ -595,14 +635,25 @@ class WebAuthnClient {
                         ...cred,
                         transports: ['usb', 'nfc', 'hybrid'] // Hint that these are for external authenticators
                     }));
-                    console.log('🍎 Safari: Modified credentials for security key preference');
+                    
+                    if (this.isChrome()) {
+                        console.log('🍎 Chrome Mac: Modified credentials for security key preference');
+                    } else if (this.isFirefox()) {
+                        console.log('🍎 Firefox Mac: Modified credentials for security key preference');
+                    } else {
+                        console.log('🍎 Safari Mac: Modified credentials for security key preference');
+                    }
                 } else {
-                    console.log('🍎 Safari: No specific credentials - allowing any security key');
+                    if (this.isChrome()) {
+                        console.log('🍎 Chrome Mac: No specific credentials - allowing any security key');
+                    } else if (this.isFirefox()) {
+                        console.log('🍎 Firefox Mac: No specific credentials - allowing any security key');
+                    } else {
+                        console.log('🍎 Safari Mac: No specific credentials - allowing any security key');
+                    }
                 }
                 
-                onStatus('Safari: Insert YubiKey', 'info');
-                
-                // Add a small delay before calling get() to ensure Safari is ready
+                // Add a small delay before calling get() to ensure Mac browsers are ready
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
             }
@@ -658,12 +709,19 @@ class WebAuthnClient {
         } catch (error) {
             console.log('🔑 Security key authentication failed:', error.name, error.message);
             
-            // Enhanced Safari error handling
+            // Enhanced Mac browser error handling
             const isSafariBrowser = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
             
             let errorMessage = error.message;
-            if (isSafariBrowser) {
-                console.log('🍎 Safari security key error:', error);
+            if (this.isMac()) {
+                if (this.isChrome()) {
+                    console.log('🍎 Chrome Mac security key error:', error);
+                } else if (this.isFirefox()) {
+                    console.log('🍎 Firefox Mac security key error:', error);
+                } else if (isSafariBrowser) {
+                    console.log('🍎 Safari security key error:', error);
+                }
+                
                 if (error.name === 'NotAllowedError') {
                     errorMessage = 'Make sure you have\n1. Security key is inserted\n2. Registered with this key\n3. Touch the key when it blinks';
                 } else if (error.name === 'NotSupportedError') {
