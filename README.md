@@ -25,18 +25,35 @@ A modern web-based chat application built with Swift's Network framework. This c
 ```bash
 git clone <repository>
 cd xcf-chat
-swift build -c release
 ```
 
-2. **Start the server:**
+2. **Run the deploy script:**
 ```bash
-swift run ChatServer 8080 -rp-id localhost
+./deploy.sh
 ```
 
 3. **Open in browser:**
 ```
 http://localhost:8080
 ```
+
+### Deploy Script
+
+The `deploy.sh` script handles building, database management, and server startup consistently across devices.
+
+```bash
+./deploy.sh                        # localhost development (port 8080)
+./deploy.sh -c                     # clean database + start fresh
+./deploy.sh -r                     # release build
+./deploy.sh -cr                    # clean db + release build
+./deploy.sh 8081                   # localhost on custom port
+./deploy.sh 8080 chat.xcf.ai      # production with domain
+./deploy.sh -c 8080 chat.xcf.ai   # clean db + production
+```
+
+**Flags:**
+- `-c` — Clean WebAuthn database (fresh start, wipes all credentials)
+- `-r` — Release build (optimized, slower to compile)
 
 4. **Share with others:**
 - On the same network: `http://YOUR_LOCAL_IP:8080`

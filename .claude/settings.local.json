@@ -7,7 +7,8 @@
       "Bash(pkill:*)",
       "Bash(lsof:*)",
       "Bash(kill:*)",
-      "WebFetch(domain:webauthn.io)"
+      "WebFetch(domain:webauthn.io)",
+      "Bash(chmod:*)"
     ]
   }
 }
