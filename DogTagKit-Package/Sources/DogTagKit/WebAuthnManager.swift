@@ -2427,49 +2427,6 @@ public class WebAuthnManager {
         return options
     }
     
-    // Android registration with discoverable credentials for credential provider support
-    public func generateAndroidRegistrationOptions(username: String, displayName: String? = nil) -> [String: Any] {
-        let challenge = generateChallenge()
-        let userId = generateUserId()
-
-        let rpData: [String: Any] = [
-            "id": rpId,
-            "name": rpName ?? rpId
-        ]
-
-        let displayNameToUse = displayName ?? username
-        let userData: [String: Any] = [
-            "id": userId,
-            "name": username,
-            "displayName": displayNameToUse
-        ]
-
-        // ES256 and RS256 are widely supported on Android credential providers
-        let pubKeyCredParams: [[String: Any]] = [
-            ["type": "public-key", "alg": -7],   // ES256
-            ["type": "public-key", "alg": -257]   // RS256
-        ]
-
-        let options: [String: Any] = [
-            "publicKey": [
-                "challenge": challenge,
-                "rp": rpData,
-                "user": userData,
-                "pubKeyCredParams": pubKeyCredParams,
-                "timeout": 120000,
-                "attestation": "none",
-                "authenticatorSelection": [
-                    "userVerification": "preferred",
-                    "requireResidentKey": false,
-                    "residentKey": "preferred"
-                    // NO authenticatorAttachment — let Android choose platform or third-party provider
-                ] as [String: Any]
-            ] as [String: Any]
-        ]
-
-        return options
-    }
-
     // Software-based registration for Linux (browser-stored credentials)
     public func generateLinuxSoftwareRegistrationOptions(username: String, displayName: String? = nil) -> [String: Any] {
         let challenge = generateChallenge()

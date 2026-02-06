@@ -77,8 +77,6 @@ public class WebAuthnServer {
             return handleRegisterBeginUniversal(request)
         case ("POST", "/webauthn/register/begin/hybrid"):
             return handleRegisterBeginHybrid(request)
-        case ("POST", "/webauthn/register/begin/android"):
-            return handleRegisterBeginAndroid(request)
         case ("POST", "/webauthn/register/complete"):
             return handleRegisterComplete(request)
         case ("POST", "/webauthn/authenticate/begin"):
@@ -185,22 +183,7 @@ public class WebAuthnServer {
         print("[WebAuthnServer] Hybrid registration options generated for: \(username)")
         return HTTPResponse.json(options)
     }
-
-    private func handleRegisterBeginAndroid(_ request: HTTPRequest) -> HTTPResponse {
-        guard let body = request.body,
-              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-              let username = json["username"] as? String else {
-            print("[WebAuthnServer] Android registration begin: Invalid request body")
-            return HTTPResponse.error("Invalid request body - username required")
-        }
-
-        print("[WebAuthnServer] Using Android registration options for: \(username)")
-        let options = manager.generateAndroidRegistrationOptions(username: username)
-
-        print("[WebAuthnServer] Android registration options generated for: \(username)")
-        return HTTPResponse.json(options)
-    }
-
+    
     private func handleRegisterComplete(_ request: HTTPRequest) -> HTTPResponse {
         guard let body = request.body,
               let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
@@ -575,11 +558,7 @@ extension WebAuthnServer {
         router.addRoute(method: "POST", path: "/webauthn/register/begin/hybrid") { request in
             return self.handleRequest(request)
         }
-
-        router.addRoute(method: "POST", path: "/webauthn/register/begin/android") { request in
-            return self.handleRequest(request)
-        }
-
+        
         router.addRoute(method: "POST", path: "/webauthn/register/complete") { request in
             return self.handleRequest(request)
         }

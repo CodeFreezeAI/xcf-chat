@@ -46,13 +46,29 @@ class WebAuthnClient {
     }
     
     isLinux() {
-        return navigator.userAgent.includes('Linux');
+        return navigator.userAgent.includes('Linux') && !navigator.userAgent.includes('Android');
+    }
+
+    isAndroid() {
+        return navigator.userAgent.includes('Android');
     }
     
     // Enhanced platform authenticator check with Linux detection
     async isPlatformAuthenticatorAvailable() {
         if (!this.isSupported()) return false;
-        
+
+        // Android has built-in biometric support via credential providers
+        if (this.isAndroid()) {
+            try {
+                const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                console.log(`🤖 Android platform authenticator available: ${available}`);
+                return available;
+            } catch (error) {
+                console.log('🤖 Android platform authenticator check failed:', error);
+                return false;
+            }
+        }
+
         // On Linux, platform authenticators are rarely available
         if (this.isLinux()) {
             console.log('🐧 Linux detected - platform authenticators typically not available');
@@ -85,7 +101,10 @@ class WebAuthnClient {
         let strategy = 'default';
         let linuxChoice = null;
         
-        if (this.isLinux()) {
+        if (this.isAndroid()) {
+            strategy = 'android';
+            console.log('🤖 Android detected - using credential provider mode');
+        } else if (this.isLinux()) {
             if (this.isFirefox()) {
                 // Firefox on Linux: Use hardware key automatically (works well)
                 strategy = 'linux-hardware';
@@ -226,7 +245,9 @@ class WebAuthnClient {
             let endpoint = '/webauthn/register/begin';
             
             // Select appropriate endpoint based on strategy
-            if (strategy === 'linux-hardware') {
+            if (strategy === 'android') {
+                endpoint = '/webauthn/register/begin/android';  // Android credential provider endpoint
+            } else if (strategy === 'linux-hardware') {
                 endpoint = '/webauthn/register/begin/linux';  // Hardware security key endpoint
             } else if (strategy === 'linux-software') {
                 endpoint = '/webauthn/register/begin/linux-software';  // Software browser endpoint
@@ -249,6 +270,7 @@ class WebAuthnClient {
                 isFirefox: this.isFirefox(),
                 isWindows: this.isWindows(),
                 isMac: this.isMac(),
+                isAndroid: this.isAndroid(),
                 isLinux: this.isLinux(),
                 platform: typeof window !== 'undefined' ? window.navigator.platform : '',
                 strategy: strategy,
@@ -275,7 +297,9 @@ class WebAuthnClient {
             }
             
             // Provide strategy-specific user guidance
-            if (strategy === 'linux-hardware') {
+            if (strategy === 'android') {
+                onStatus('🤖 Android: Create passkey with your credential provider', 'info');
+            } else if (strategy === 'linux-hardware') {
                 onStatus('🐧🦊 Firefox Linux: Insert security key', 'info');
             } else if (strategy === 'linux-software') {
                 onStatus('🐧 Linux: Setting up authentication', 'info');
@@ -783,7 +807,13 @@ class WebAuthnClient {
             
             // Modify options to prefer platform authenticators (passkeys)
             options.publicKey.timeout = 60000; // 60 seconds for passkeys
-            
+
+            // Android: use preferred userVerification for credential provider compatibility
+            if (this.isAndroid()) {
+                options.publicKey.userVerification = 'preferred';
+                console.log('🤖 Android: Using preferred userVerification for credential provider');
+            }
+
             const assertion = await credentialsAPI.get({ publicKey: options.publicKey });
             
             if (!assertion) {

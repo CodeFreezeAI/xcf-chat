@@ -9,6 +9,7 @@ This implementation now supports **both QR code/phone passkey AND security key o
 - **📱 QR Code/Phone Passkey** - Scan QR code to use your phone as authenticator
 - **🔑 Security Key** - Insert USB/NFC security key (YubiKey, etc.)
 - **💻 Platform Authenticators** - Touch ID, Face ID, Windows Hello
+- **🤖 Android Credential Providers** - Third-party credential managers with discoverable credentials
 - **🌐 Universal Compatibility** - Works across all browsers and platforms
 
 ### 🎯 Chrome Behavior
@@ -155,6 +156,12 @@ To migrate existing implementations:
 - Ensure phone supports WebAuthn (iOS 16+, Android with Chrome)
 - Check phone's biometric setup
 - Verify network connectivity
+
+### Android showing Linux behavior?
+- Android's user agent contains "Linux", so `isLinux()` now explicitly excludes Android
+- Check console for `🤖 Android` logs (not `🐧 Linux`)
+- Android uses `/webauthn/register/begin/android` endpoint with discoverable credentials
+- Third-party credential providers require `residentKey: "preferred"` and no `authenticatorAttachment`
 
 ## 📖 Resources
 

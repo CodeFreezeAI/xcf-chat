@@ -1,9 +1,3 @@
-/.build
-/.swiftpm
-Tests/.DS_Store
-Sources/.DS_Store
-.DS_Store
-.DS_Store
-Sources/.DS_Store
-Tests/.DS_Store
+**/.build
+**/.swiftpm
 .DS_Store

@@ -7,7 +7,8 @@ This directory contains the external HTML, CSS, and JavaScript files that are se
 - **`index.html`** - Main HTML structure for the chat application
 - **`style.css`** - Complete CSS styling including mobile-responsive design
 - **`chat.js`** - JavaScript functionality for chat client and UI interactions
-- **`webauthn.js`** - WebAuthn authentication functions (passkey registration and login)
+- **`webauthn.js`** - WebAuthn authentication functions (passkey registration and login) with platform-specific detection for Android, Linux, macOS, Windows
+- **`hybrid-webauthn.js`** - Hybrid WebAuthn client for QR code + security key testing
 
 ## How It Works
 

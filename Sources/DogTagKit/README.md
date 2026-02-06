@@ -40,7 +40,8 @@
 - ✅ **iOS/iPadOS** - Face ID, Touch ID, passkey sync via iCloud Keychain
 - ✅ **macOS** - Touch ID, passkey sync via iCloud Keychain
 - ✅ **Windows** - Windows Hello (face, fingerprint, PIN), Microsoft Authenticator sync
-- ✅ **Android** - Biometric unlock, Google Password Manager sync
+- ✅ **Android** - Biometric unlock, third-party credential provider support, discoverable credentials
+- ✅ **Linux** - Hardware security keys (FIDO2/U2F), browser-stored credentials
 - ✅ **Web Browsers** - Chrome, Firefox, Safari, Edge (all modern versions)
 
 ## 🏗️ Architecture
@@ -229,6 +230,49 @@ Content-Type: application/json
 }
 ```
 
+#### **Android Registration Begin**
+```http
+POST /webauthn/register/begin/android
+Content-Type: application/json
+
+{
+    "username": "john_doe"
+}
+```
+
+**Response:**
+```json
+{
+    "publicKey": {
+        "challenge": "base64-encoded-challenge",
+        "rp": {
+            "id": "example.com",
+            "name": "My App"
+        },
+        "user": {
+            "id": "base64-user-id",
+            "name": "john_doe",
+            "displayName": "John Doe"
+        },
+        "pubKeyCredParams": [
+            { "type": "public-key", "alg": -7 },
+            { "type": "public-key", "alg": -257 }
+        ],
+        "authenticatorSelection": {
+            "userVerification": "preferred",
+            "requireResidentKey": false,
+            "residentKey": "preferred"
+        },
+        "timeout": 120000
+    }
+}
+```
+
+**Key Design Decisions:**
+- **No `authenticatorAttachment`** — Lets Android OS choose between platform authenticators and third-party credential providers
+- **`residentKey: "preferred"`** — Creates discoverable credentials for usernameless login when the provider supports it
+- **`userVerification: "preferred"`** — Delegates biometric handling to the credential provider
+
 ### **🚀 DogTagKit Extensions (Application-Level)**
 
 #### **Username Availability Check**
@@ -333,7 +377,7 @@ private func verifyWebAuthnSignature(
 | Platform | Authenticator | Sync Service | Backup | Cross-Device |
 |----------|---------------|--------------|--------|--------------|
 | **iOS/iPadOS** | Face ID, Touch ID | iCloud Keychain | ✅ | ✅ |
-| **Android** | Fingerprint, Face | Google Password Manager | ✅ | ✅ |
+| **Android** | Fingerprint, Face | Google/Third-Party Credential Providers | ✅ | ✅ |
 | **Windows** | Windows Hello | Microsoft Authenticator | ✅ | ✅ |
 | **macOS** | Touch ID | iCloud Keychain | ✅ | ✅ |
 | **Linux** | Browser Storage | Chrome/Firefox | ✅ | ✅ |

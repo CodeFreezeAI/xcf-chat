@@ -28,7 +28,11 @@ class HybridWebAuthnClient {
     }
 
     isLinux() {
-        return /Linux/.test(navigator.platform);
+        return /Linux/.test(navigator.platform) && !/Android/.test(navigator.userAgent);
+    }
+
+    isAndroid() {
+        return /Android/.test(navigator.userAgent);
     }
 
     async register(username, emoji = '👤', callbacks = {}, browserAPI = {}) {

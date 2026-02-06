@@ -69,6 +69,28 @@ public func generateHybridAuthenticationOptions(username: String? = nil) throws 
 - **URL**: `http://localhost:8080/hybrid-webauthn-test.html`
 - **Purpose**: Testing and demonstrating hybrid functionality
 
+## Android Support
+
+Android devices are now **sandboxed from Linux code paths**. Previously, Android's user agent (which contains "Linux") caused Android devices to be routed through Linux-specific code, bypassing biometric authenticators and credential providers.
+
+### Platform Detection Fix
+```javascript
+// webauthn.js - Android excluded from Linux detection
+isLinux() {
+    return navigator.userAgent.includes('Linux') && !navigator.userAgent.includes('Android');
+}
+
+isAndroid() {
+    return navigator.userAgent.includes('Android');
+}
+```
+
+### Android Registration Endpoint
+- **Endpoint**: `POST /webauthn/register/begin/android`
+- **Discoverable Credentials**: `residentKey: "preferred"` for usernameless login
+- **Credential Providers**: No `authenticatorAttachment` restriction, supports third-party providers
+- **Biometrics**: `userVerification: "preferred"` delegates to the credential provider
+
 ## Key Technical Differences
 
 ### Standard WebAuthn Options

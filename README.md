@@ -179,6 +179,12 @@ While adhering to the **W3C WebAuthn standard**, DogTagKit adds practical enhanc
 - `POST /webauthn/authenticate/begin` ✅ Generate authentication challenge  
 - `POST /webauthn/authenticate/complete` ✅ Verify authentication response
 
+#### **Platform-Specific Endpoints** (DogTagKit Extensions)
+- `POST /webauthn/register/begin/android` 🤖 **Android credential provider registration** (discoverable credentials)
+- `POST /webauthn/register/begin/hybrid` 🔄 **Hybrid registration** (QR code + security key)
+- `POST /webauthn/register/begin/linux` 🐧 **Linux hardware key registration**
+- `POST /webauthn/register/begin/linux-software` 🐧 **Linux software-based registration**
+
 #### **Custom Enhancement Endpoints** (DogTagKit Extensions)
 - `POST /webauthn/username/check` 🆕 **Username availability checking**
 
@@ -253,7 +259,8 @@ const requestBody = username === null ? {} : { username: username };
 - ✅ **Face ID** - iPhone/iPad facial recognition
 - ✅ **Touch ID** - iPhone/iPad/MacBook fingerprint
 - ✅ **Windows Hello** - Windows biometric authentication
-- ✅ **Android Biometrics** - Fingerprint/face unlock
+- ✅ **Android Biometrics** - Fingerprint/face unlock via credential providers
+- ✅ **Android Third-Party Credential Providers** - Works with non-Google credential managers
 
 #### **🎯 Authentication Flow (W3C Standard)**
 
@@ -305,12 +312,35 @@ TimeoutError       // Operation timed out
 // Windows Hello specific guidance
 "Windows Hello Registration Failed\nCheck Windows Hello setup\nSettings > Accounts > Sign-in options"
 
-// Apple device specific guidance  
+// Apple device specific guidance
 "Touch ID/Face ID Required\nEnable biometrics in Settings\nSettings > Touch ID & Passcode"
 
 // Chrome compatibility guidance
 "Chrome WebAuthn Issue\nTry Firefox or Edge browser\nSome devices have Chrome compatibility issues"
+
+// Android credential provider guidance
+"🤖 Android: Create passkey with your credential provider"
 ```
+
+#### **🤖 Android Credential Provider Support**
+
+Android devices are automatically detected and sandboxed from Linux code paths (since Android's user agent contains "Linux"). The Android registration endpoint uses:
+
+```javascript
+// Android registration options (server-side)
+authenticatorSelection: {
+    userVerification: "preferred",     // Let Android handle biometrics
+    requireResidentKey: false,
+    residentKey: "preferred"           // Discoverable credentials for usernameless login
+    // NO authenticatorAttachment — lets OS choose platform or third-party provider
+}
+```
+
+This ensures:
+- ✅ Third-party credential providers (not just Google's built-in manager) are supported
+- ✅ Discoverable credentials are created for usernameless login
+- ✅ The OS credential manager handles provider selection
+- ✅ Biometric verification is delegated to the credential provider
 
 #### **🏗️ Server Implementation (FIDO2 Compliant)**
 
@@ -367,6 +397,7 @@ func generateAuthenticationOptions(username: String?) -> PublicKeyCredentialRequ
 | **Chrome 67+** | ✅ | ✅ | ✅ | ✅ |
 | **Firefox 60+** | ✅ | ✅ | ✅ | ✅ |
 | **Firefox 60+ (Linux)** | ✅ | ✅ | ✅ | 🔑 |
+| **Chrome (Android)** | ✅ | ✅ | ✅ | ✅ |
 | **Safari 14+** | ✅ | ✅ | ✅ | ✅ |
 | **Edge 18+** | ✅ | ✅ | ✅ | ✅ |
 | **iOS Safari 14+** | ✅ | ✅ | ✅ | ✅ |
