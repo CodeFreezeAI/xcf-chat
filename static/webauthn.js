@@ -202,13 +202,21 @@ class WebAuthnClient {
             }
 
             this.inProgress = true;
-            const { 
-                fetch: fetchFn = fetch, 
-                atob: atobFn = atob, 
+            const {
+                fetch: fetchFn = fetch,
+                atob: atobFn = atob,
                 btoa: btoaFn = btoa,
                 credentialsAPI = navigator.credentials
             } = browserAPI;
-            
+
+            // Guard: secure context required for WebAuthn
+            if (!credentialsAPI || !credentialsAPI.create) {
+                const msg = 'Secure Context Required\nWebAuthn needs HTTPS or localhost\nAccess via localhost instead of IP address';
+                onStatus('Not a secure context', 'error');
+                onError(msg);
+                return { success: false, error: msg };
+            }
+
             onStatus('Checking username availability...', 'info');
             
             // Check if username is available before proceeding
@@ -468,12 +476,21 @@ class WebAuthnClient {
         }
 
         this.inProgress = true;
-        const { 
-            fetch: fetchFn = fetch, 
-            atob: atobFn = atob, 
+        const {
+            fetch: fetchFn = fetch,
+            atob: atobFn = atob,
             btoa: btoaFn = btoa,
             credentialsAPI = navigator.credentials
         } = browserAPI;
+
+        // Guard: secure context required for WebAuthn
+        if (!credentialsAPI || !credentialsAPI.get) {
+            this.inProgress = false;
+            const msg = 'Secure Context Required\nWebAuthn needs HTTPS or localhost\nAccess via localhost instead of IP address';
+            onStatus('Not a secure context', 'error');
+            onError(msg);
+            return { success: false, error: msg };
+        }
 
         try {
             onStatus('Preparing passkey login...', 'info');
