@@ -9,7 +9,9 @@
       "Bash(kill:*)",
       "WebFetch(domain:webauthn.io)",
       "Bash(chmod:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(ls:*)",
+      "Bash(./deploy.sh:*)"
     ]
   }
 }
