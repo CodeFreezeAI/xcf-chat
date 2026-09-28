@@ -1175,3 +1175,9 @@ Linux users get **two choices** - convenience vs maximum security:
 | **Cost** | $20-60 per key | 🟡 Investment |
 | **Portability** | Physical key | 🟢 Universal |
 | **Tamper Resistance** | Hardware-level | ✅ Yes | 
+
+---
+
+**AgentiLoop:** [agentiloop.ai](https://agentiloop.ai/)
+
+Copyright © 2026 AgentiLoop.ai, a Logos InkPen LLC company. All rights reserved.

@@ -609,3 +609,9 @@ This project demonstrates Swift's capabilities for web development. Areas for en
 ## License
 
 This project is provided as-is for educational and demonstration purposes. 
+
+---
+
+**AgentiLoop:** [agentiloop.ai](https://agentiloop.ai/)
+
+Copyright © 2026 AgentiLoop.ai, a Logos InkPen LLC company. All rights reserved.

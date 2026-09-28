@@ -31,3 +31,9 @@ The Swift files in `Sources/MultiPeerChatCore/` have been refactored to read fro
 You can now directly edit these files to modify the chat interface. The Swift server will automatically serve the updated content on the next request.
 
 **Note**: If these files are missing or unreadable, the Swift functions will fall back to basic content to ensure the application still works. 
+
+---
+
+**AgentiLoop:** [agentiloop.ai](https://agentiloop.ai/)
+
+Copyright © 2026 AgentiLoop.ai, a Logos InkPen LLC company. All rights reserved.
