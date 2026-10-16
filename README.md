@@ -1,5 +1,8 @@
 # 💬 chat.XCF.ai Web Server
 
+🤖 **Built by the makers of [Agent!](https://github.com/AgentiLoop/Agent)**, an autonomous macOS agent.
+
+
 A modern web-based chat application built with Swift's Network framework. This chat server provides a beautiful web interface for real-time communication between multiple users across the internet.
 
 ## Features
